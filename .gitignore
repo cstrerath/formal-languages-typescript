@@ -1,0 +1,43 @@
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo
+dist/
+build/
+*.js.map
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IDE - IntelliJ / WebStorm
+.idea/
+*.iml
+
+# Operating System
+.DS_Store
+Thumbs.db
+*~
+
+# Temporary files
+*.tmp
+*.log
+*.swp
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.pyc
