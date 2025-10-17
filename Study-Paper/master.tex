@@ -1,0 +1,78 @@
+\documentclass[a4paper,ngerman,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{helvet}
+\usepackage{microtype}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage[ngerman]{babel}
+\usepackage[german=quotes]{csquotes}
+\usepackage[backend=biber, autocite=inline, style=numeric,sorting=none]{biblatex}
+\addbibresource{literatur/bibliography.bib}  % Angepasster Pfad!
+\usepackage{makeidx}
+\usepackage{graphicx}
+\usepackage{acronym}
+\usepackage{geometry}
+\usepackage{tocloft}
+\setlength{\cftsecnumwidth}{2.9em}
+\setlength{\cftsubsecnumwidth}{3.9em}
+\setlength{\cftsubsubsecnumwidth}{4.9em}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{glossaries}
+\usepackage{tabularx}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{makecell}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{pdfpages}
+\usepackage{xurl}
+\usepackage[hidelinks=true]{hyperref}
+
+\geometry{
+	left=3.5cm,
+	top=2.5cm,
+	right=2.5cm,
+	bottom=2.5cm}
+
+\makenoidxglossaries
+\input{literatur/glossar}  % Angepasster Pfad!
+
+\titleformat{\paragraph}
+{\normalfont\normalsize\bfseries}
+{\theparagraph}{1em}{\vspace{0.5em}}
+
+\titlespacing*{\paragraph}{0pt}{*0.5}{*0.5}
+
+\begin{document}
+	\pagenumbering{Alph}
+	\input{vorspann/titlepage}
+	\cleardoublepage
+	\pagenumbering{roman}
+	\input{vorspann/eigenleistung}
+	\cleardoublepage
+	\input{vorspann/abstract}
+	\cleardoublepage
+	\input{vorspann/inhaltsverzeichnis}
+	\cleardoublepage
+	\input{vorspann/acronyms}
+	\cleardoublepage
+	\listoffigures
+	\cleardoublepage
+	\listoftables
+	\cleardoublepage
+	\printnoidxglossaries
+	\cleardoublepage
+	\pagenumbering{arabic}
+	\input{kapitel/problemstellung}
+	\cleardoublepage
+	\input{kapitel/grundlagen}
+	\cleardoublepage
+	\input{kapitel/hauptteil}
+	\cleardoublepage
+	\input{kapitel/zusammenfassung}
+	\cleardoublepage
+	\emergencystretch=1em
+	\printbibliography[heading=bibnumbered, title={Literaturverzeichnis}]
+	\cleardoublepage
+	\input{kapitel/anhang}
+\end{document}

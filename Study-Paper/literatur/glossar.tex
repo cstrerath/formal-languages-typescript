@@ -1,0 +1,870 @@
+% !TEX root =  ../master.tex
+\newglossaryentry{ransomware}
+{
+	name={Rans\-om\-ware},
+	description={Schad\-soft\-ware, die Da\-tei\-en oder gan\-ze Com\-pu\-ter\-sys\-te\-me ver\-schlüs\-selt und für de\-ren Frei\-ga\-be ein Lö\-se\-geld (engl. ran\-som) for\-dert}
+}
+\newglossaryentry{spof}
+{
+	name={Sin\-gle Point of Fai\-lure},
+	description={Ein ein\-zel\-ner Sys\-tem\-be\-stand\-teil, des\-sen Aus\-fall zum Ver\-sa\-gen des ge\-sam\-ten Sys\-tems führt}
+}
+\newglossaryentry{client}
+{
+	name={Cli\-ent},
+	description={Ein Com\-pu\-ter oder ein Soft\-ware\-pro\-gramm, das Diens\-te, Res\-sour\-cen oder Da\-ten von ei\-nem Ser\-ver an\-for\-dert und emp\-fängt}
+}
+\newglossaryentry{monokultur}
+{
+	name={Mo\-no\-kul\-tur},
+	description={Die vor\-herr\-schen\-de Ver\-wen\-dung ei\-nes ein\-zi\-gen Be\-triebs\-sys\-tems oder ei\-ner ein\-zi\-gen Tech\-no\-lo\-gie in ei\-ner IT-In\-fra\-struk\-tur, was zu er\-höh\-ten Si\-cher\-heits\-ri\-si\-ken und ge\-rin\-ge\-rer Di\-ver\-si\-tät füh\-ren kann}
+}
+\newglossaryentry{integration}
+{
+	name={In\-te\-gra\-ti\-on},
+	description={Der Pro\-zess der Ein\-bin\-dung und Ver\-net\-zung ver\-schie\-de\-ner Sys\-te\-me, so\-dass die\-se naht\-los zu\-sam\-men\-ar\-bei\-ten und Da\-ten aus\-tau\-schen kön\-nen}
+}
+\newglossaryentry{proof-of-concept}
+{
+	name={Proof-of-Con\-cept},
+	description={Ein De\-mons\-tra\-tor oder Pro\-to\-typ, der die Durch\-führ\-bar\-keit und prak\-ti\-sche Re\-a\-li\-sier\-bar\-keit ei\-ner tech\-ni\-schen Lö\-sung oder ei\-nes Kon\-zepts be\-legt}
+}
+\newglossaryentry{benutzer-id-zuordnung}
+{
+	name={Be\-nut\-zer-ID-Zu\-ord\-nung},
+	description={Die ein\-deu\-ti\-ge und nach\-voll\-zieh\-ba\-re Ver\-knüp\-fung von Be\-nut\-zer\-ken\-nun\-gen zwi\-schen ver\-schie\-de\-nen Sys\-te\-men zur Ge\-währ\-leis\-tung kon\-sis\-ten\-ter Zu\-griffs\-rech\-te}
+}
+\newglossaryentry{gruppenrichtlinien}
+{
+	name={Grup\-pen\-richt\-li\-ni\-en},
+	description={Zen\-tra\-le Kon\-fi\-gu\-ra\-ti\-ons\-richt\-li\-ni\-en in Win\-dows-Do\-mä\-nen, die au\-to\-ma\-tisch auf alle an\-ge\-schlos\-se\-nen Cli\-ents an\-ge\-wen\-det wer\-den und ein\-heit\-li\-che Si\-cher\-heits- und Sys\-tem\-ein\-stel\-lun\-gen ge\-währ\-leis\-ten}
+}
+\newglossaryentry{vendor-lock-in}
+{
+	name={Ven\-dor Lock-In},
+	description={Die Ab\-hän\-gig\-keit ei\-nes Kun\-den von ei\-nem be\-stimm\-ten An\-bie\-ter auf\-grund pro\-prie\-tä\-rer Tech\-no\-lo\-gi\-en oder Stan\-dards, die den Wech\-sel zu al\-ter\-na\-ti\-ven Lö\-sun\-gen er\-schwe\-ren oder un\-mög\-lich ma\-chen}
+}
+\newglossaryentry{interoperabilität}
+{
+	name={In\-ter\-ope\-ra\-bi\-li\-tät},
+	description={Die Fä\-hig\-keit ver\-schie\-de\-ner Sys\-te\-me, Tech\-no\-lo\-gi\-en oder An\-wen\-dun\-gen, naht\-los zu\-sam\-men\-zu\-ar\-bei\-ten und Da\-ten aus\-zu\-tau\-schen, ohne dass spe\-zi\-el\-le An\-pas\-sun\-gen er\-for\-der\-lich sind}
+}
+\newglossaryentry{portabilität}
+{
+	name={Por\-ta\-bi\-li\-tät},
+	description={Die Ei\-gen\-schaft von Soft\-ware oder Da\-ten, auf ver\-schie\-de\-nen Sys\-te\-men oder Platt\-for\-men ohne oder mit mi\-ni\-ma\-len Än\-de\-run\-gen funk\-ti\-ons\-fä\-hig zu sein}
+}
+\newglossaryentry{laborumgebung}
+{
+	name={La\-bor\-um\-ge\-bung},
+	description={Eine iso\-lier\-te, kon\-trol\-lier\-te Test\-um\-ge\-bung, die pro\-duk\-ti\-ve Sys\-te\-me nach\-bil\-det, aber kei\-nen Ein\-fluss auf den lau\-fen\-den Be\-trieb hat und für Ex\-pe\-ri\-men\-te und Tests ge\-nutzt wird}
+}
+\newglossaryentry{compliance}
+{
+	name={Com\-pli\-ance},
+	description={Die Ein\-hal\-tung und Kon\-for\-mi\-tät mit ge\-setz\-li\-chen Be\-stim\-mun\-gen, re\-gu\-la\-to\-ri\-schen An\-for\-de\-run\-gen, in\-ter\-nen Richt\-li\-ni\-en und In\-dus\-trie\-stan\-dards}
+}
+\newglossaryentry{auditierbarkeit}
+{
+	name={Au\-di\-tier\-bar\-keit},
+	description={Die Ei\-gen\-schaft von Sys\-te\-men und Pro\-zes\-sen, voll\-stän\-dig do\-ku\-men\-tiert und nach\-voll\-zieh\-bar zu sein, so\-dass ex\-ter\-ne Prü\-fun\-gen und Kon\-trol\-len durch\-ge\-führt wer\-den kön\-nen}
+}
+\newglossaryentry{netzlaufwerke}
+{
+	name={Netz\-lauf\-wer\-ke},
+	description={Über das Netz\-werk zu\-gäng\-li\-che Spei\-cher\-res\-sour\-cen, die als lo\-ka\-le Lauf\-wer\-ke ein\-ge\-bun\-den wer\-den und zen\-tral ver\-wal\-te\-te Da\-tei\-frei\-ga\-ben er\-mög\-li\-chen}
+}
+\newglossaryentry{workflows}
+{
+	name={Work\-flows},
+	description={Struk\-tu\-rier\-te Ab\-fol\-gen von Ar\-beits\-schrit\-ten oder Pro\-zes\-sen, die zur ef\-fi\-zi\-en\-ten Er\-le\-di\-gung von Auf\-ga\-ben in ei\-ner be\-stimm\-ten Rei\-hen\-fol\-ge durch\-ge\-führt wer\-den}
+}
+\newglossaryentry{skalierbarkeit}
+{
+	name={Ska\-lier\-bar\-keit},
+	description={Die Fä\-hig\-keit ei\-nes Sys\-tems, sei\-ne Leis\-tung oder Ka\-pa\-zi\-tät bei stei\-gen\-den An\-for\-de\-run\-gen durch Hin\-zu\-fü\-gung von Res\-sour\-cen zu er\-wei\-tern, ohne grund\-le\-gen\-de Än\-de\-run\-gen der Ar\-chi\-tek\-tur}
+}
+\newglossaryentry{wartbarkeit}
+{
+	name={Wart\-bar\-keit},
+	description={Die Ei\-gen\-schaft von Soft\-ware oder Sys\-te\-men, ein\-fach zu ver\-ste\-hen, zu mo\-di\-fi\-zie\-ren, zu er\-wei\-tern und zu re\-pa\-rie\-ren zu sein}
+}
+\newglossaryentry{artefakt}
+{
+	name={Ar\-te\-fakt},
+	description={In der De\-sign Sci\-ence Re\-search ein kon\-stru\-ier\-tes Lö\-sungs\-ob\-jekt wie ein Sys\-tem, eine Me\-tho\-de oder ein Mo\-dell, das zur Lö\-sung ei\-nes iden\-ti\-fi\-zier\-ten Pro\-blems ent\-wi\-ckelt wird}
+}
+\newglossaryentry{testtreiber}
+{
+	name={Test\-trei\-ber},
+	description={Ein Hilfs\-pro\-gramm oder -mo\-dul, das ent\-wi\-ckelt wird, um an\-de\-re Soft\-ware\-kom\-po\-nen\-ten wäh\-rend des Tes\-tens zu ak\-ti\-vie\-ren und de\-ren Ver\-hal\-ten zu über\-prü\-fen}
+}
+\newglossaryentry{platzhalter}
+{
+	name={Platz\-hal\-ter},
+	description={Eine Si\-mu\-la\-ti\-on oder ein Mock-up ei\-ner Sys\-tem\-kom\-po\-nen\-te, die das Ver\-hal\-ten der tat\-säch\-li\-chen Kom\-po\-nen\-te nach\-bil\-det, aber ver\-ein\-facht im\-ple\-men\-tiert ist}
+}
+\newglossaryentry{kerberos-realm}
+{
+	name={Ker\-be\-ros-Realm},
+	description={Ein lo\-gi\-scher Au\-then\-ti\-fi\-zie\-rungs\-be\-reich in Ker\-be\-ros, der eine Grup\-pe von Be\-nut\-zern, Hosts und Ser\-vices de\-fi\-niert, die ge\-mein\-sa\-me Si\-cher\-heits\-richt\-li\-ni\-en ver\-wen\-den}
+}
+\newglossaryentry{ldap-verzeichnisstrukturen}
+{
+	name={LDAP-Ver\-zeich\-nis\-struk\-tu\-ren},
+	description={Hier\-ar\-chisch or\-ga\-ni\-sier\-te Da\-ten\-bank\-struk\-tu\-ren in LDAP-Ver\-zeich\-nis\-sen, die Be\-nut\-zer, Grup\-pen und an\-de\-re Ob\-jek\-te in ei\-ner baum\-ar\-tig ver\-zweig\-ten Struk\-tur spei\-chern}
+}
+\newglossaryentry{evaluationsmethoden}
+{
+	name={Eva\-lua\-ti\-ons\-me\-tho\-den},
+	description={Sys\-te\-ma\-ti\-sche Ver\-fah\-ren zur Be\-wer\-tung und Va\-li\-die\-rung der Qua\-li\-tät, Funk\-tio\-na\-li\-tät und Wirk\-sam\-keit von ent\-wi\-ckel\-ten Lö\-sun\-gen oder Sys\-te\-men}
+}
+\newglossaryentry{multi-method-ansatz}
+{
+	name={Mul\-ti-Me\-thod-An\-satz},
+	description={Eine For\-schungs\-stra\-te\-gie, die ver\-schie\-de\-ne Me\-tho\-den und Tech\-ni\-ken kom\-bi\-niert, um ein um\-fas\-sen\-de\-res und va\-li\-de\-res Ver\-ständ\-nis des un\-ter\-such\-ten Ge\-gen\-stands zu er\-lan\-gen}
+}
+\newglossaryentry{authentifizierung}
+{
+	name={Au\-then\-ti\-fi\-zie\-rung},
+	description={Prozess der Iden\-ti\-täts\-ve\-ri\-fi\-ka\-ti\-on, der si\-cher\-stellt, dass Be\-nut\-zer oder Sys\-te\-me die\-je\-ni\-gen sind, für die sie sich aus\-ge\-ben}
+}
+\newglossaryentry{open-source-frameworks}
+{
+	name={Open-Source-Frame\-works},
+	description={Frei ver\-füg\-ba\-re Soft\-ware\-rah\-men, de\-ren Quell\-code öf\-fent\-lich ein\-seh\-bar und mo\-di\-fi\-zier\-bar ist und die als Grund\-la\-ge für die Ent\-wick\-lung spe\-zi\-fi\-scher An\-wen\-dun\-gen die\-nen}
+}
+\newglossaryentry{heterogene-it-landschaften}
+{
+	name={he\-te\-ro\-ge\-ne IT-Land\-schaf\-ten},
+	description={IT-Um\-ge\-bun\-gen, die aus ver\-schie\-de\-nen Be\-triebs\-sys\-te\-men, Platt\-for\-men und Tech\-no\-lo\-gi\-en be\-ste\-hen und de\-ren In\-te\-gra\-ti\-on be\-son\-de\-re tech\-ni\-sche und si\-cher\-heits\-tech\-ni\-sche Her\-aus\-for\-de\-run\-gen mit sich bringt}
+}
+\newglossaryentry{lösungsansätze}
+{
+	name={Lö\-sungs\-an\-sät\-ze},
+	description={Sys\-te\-ma\-ti\-sche Her\-an\-ge\-hens\-wei\-sen oder Me\-tho\-den zur Be\-wäl\-ti\-gung iden\-ti\-fi\-zier\-ter Pro\-ble\-me oder Her\-aus\-for\-de\-run\-gen}
+}
+\newglossaryentry{empirische-basis}
+{
+	name={em\-pi\-ri\-sche Ba\-sis},
+	description={Die auf Be\-ob\-ach\-tun\-gen, Mes\-sun\-gen oder prak\-ti\-schen Er\-fah\-run\-gen be\-ru\-hen\-de Grund\-la\-ge für wis\-sen\-schaft\-li\-che Er\-kennt\-nis\-se oder Ent\-schei\-dun\-gen}
+}
+\newglossaryentry{domänencontroller}
+{
+	name={Do\-mä\-nen\-con\-trol\-ler},
+	description={Ein Ser\-ver, der die Au\-then\-ti\-fi\-zie\-rungs- und Au\-to\-ri\-sie\-rungs\-diens\-te ei\-ner Win\-dows-Do\-mä\-ne be\-reit\-stellt und die zen\-tra\-le Ver\-zeich\-nis\-da\-ten\-bank ver\-wal\-tet}
+}
+\newglossaryentry{serverdienste}
+{
+	name={Ser\-ver\-diens\-te},
+	description={Spe\-zia\-li\-sier\-te Soft\-ware\-kom\-po\-nen\-ten auf ei\-nem Ser\-ver, die be\-stimm\-te Funk\-tio\-nen oder Res\-sour\-cen für Cli\-ent-Com\-pu\-ter oder an\-de\-re Ser\-ver be\-reit\-stel\-len}
+}
+\newglossaryentry{verzeichnisdienste}
+{
+	name={Ver\-zeich\-nis\-diens\-te},
+	description={Netz\-werk\-diens\-te, die eine zen\-tra\-le Da\-ten\-bank für die Spei\-che\-rung und Ver\-wal\-tung von In\-for\-ma\-tio\-nen über Netz\-werk\-res\-sour\-cen, Be\-nut\-zer und de\-ren Ei\-gen\-schaf\-ten be\-reit\-stel\-len}
+}
+\newglossaryentry{organisatorische-strukturen}
+{
+	name={or\-ga\-ni\-sa\-to\-ri\-sche Struk\-tu\-ren},
+	description={Hier\-ar\-chi\-sche An\-ord\-nun\-gen und Grup\-pie\-run\-gen von Ob\-jek\-ten in ei\-nem Ver\-zeich\-nis\-dienst, die die lo\-gi\-sche Or\-ga\-ni\-sa\-ti\-on und Ver\-wal\-tung von Res\-sour\-cen er\-mög\-li\-chen}
+}
+\newglossaryentry{kernkomponenten}
+{
+	name={Kern\-kom\-po\-nen\-ten},
+	description={Die grund\-le\-gen\-den und es\-sen\-ti\-el\-len Be\-stand\-tei\-le ei\-nes Sys\-tems, die für des\-sen Ba\-sis\-funk\-tio\-na\-li\-tät er\-for\-der\-lich sind}
+}
+\newglossaryentry{forest}
+{
+	name={Fo\-rest},
+	description={Die obers\-te hier\-ar\-chi\-sche Ebe\-ne in Ac\-tive Di\-rec\-to\-ry, die eine voll\-stän\-di\-ge AD-In\-stanz mit ge\-mein\-sa\-mem Sche\-ma und Ver\-zeich\-nis\-kon\-fi\-gu\-ra\-ti\-on re\-prä\-sen\-tiert}
+}
+\newglossaryentry{domain}
+{
+	name={Do\-main},
+	description={Eine ad\-mi\-nis\-tra\-ti\-ve und si\-cher\-heits\-tech\-ni\-sche Ein\-heit in\-ner\-halb ei\-nes Ac\-tive Di\-rec\-to\-ry Fo\-rest, die als Si\-cher\-heits\-be\-reich für da\-rin ent\-hal\-te\-ne Ob\-jek\-te dient}
+}
+\newglossaryentry{domain-trees}
+{
+	name={Do\-main Trees},
+	description={Hier\-ar\-chi\-sche Struk\-tu\-ren von Do\-mä\-nen in\-ner\-halb ei\-nes Fo\-rest, die durch ge\-mein\-sa\-me Name\-space-Kon\-ti\-nui\-tät und Ver\-trau\-ens\-stel\-lun\-gen ver\-bun\-den sind}
+}
+\newglossaryentry{vertrauensstellungen}
+{
+	name={Ver\-trau\-ens\-stel\-lun\-gen},
+	description={Si\-cher\-heits\-be\-zie\-hun\-gen zwi\-schen Do\-mä\-nen, die Be\-nut\-zern ei\-ner Do\-mä\-ne den Zu\-griff auf Res\-sour\-cen an\-de\-rer Do\-mä\-nen er\-mög\-li\-chen}
+}
+\newglossaryentry{multi-master-verzeichnis}
+{
+	name={Mul\-ti-Mas\-ter-Ver\-zeich\-nis},
+	description={Ein Ver\-zeich\-nis\-sys\-tem, in dem meh\-re\-re Ser\-ver gleich\-zei\-tig Schreib\-zu\-grif\-fe ver\-ar\-bei\-ten kön\-nen, ohne dass ein ein\-zel\-ner Mas\-ter-Ser\-ver er\-for\-der\-lich ist}
+}
+\newglossaryentry{single-master-architektur}
+{
+	name={Sin\-gle-Mas\-ter-Ar\-chi\-tek\-tur},
+	description={Ein Sys\-tem, bei dem nur ein Ser\-ver zu ei\-nem be\-stimm\-ten Zeit\-punkt Schreib\-ope\-ra\-tio\-nen für be\-stimm\-te kri\-ti\-sche Funk\-tio\-nen aus\-füh\-ren darf}
+}
+\newglossaryentry{schema-master}
+{
+	name={Sche\-ma Mas\-ter},
+	description={Die FSMO-Rol\-le, die für die Ver\-wal\-tung und Mo\-di\-fi\-ka\-ti\-on des Ac\-tive Di\-rec\-to\-ry-Sche\-mas ver\-ant\-wort\-lich ist}
+}
+\newglossaryentry{domain-naming-master}
+{
+	name={Do\-main Na\-ming Mas\-ter},
+	description={Die FSMO-Rol\-le, die das Hin\-zu\-fü\-gen und Ent\-fer\-nen von Do\-mä\-nen in\-ner\-halb ei\-nes Fo\-rest kon\-trol\-liert}
+}
+\newglossaryentry{infrastructure-master}
+{
+	name={In\-fra\-struc\-ture Mas\-ter},
+	description={Die FSMO-Rol\-le, die Ver\-wei\-se auf Ob\-jek\-te in an\-de\-ren Do\-mä\-nen des Fo\-rest über\-wacht und ak\-tua\-li\-siert}
+}
+\newglossaryentry{replikationssystem}
+{
+	name={Re\-pli\-ka\-ti\-ons\-sys\-tem},
+	description={Ein Me\-cha\-nis\-mus zur Syn\-chro\-ni\-sa\-ti\-on von Da\-ten\-än\-de\-run\-gen zwi\-schen meh\-re\-ren Ser\-vern zur Ge\-währ\-leis\-tung von Kon\-sis\-tenz und Ver\-füg\-bar\-keit}
+}
+\newglossaryentry{eventual-consistency}
+{
+	name={Even\-tu\-al Con\-sis\-ten\-cy},
+	description={Ein Kon\-sis\-tenz\-mo\-dell, bei dem das Sys\-tem nach ei\-ner ge\-wis\-sen Zeit ohne wei\-te\-re Än\-de\-run\-gen ei\-nen kon\-sis\-ten\-ten Zu\-stand er\-reicht}
+}
+\newglossaryentry{intra-site-replikation}
+{
+	name={In\-tra-Site-Re\-pli\-ka\-ti\-on},
+	description={Die Syn\-chro\-ni\-sa\-ti\-on von Ver\-zeich\-nis\-da\-ten zwi\-schen Do\-main Con\-trol\-lern in\-ner\-halb des\-sel\-ben phy\-si\-schen oder lo\-gi\-schen Stand\-orts}
+}
+\newglossaryentry{inter-site-replikation}
+{
+	name={In\-ter-Site-Re\-pli\-ka\-ti\-on},
+	description={Die Syn\-chro\-ni\-sa\-ti\-on von Ver\-zeich\-nis\-da\-ten zwi\-schen Do\-main Con\-trol\-lern ver\-schie\-de\-ner Stand\-or\-te über WAN-Ver\-bin\-dun\-gen}
+}
+\newglossaryentry{change-notification}
+{
+	name={Change No\-ti\-fi\-ca\-ti\-on},
+	description={Ein Me\-cha\-nis\-mus, bei dem Ser\-ver ihre Re\-pli\-ka\-ti\-ons\-part\-ner au\-to\-ma\-tisch über Da\-ten\-än\-de\-run\-gen be\-nach\-rich\-ti\-gen}
+}
+\newglossaryentry{connection-objects}
+{
+	name={Con\-nec\-tion Ob\-jects},
+	description={Lo\-gi\-sche Ver\-bin\-dun\-gen zwi\-schen Do\-main Con\-trol\-lern, die die Re\-pli\-ka\-ti\-ons\-to\-po\-lo\-gie und den Da\-ten\-fluss de\-fi\-nie\-ren}
+}
+\newglossaryentry{naming-context}
+{
+	name={Na\-ming Con\-text},
+	description={Eine lo\-gi\-sche Par\-ti\-ti\-on des Ac\-tive Di\-rec\-to\-ry-Ver\-zeich\-nis\-ses, die als ei\-gen\-stän\-di\-ge Re\-pli\-ka\-ti\-ons\-ein\-heit be\-han\-delt wird}
+}
+\newglossaryentry{x500-verzeichnismodell}
+{
+	name={X.500-Ver\-zeich\-nis\-mo\-dell},
+	description={Ein in\-ter\-na\-tio\-na\-ler Stan\-dard für Ver\-zeich\-nis\-diens\-te, der die hier\-ar\-chi\-sche Or\-ga\-ni\-sa\-ti\-on und den Zu\-griff auf In\-for\-ma\-tio\-nen in ver\-teil\-ten Sys\-te\-men de\-fi\-niert}
+}
+\newglossaryentry{directory-information-tree}
+{
+	name={Di\-rec\-to\-ry In\-for\-ma\-ti\-on Tree},
+	description={Die hier\-ar\-chi\-sche Baum\-struk\-tur, in der LDAP-Ver\-zeich\-nis\-da\-ten or\-ga\-ni\-siert sind, mit ein\-deu\-ti\-gen Pfa\-den zu je\-dem Ein\-trag}
+}
+\newglossaryentry{distinguished-name}
+{
+	name={Dis\-tin\-guished Name},
+	description={Ein ein\-deu\-ti\-ger Be\-zeich\-ner für je\-den Ein\-trag in ei\-nem LDAP-Ver\-zeich\-nis, der den voll\-stän\-di\-gen Pfad vom Stamm bis zum Ein\-trag be\-schreibt}
+}
+\newglossaryentry{relative-distinguished-name}
+{
+	name={Re\-la\-tive Dis\-tin\-guished Name},
+	description={Der lo\-ka\-le Name ei\-nes Ein\-trags in\-ner\-halb sei\-nes über\-ge\-ord\-ne\-ten Con\-tai\-ners, der un\-ter Ge\-schwis\-ter\-ein\-trä\-gen ein\-deu\-tig sein muss}
+}
+\newglossaryentry{objektklassen}
+{
+	name={Ob\-jekt\-klas\-sen},
+	description={Scha\-blo\-nen oder De\-fi\-ni\-tio\-nen, die fest\-le\-gen, wel\-che At\-tri\-bu\-te ein LDAP-Ein\-trag ent\-hal\-ten kann oder muss}
+}
+\newglossaryentry{bind-operation}
+{
+	name={Bind-Ope\-ra\-ti\-on},
+	description={Der LDAP-Vor\-gang, mit dem sich ein Cli\-ent bei ei\-nem Ver\-zeich\-nis\-ser\-ver au\-then\-ti\-fi\-ziert und eine Sit\-zung eta\-bliert}
+}
+\newglossaryentry{search-operation}
+{
+	name={Search-Ope\-ra\-ti\-on},
+	description={Die LDAP-Funk\-ti\-on zur Ab\-fra\-ge von Ver\-zeich\-nis\-da\-ten ba\-sie\-rend auf Such\-kri\-te\-ri\-en und Fil\-tern}
+}
+\newglossaryentry{suchfilter}
+{
+	name={Such\-fil\-ter},
+	description={Lo\-gi\-sche Aus\-drü\-cke, die de\-fi\-nie\-ren, wel\-che Ein\-trä\-ge bei ei\-ner LDAP-Su\-che zu\-rück\-ge\-ge\-ben wer\-den sol\-len}
+}
+\newglossaryentry{modify-operation}
+{
+	name={Mo\-di\-fy-Ope\-ra\-ti\-on},
+	description={LDAP-Funk\-tio\-nen zum Hin\-zu\-fü\-gen, Än\-dern oder Lö\-schen von At\-tri\-bu\-ten in be\-ste\-hen\-den Ver\-zeich\-nis\-ein\-trä\-gen}
+}
+\newglossaryentry{compare-operation}
+{
+	name={Com\-pare-Ope\-ra\-ti\-on},
+	description={Eine LDAP-Funk\-ti\-on zum ef\-fi\-zi\-en\-ten Ver\-gleich ei\-nes At\-tri\-but\-werts ohne Über\-tra\-gung der ei\-gent\-li\-chen Da\-ten}
+}
+\newglossaryentry{ldap-controls}
+{
+	name={LDAP-Con\-trols},
+	description={Er\-wei\-ter\-te LDAP-Funk\-tio\-nen, die zu\-sätz\-li\-che Op\-tio\-nen für Ver\-zeich\-nis\-ope\-ra\-tio\-nen be\-reit\-stel\-len}
+}
+\newglossaryentry{ldap-referrals}
+{
+	name={LDAP-Re\-fer\-rals},
+	description={Ver\-wei\-se, die Cli\-ents au\-to\-ma\-tisch an an\-de\-re Ser\-ver wei\-ter\-lei\-ten, wenn an\-ge\-for\-der\-te In\-for\-ma\-tio\-nen dort ver\-füg\-bar sind}
+}
+\newglossaryentry{partial-attribute-set}
+{
+	name={Par\-ti\-al At\-tri\-bu\-te Set},
+	description={Eine de\-fi\-nier\-te Teil\-men\-ge von At\-tri\-bu\-ten, die im Glo\-bal Ca\-ta\-log re\-pli\-ziert wer\-den, um Spei\-cher\-platz und Netz\-werk\-ver\-kehr zu re\-du\-zie\-ren}
+}
+\newglossaryentry{prinzipale}
+{
+	name={Prin\-zi\-pa\-le},
+	description={In Ker\-be\-ros die ein\-deu\-tig iden\-ti\-fi\-zier\-ba\-ren En\-ti\-tä\-ten wie Be\-nut\-zer, Diens\-te oder Com\-pu\-ter, die am Au\-then\-ti\-fi\-zie\-rungs\-vor\-gang teil\-neh\-men}
+}
+\newglossaryentry{ticket-basierte-authentifizierung}
+{
+	name={Ti\-cket-ba\-sier\-te Au\-then\-ti\-fi\-zie\-rung},
+	description={Ein Au\-then\-ti\-fi\-zie\-rungs\-ver\-fah\-ren, bei dem zeit\-lich be\-grenz\-te, ver\-schlüs\-sel\-te To\-kens (Ti\-ckets) als Nach\-weis der Iden\-ti\-tät ver\-wen\-det wer\-den}
+}
+\newglossaryentry{symmetrische-kryptografie}
+{
+	name={sym\-me\-tri\-sche Kryp\-to\-gra\-fie},
+	description={Ver\-schlüs\-se\-lungs\-ver\-fah\-ren, bei welchen so\-wohl zum Ver- als auch zum Ent\-schlüs\-seln der\-sel\-be Schlüs\-sel ver\-wen\-det wird}
+}
+\newglossaryentry{needham-schroeder-protokoll}
+{
+	name={Need\-ham-Schroe\-der-Pro\-to\-koll},
+	description={Ein grund\-le\-gen\-des kryp\-to\-gra\-phi\-sches Pro\-to\-koll für die si\-che\-re Au\-then\-ti\-fi\-zie\-rung in Netz\-wer\-ken, das als Ba\-sis für Ker\-be\-ros dient}
+}
+\newglossaryentry{dreistufiger-authentifizierungsaustausch}
+{
+	name={Drei\-stu\-fi\-ger Au\-then\-ti\-fi\-zie\-rungs\-aus\-tausch},
+	description={Der cha\-rak\-te\-ris\-ti\-sche Ker\-be\-ros-Ab\-lauf aus AS-Ex\-chan\-ge, TGS-Ex\-chan\-ge und Cli\-ent/Ser\-ver-Ex\-chan\-ge}
+}
+\newglossaryentry{kryptographische-agilität}
+{
+	name={Kryp\-to\-gra\-phi\-sche Agi\-li\-tät},
+	description={Die Fä\-hig\-keit ei\-nes Sys\-tems, fle\-xi\-bel zwi\-schen ver\-schie\-de\-nen Ver\-schlüs\-se\-lungs\-al\-go\-rith\-men zu wech\-seln}
+}
+\newglossaryentry{pre-authentication}
+{
+	name={Pre-Au\-then\-ti\-ca\-ti\-on},
+	description={Ein Si\-cher\-heits\-me\-cha\-nis\-mus in Ker\-be\-ros, der Cli\-ents zur Vor\-ab-Au\-then\-ti\-fi\-zie\-rung ver\-pflich\-tet, be\-vor ein TGT aus\-ge\-stellt wird}
+}
+\newglossaryentry{cross-realm-authentication}
+{
+	name={Cross-Realm Au\-then\-ti\-ca\-ti\-on},
+	description={Die Au\-then\-ti\-fi\-zie\-rung zwi\-schen ver\-schie\-de\-nen Ker\-be\-ros-Be\-rei\-chen (Realms) über Ver\-trau\-ens\-stel\-lun\-gen}
+}
+\newglossaryentry{offline-wörterbuchangriffe}
+{
+	name={Off\-line-Wör\-ter\-buch\-an\-grif\-fe},
+	description={An\-griffs\-me\-tho\-den, bei de\-nen ver\-schlüs\-sel\-te Da\-ten off\-line ge\-gen Wör\-ter\-bü\-cher oder Brute-Force-Ver\-fah\-ren ge\-tes\-tet wer\-den}
+}
+\newglossaryentry{fallback-mechanismus}
+{
+	name={Fall\-back-Me\-cha\-nis\-mus},
+	description={Ein Rück\-fall-Sys\-tem, das ak\-ti\-viert wird, wenn das pri\-mä\-re Au\-then\-ti\-fi\-zie\-rungs\-ver\-fah\-ren nicht ver\-füg\-bar ist}
+}
+\newglossaryentry{herausforderungsbasierte-authentifizierung}
+{
+	name={her\-aus\-for\-de\-rungs\-ba\-sier\-te Au\-then\-ti\-fi\-zie\-rung},
+	description={Ein Au\-then\-ti\-fi\-zie\-rungs\-ver\-fah\-ren, bei dem der Ser\-ver eine Her\-aus\-for\-de\-rung sen\-det, die der Cli\-ent kryp\-to\-gra\-phisch be\-ant\-wor\-ten muss}
+}
+\newglossaryentry{challenge-response-mechanismus}
+{
+	name={Chal\-lenge-Re\-spon\-se-Me\-cha\-nis\-mus},
+	description={Ein Au\-then\-ti\-fi\-zie\-rungs\-ver\-fah\-ren, bei dem der Ser\-ver eine Her\-aus\-for\-de\-rung sen\-det und der Cli\-ent mit ei\-ner be\-rech\-ne\-ten Ant\-wort ba\-sie\-rend auf ei\-nem ge\-hei\-men Schlüs\-sel re\-agiert}
+}
+\newglossaryentry{negotiate-message}
+{
+	name={Ne\-go\-tia\-te Mes\-sa\-ge},
+	description={Die ers\-te Nach\-richt im NTLM-Hand\-shake, mit der Cli\-ent und Ser\-ver die un\-ter\-stütz\-ten Pro\-to\-koll\-fä\-hig\-kei\-ten aus\-han\-deln}
+}
+\newglossaryentry{challenge-message}
+{
+	name={Chal\-lenge Mes\-sa\-ge},
+	description={Die zwei\-te Nach\-richt im NTLM-Hand\-shake, die eine zu\-fäl\-li\-ge, vom Ser\-ver ge\-ne\-rier\-te Zei\-chen\-fol\-ge (Chal\-lenge) ent\-hält}
+}
+\newglossaryentry{authenticate-message}
+{
+	name={Au\-then\-ti\-ca\-te Mes\-sa\-ge},
+	description={Die drit\-te und letz\-te Nach\-richt im NTLM-Hand\-shake, die die vom Cli\-ent be\-rech\-ne\-te Ant\-wort auf die Chal\-lenge des Ser\-vers über\-mit\-telt}
+}
+\newglossaryentry{ntowfv2-hash}
+{
+	name={NTOWFv2-Hash},
+	description={Ein si\-che\-re\-rer Pass\-wort-Hash in NTLMv2, der aus Pass\-wort, Be\-nut\-zer\-na\-me und Do\-mä\-ne mit\-tels HMAC-MD5 be\-rech\-net wird}
+}
+\newglossaryentry{gegenseitige-authentifizierung}
+{
+	name={ge\-gen\-sei\-ti\-ge Au\-then\-ti\-fi\-zie\-rung},
+	description={Ein Si\-cher\-heits\-merk\-mal, bei dem sich so\-wohl Cli\-ent als auch Ser\-ver ge\-gen\-sei\-tig au\-then\-ti\-fi\-zie\-ren müs\-sen}
+}
+\newglossaryentry{designschwächen}
+{
+	name={De\-sign\-schwä\-chen},
+	description={Grund\-le\-gen\-de kon\-zep\-tio\-nel\-le Män\-gel in der Ar\-chi\-tek\-tur ei\-nes Pro\-to\-kolls oder Sys\-tems, die Si\-cher\-heits\-ri\-si\-ken schaf\-fen}
+}
+\newglossaryentry{angriffsvektoren}
+{
+	name={An\-griffs\-vek\-to\-ren},
+	description={Spe\-zi\-fi\-sche Me\-tho\-den oder Pfa\-de, die An\-grei\-fer nut\-zen kön\-nen, um in ein Sys\-tem ein\-zu\-drin\-gen oder es zu kom\-pro\-mit\-tie\-ren}
+}
+\newglossaryentry{ntlm-relay-angriffe}
+{
+	name={NTLM-Re\-lay-An\-grif\-fe},
+	description={An\-grif\-fe, bei de\-nen NTLM-Au\-then\-ti\-fi\-zie\-rungs\-da\-ten ab\-ge\-fan\-gen und an an\-de\-re Diens\-te wei\-ter\-ge\-lei\-tet wer\-den}
+}
+\newglossaryentry{pass-the-hash-angriffe}
+{
+	name={Pass-the-Hash-An\-grif\-fe},
+	description={Ein An\-griff, bei dem ein An\-grei\-fer ei\-nen er\-beu\-te\-ten Pass\-wort-Hash nutzt, um sich di\-rekt zu au\-then\-ti\-fi\-zie\-ren, ohne das Klar\-text\-pass\-wort zu ken\-nen}
+}
+\newglossaryentry{smb-signierung}
+{
+	name={SMB-Si\-gnie\-rung},
+	description={Ein Si\-cher\-heits\-me\-cha\-nis\-mus, der die In\-te\-gri\-tät und Au\-then\-ti\-zi\-tät von SMB-Nach\-rich\-ten durch di\-gi\-ta\-le Si\-gna\-tu\-ren ge\-währ\-leis\-tet}
+}
+\newglossaryentry{autorisierung}
+{
+	name={Au\-to\-ri\-sie\-rung},
+	description={Der Pro\-zess der Ge\-wäh\-rung oder Ver\-wei\-ge\-rung von Zu\-griffs\-rech\-ten für au\-then\-ti\-fi\-zier\-te Be\-nut\-zer auf be\-stimm\-te Res\-sour\-cen oder Ak\-tio\-nen}
+}
+\newglossaryentry{sicherheitsprinzipal}
+{
+	name={Si\-cher\-heits\-prin\-zi\-pal},
+	description={Eine ein\-deu\-tig iden\-ti\-fi\-zier\-ba\-re En\-ti\-tät wie ein Be\-nut\-zer, Com\-pu\-ter oder Ser\-vice, die Si\-cher\-heits\-ope\-ra\-tio\-nen aus\-füh\-ren kann}
+}
+\newglossaryentry{sicherheitsdeskriptor}
+{
+	name={Si\-cher\-heits\-de\-skrip\-tor},
+	description={Eine Da\-ten\-struk\-tur, die Si\-cher\-heits\-in\-for\-ma\-tio\-nen zu ei\-nem Ob\-jekt ent\-hält, ein\-schließ\-lich Ei\-gen\-tü\-mer, Grup\-pen und Zu\-griffs\-steue\-rungs\-lis\-ten}
+}
+\newglossaryentry{zugriffssteuerungsmechanismen}
+{
+	name={Zu\-griffs\-steue\-rungs\-me\-cha\-nis\-men},
+	description={Tech\-ni\-sche Ver\-fah\-ren zur Kon\-trol\-le des Zu\-griffs auf Sys\-tem\-res\-sour\-cen ba\-sie\-rend auf Iden\-ti\-tät und Be\-rech\-ti\-gun\-gen}
+}
+\newglossaryentry{granulares-berechtigungssystem}
+{
+	name={gra\-nu\-la\-res Be\-rech\-ti\-gungs\-sys\-tem},
+	description={Ein de\-tail\-lier\-tes Be\-rech\-ti\-gungs\-mo\-dell, das sehr spe\-zi\-fi\-sche und fein ab\-ge\-stimm\-te Zu\-griffs\-rech\-te er\-mög\-licht}
+}
+\newglossaryentry{hierarchische-reihenfolge}
+{
+	name={hier\-ar\-chi\-sche Rei\-hen\-fol\-ge},
+	description={Eine struk\-tu\-rier\-te Ab\-fol\-ge von Re\-geln oder Richt\-li\-ni\-en, die nach Prio\-ri\-tät oder Wich\-tig\-keit ge\-ord\-net sind}
+}
+\newglossaryentry{richtlinienkonflikte}
+{
+	name={Richt\-li\-ni\-en\-kon\-flik\-te},
+	description={Si\-tua\-tio\-nen, in de\-nen meh\-re\-re Grup\-pen\-richt\-li\-ni\-en wi\-der\-sprüch\-li\-che Ein\-stel\-lun\-gen für das\-sel\-be Sys\-tem oder den\-sel\-ben Be\-nut\-zer de\-fi\-nie\-ren}
+}
+\newglossaryentry{organisationseinheiten}
+{
+	name={Or\-ga\-ni\-sa\-ti\-ons\-ein\-hei\-ten},
+	description={Con\-tai\-ner-Ob\-jek\-te in Ac\-tive Di\-rec\-to\-ry, die zur lo\-gi\-schen Struk\-tu\-rie\-rung und Grup\-pie\-rung von Be\-nut\-zern, Com\-pu\-tern und an\-de\-ren Ob\-jek\-ten ver\-wen\-det wer\-den}
+}
+\newglossaryentry{linux-authentifizierungsarchitektur}
+{
+	name={Li\-nux-Au\-then\-ti\-fi\-zie\-rungs\-ar\-chi\-tek\-tur},
+	description={Die mo\-du\-la\-re Struk\-tur von Li\-nux-Sys\-te\-men zur Hand\-ha\-bung von Be\-nut\-zer\-au\-then\-ti\-fi\-zie\-rung und -au\-to\-ri\-sie\-rung}
+}
+\newglossaryentry{identitäts-und-zugriffsverwaltung}
+{
+	name={Iden\-ti\-täts- und Zu\-griffs\-ver\-wal\-tung},
+	description={Um\-fas\-sen\-de Sys\-te\-me zur Ver\-wal\-tung von Be\-nut\-zer\-iden\-ti\-tä\-ten und de\-ren Zu\-griffs\-rech\-ten auf Res\-sour\-cen}
+}
+\newglossaryentry{monolithische-architektur}
+{
+	name={mo\-no\-li\-thi\-sche Ar\-chi\-tek\-tur},
+	description={Ein Sys\-tem\-de\-sign, bei dem alle Kom\-po\-nen\-ten eng ge\-kop\-pelt und als eine ein\-zi\-ge, ge\-schlos\-se\-ne Ein\-heit im\-ple\-men\-tiert sind}
+}
+\newglossaryentry{modularer-ansatz}
+{
+	name={mo\-du\-la\-rer An\-satz},
+	description={Ein Ar\-chi\-tek\-tur\-prin\-zip, bei dem ein Sys\-tem aus aus\-tausch\-ba\-ren, un\-ab\-hän\-gi\-gen Kom\-po\-nen\-ten zu\-sam\-men\-ge\-setzt wird}
+}
+\newglossaryentry{identitätsverwaltung}
+{
+	name={Iden\-ti\-täts\-ver\-wal\-tung},
+	description={Die Ver\-wal\-tung von Be\-nut\-zer\-iden\-ti\-tä\-ten, ein\-schließ\-lich de\-ren Er\-stel\-lung, Pfle\-ge und Lö\-schung in IT-Sys\-te\-men}
+}
+\newglossaryentry{protokollspezifische-implementierungen}
+{
+	name={pro\-to\-koll\-spe\-zi\-fi\-sche Im\-ple\-men\-tie\-run\-gen},
+	description={Soft\-ware\-kom\-po\-nen\-ten, die be\-stimm\-te Netz\-werk\-pro\-to\-kol\-le zur Kom\-mu\-ni\-ka\-ti\-on und Au\-then\-ti\-fi\-zie\-rung im\-ple\-men\-tie\-ren}
+}
+\newglossaryentry{integrationsszenarien}
+{
+	name={In\-te\-gra\-ti\-ons\-sze\-na\-ri\-en},
+	description={Ver\-schie\-de\-ne An\-sät\-ze und Me\-tho\-den zur Ver\-bin\-dung un\-ter\-schied\-li\-cher IT-Sys\-te\-me und -Um\-ge\-bun\-gen}
+}
+\newglossaryentry{betriebssystemschnittstellen}
+{
+	name={Be\-triebs\-sys\-tem\-schnitt\-stel\-len},
+	description={Stan\-dar\-di\-sier\-te Pro\-gram\-mier\-schnitt\-stel\-len, die die Por\-ta\-bi\-li\-tät von Soft\-ware zwi\-schen ver\-schie\-de\-nen Unix-ähn\-li\-chen Sys\-te\-men er\-mög\-li\-chen}
+}
+\newglossaryentry{namensauflösung}
+{
+	name={Na\-mens\-auf\-lö\-sung},
+	description={Der Pro\-zess der Über\-set\-zung von sym\-bo\-li\-schen Na\-men in ent\-spre\-chen\-de Sys\-tem\-iden\-ti\-fi\-ka\-to\-ren oder Adres\-sen}
+}
+\newglossaryentry{systemdatenbanken}
+{
+	name={Sys\-tem\-da\-ten\-ban\-ken},
+	description={Lo\-ka\-le oder ent\-fern\-te Da\-ten\-quel\-len, die In\-for\-ma\-tio\-nen über Be\-nut\-zer, Grup\-pen, Hosts und Ser\-vices be\-reit\-stel\-len}
+}
+\newglossaryentry{lookup-mechanismen}
+{
+	name={Look\-up-Me\-cha\-nis\-men},
+	description={Ver\-fah\-ren zur Su\-che und zum Ab\-ru\-fen von In\-for\-ma\-tio\-nen aus ver\-schie\-de\-nen Da\-ten\-quel\-len}
+}
+\newglossaryentry{gnu-c-library}
+{
+	name={GNU C Li\-bra\-ry},
+	description={Die Stan\-dard-C-Bi\-blio\-thek für GNU/Li\-nux-Sys\-te\-me, die grund\-le\-gen\-de Sys\-tem\-funk\-tio\-nen be\-reit\-stellt}
+}
+\newglossaryentry{reentrant-funktionen}
+{
+	name={Re\-en\-trant-Funk\-tio\-nen},
+	description={Thread-si\-che\-re Funk\-tio\-nen, die gleich\-zei\-tig von meh\-re\-ren Aus\-füh\-rungs\-threads auf\-ge\-ru\-fen wer\-den kön\-nen}
+}
+\newglossaryentry{stacking}
+{
+	name={Sta\-cking},
+	description={PAM-Me\-cha\-nis\-mus zur se\-quen\-zi\-el\-len Aus\-füh\-rung meh\-re\-rer Au\-then\-ti\-fi\-zie\-rungs\-mo\-du\-le mit de\-fi\-nier\-ten Re\-ge\-lun\-gen für Er\-folg und Fehl\-schlag}
+}
+\newglossaryentry{koordinationsschicht}
+{
+	name={Ko\-or\-di\-na\-ti\-ons\-schicht},
+	description={Eine Soft\-ware\-kom\-po\-nen\-te, die die Kom\-mu\-ni\-ka\-ti\-on und In\-ter\-ak\-ti\-on zwi\-schen ver\-schie\-de\-nen Sys\-tem\-mo\-du\-len or\-ches\-triert}
+}
+\newglossaryentry{offline-caching}
+{
+	name={Off\-line-Ca\-ching},
+	description={Die lo\-ka\-le Spei\-che\-rung von Au\-then\-ti\-fi\-zie\-rungs\-da\-ten, um bei Netz\-werk\-aus\-fäl\-len eine be\-grenz\-te Funk\-tio\-na\-li\-tät auf\-recht\-zu\-er\-hal\-ten}
+}
+\newglossaryentry{netzwerkprotokolle}
+{
+	name={Netz\-werk\-pro\-to\-kol\-le},
+	description={Stan\-dar\-di\-sier\-te Kom\-mu\-ni\-ka\-ti\-ons\-ver\-fah\-ren, die den Da\-ten\-aus\-tausch zwi\-schen ver\-schie\-de\-nen Sys\-te\-men in ei\-nem Netz\-werk re\-geln}
+}
+\newglossaryentry{remote-dateizugriff}
+{
+	name={Re\-mo\-te-Da\-tei\-zu\-griff},
+	description={Die Mög\-lich\-keit, über ein Netz\-werk auf Da\-tei\-en zu\-zu\-grei\-fen, die auf ent\-fern\-ten Ser\-vern ge\-spei\-chert sind}
+}
+\newglossaryentry{ressourcenfreigabe}
+{
+	name={Res\-sour\-cen\-frei\-ga\-be},
+	description={Die Be\-reit\-stel\-lung von Sys\-tem\-res\-sour\-cen wie Da\-tei\-en, Dru\-ckern oder Diens\-ten für an\-de\-re Netz\-werk\-teil\-neh\-mer}
+}
+\newglossaryentry{plattformübergreifend}
+{
+	name={Platt\-form\-über\-grei\-fend},
+	description={Die Fä\-hig\-keit ei\-ner Soft\-ware oder ei\-nes Pro\-to\-kolls, auf ver\-schie\-de\-nen Be\-triebs\-sys\-te\-men und Hard\-ware-Platt\-for\-men zu funk\-tio\-nie\-ren}
+}
+\newglossaryentry{netzwerkkomplexität}
+{
+	name={Netz\-werk\-kom\-ple\-xi\-tät},
+	description={Die tech\-ni\-schen De\-tails und Her\-aus\-for\-de\-run\-gen der Netz\-werk\-kom\-mu\-ni\-ka\-ti\-on, die vor An\-wen\-dun\-gen ver\-bor\-gen wer\-den sol\-len}
+}
+\newglossaryentry{protokoll-chattiness}
+{
+	name={Pro\-to\-koll-Chat\-ti\-ness},
+	description={Die An\-zahl der Nach\-rich\-ten-Round\-trips, die ein Pro\-to\-koll für eine be\-stimm\-te Ope\-ra\-ti\-on be\-nö\-tigt; hohe Chat\-ti\-ness führt zu Per\-for\-mance-Pro\-ble\-men}
+}
+\newglossaryentry{abwärtskompatibilität}
+{
+	name={Ab\-wärts\-kom\-pa\-ti\-bi\-li\-tät},
+	description={Die Fä\-hig\-keit ei\-nes neu\-e\-ren Sys\-tems, mit äl\-te\-ren Ver\-sio\-nen oder Stan\-dards zu kom\-mu\-ni\-zie\-ren}
+}
+\newglossaryentry{protokoll-triade}
+{
+	name={Pro\-to\-koll-Tria\-de},
+	description={Die drei we\-sent\-li\-chen Pro\-to\-kol\-le (LDAP, Ker\-be\-ros, SMB/CIFS) für die voll\-stän\-di\-ge In\-te\-gra\-ti\-on von Li\-nux-Cli\-ents in Ac\-tive Di\-rec\-to\-ry-Um\-ge\-bun\-gen}
+}
+\newglossaryentry{open-source-lösungen}
+{
+	name={Open-Source-Lö\-sun\-gen},
+	description={Soft\-ware\-lö\-sun\-gen, de\-ren Quell\-code frei ver\-füg\-bar, ein\-seh\-bar und mo\-di\-fi\-zier\-bar ist}
+}
+\newglossaryentry{kommerzielle-produkte}
+{
+	name={kom\-mer\-zi\-el\-le Pro\-duk\-te},
+	description={Pro\-prie\-tä\-re Soft\-ware\-pro\-duk\-te, die ge\-gen Be\-zah\-lung li\-zen\-ziert wer\-den und de\-ren Quell\-code nicht öf\-fent\-lich zu\-gäng\-lich ist}
+}
+\newglossaryentry{brückentechnologie}
+{
+	name={Brü\-cken\-tech\-no\-lo\-gie},
+	description={Eine Tech\-no\-lo\-gie, die die Kom\-mu\-ni\-ka\-ti\-on und In\-ter\-ope\-ra\-bi\-li\-tät zwi\-schen ver\-schie\-de\-nen, an\-sons\-ten in\-kom\-pa\-ti\-blen Sys\-te\-men er\-mög\-licht}
+}
+\newglossaryentry{bidirektionale-funktionalität}
+{
+	name={bi\-di\-rek\-tio\-na\-le Funk\-tio\-na\-li\-tät},
+	description={Die Fä\-hig\-keit ei\-nes Sys\-tems, so\-wohl als Cli\-ent als auch als Ser\-ver zu fun\-gie\-ren und Kom\-mu\-ni\-ka\-ti\-on in bei\-de Rich\-tun\-gen zu er\-mög\-li\-chen}
+}
+\newglossaryentry{standardkonforme-implementierungen}
+{
+	name={stan\-dard\-kon\-for\-me Im\-ple\-men\-tie\-run\-gen},
+	description={Soft\-ware\-im\-ple\-men\-tie\-run\-gen, die of\-fe\-ne, do\-ku\-men\-tier\-te Stan\-dards be\-fol\-gen und da\-durch In\-ter\-ope\-ra\-bi\-li\-tät ge\-währ\-leis\-ten}
+}
+\newglossaryentry{reproduzierbare-integrationslösungen}
+{
+	name={re\-pro\-du\-zier\-ba\-re In\-te\-gra\-ti\-ons\-lö\-sun\-gen},
+	description={In\-te\-gra\-ti\-ons\-lö\-sun\-gen, de\-ren Im\-ple\-men\-tie\-rung und Funk\-ti\-ons\-wei\-se voll\-stän\-dig do\-ku\-men\-tiert und nach\-voll\-zieh\-bar sind}
+}
+\newglossaryentry{proprietäre-software}
+{
+	name={pro\-prie\-tä\-re Soft\-ware},
+	description={Soft\-ware, de\-ren Quell\-code nicht öf\-fent\-lich zu\-gäng\-lich ist und die un\-ter re\-strik\-ti\-ven Li\-zenz\-be\-din\-gun\-gen ver\-trie\-ben wird}
+}
+\newglossaryentry{compliance-anforderungen}
+{
+	name={Com\-pli\-ance-An\-for\-de\-run\-gen},
+	description={Ge\-setz\-li\-che, re\-gu\-la\-to\-ri\-sche und or\-ga\-ni\-sa\-to\-ri\-sche Vor\-ga\-ben, die bei der IT-Si\-cher\-heit ein\-ge\-hal\-ten wer\-den müs\-sen}
+}
+\newglossaryentry{hybride-umgebung}
+{
+	name={hy\-bri\-de Um\-ge\-bung},
+	description={Eine IT-In\-fra\-struk\-tur, die ver\-schie\-de\-ne Tech\-no\-lo\-gi\-en, Be\-triebs\-sys\-te\-me oder Cloud-Mo\-del\-le mit\-ein\-an\-der kom\-bi\-niert}
+}
+\newglossaryentry{kerberoasting}
+{
+	name={Ker\-be\-roas\-ting},
+	description={Ein An\-griff auf Ker\-be\-ros-Dienst\-kon\-ten durch Off\-line-Ent\-schlüs\-se\-lung von Ser\-vice-Ti\-ckets}
+}
+\newglossaryentry{dienstkonten}
+{
+	name={Dienst\-kon\-ten},
+	description={Spe\-zi\-el\-le Be\-nut\-zer\-kon\-ten, die für die Aus\-füh\-rung von Sys\-tem\-diens\-ten und An\-wen\-dun\-gen ver\-wen\-det wer\-den}
+}
+\newglossaryentry{event-logs}
+{
+	name={Event Logs},
+	description={Pro\-to\-koll\-da\-tei\-en, die si\-cher\-heits\-re\-le\-van\-te Er\-eig\-nis\-se und Sys\-tem\-ak\-ti\-vi\-tä\-ten für Über\-wa\-chungs- und Ana\-ly\-se\-zwe\-cke auf\-zeich\-nen}
+}
+\newglossaryentry{kritische-infrastruktur}
+{
+	name={Kri\-ti\-sche In\-fra\-struk\-tur},
+	description={Or\-ga\-ni\-sa\-tio\-nen und Ein\-rich\-tun\-gen mit wich\-ti\-ger Be\-deu\-tung für das staat\-li\-che Ge\-mein\-we\-sen, de\-ren Aus\-fall oder Be\-ein\-träch\-ti\-gung nach\-hal\-ti\-ge Ver\-sor\-gungs\-eng\-päs\-se oder Ge\-fähr\-dun\-gen für die öf\-fent\-li\-che Si\-cher\-heit zur Fol\-ge hät\-te}
+}
+\newglossaryentry{change-management}
+{
+	name={Chan\-ge-Ma\-nage\-ment},
+	description={Ein struk\-tu\-rier\-ter An\-satz zur Pla\-nung, Durch\-füh\-rung und Kon\-trol\-le von Ver\-än\-de\-rungs\-pro\-zes\-sen in Or\-ga\-ni\-sa\-tio\-nen}
+}
+\newglossaryentry{stakeholder-analyse}
+{
+	name={Stake\-hol\-der-Ana\-ly\-se},
+	description={Die sys\-te\-ma\-ti\-sche Iden\-ti\-fi\-ka\-ti\-on und Be\-wer\-tung al\-ler In\-ter\-es\-sen\-grup\-pen, die von ei\-nem Pro\-jekt oder ei\-ner Ver\-än\-de\-rung be\-trof\-fen sind}
+}
+\newglossaryentry{informationstechnische-strukturen}
+{
+	name={In\-for\-ma\-ti\-ons\-tech\-ni\-sche Struk\-tu\-ren},
+	description={Die Ge\-samt\-heit der IT-In\-fra\-struk\-tur ei\-ner Or\-ga\-ni\-sa\-ti\-on, ein\-schließ\-lich Hard\-ware, Soft\-ware, Netz\-wer\-ken und Da\-ten\-struk\-tu\-ren}
+}
+\newglossaryentry{single-forest-single-domain}
+{
+	name={Sin\-gle Fo\-rest, Sin\-gle Do\-main},
+	description={Eine Ac\-tive Di\-rec\-to\-ry-Ar\-chi\-tek\-tur mit nur ei\-nem Fo\-rest und ei\-ner Do\-main, die ein\-fachs\-te mög\-li\-che AD-Struk\-tur}
+}
+\newglossaryentry{hub-and-spoke-modell}
+{
+	name={Hub-and-Spoke-Mo\-dell},
+	description={Eine Netz\-werk\-to\-po\-lo\-gie mit ei\-nem zen\-tra\-len Kno\-ten\-punkt (Hub), an den alle an\-de\-ren Stand\-or\-te (Spo\-kes) an\-ge\-bun\-den sind}
+}
+\newglossaryentry{ausfallsicherheit}
+{
+	name={Aus\-fall\-si\-cher\-heit},
+	description={Die Fä\-hig\-keit ei\-nes Sys\-tems, auch bei Teil\-aus\-fäl\-len wei\-ter\-hin funk\-ti\-ons\-fä\-hig zu blei\-ben}
+}
+\newglossaryentry{granulare-aufteilung}
+{
+	name={gra\-nu\-la\-re Auf\-tei\-lung},
+	description={Eine sehr de\-tail\-lier\-te und fein struk\-tu\-rier\-te Un\-ter\-tei\-lung von Res\-sour\-cen oder Be\-rech\-ti\-gun\-gen}
+}
+\newglossaryentry{netzwerksegmentierung}
+{
+	name={Netz\-werk\-seg\-men\-tie\-rung},
+	description={Die Auf\-tei\-lung ei\-nes Netz\-werks in se\-pa\-ra\-te lo\-gi\-sche oder phy\-si\-sche Be\-rei\-che zur Ver\-bes\-se\-rung von Si\-cher\-heit und Per\-for\-mance}
+}
+\newglossaryentry{mikrosegmentierung}
+{
+	name={Mi\-kro\-seg\-men\-tie\-rung},
+	description={Eine Si\-cher\-heits\-stra\-te\-gie, wel\-che ein Netz\-werk in klei\-ne, iso\-lier\-te Seg\-men\-te un\-ter\-teilt, um die Si\-cher\-heit zu er\-hö\-hen und die An\-griffs\-flä\-che zu mi\-ni\-mie\-ren}
+}
+\newglossaryentry{autarke-testumgebung}
+{
+	name={au\-tar\-ke Test\-um\-ge\-bung},
+	description={Eine voll\-stän\-dig iso\-lier\-te und un\-ab\-hän\-gi\-ge Um\-ge\-bung für Tests und Ent\-wick\-lung, die kei\-ne Aus\-wir\-kun\-gen auf pro\-duk\-ti\-ve Sys\-te\-me hat}
+}
+\newglossaryentry{virtualisierungsumgebung}
+{
+	name={Vir\-tu\-a\-li\-sie\-rungs\-um\-ge\-bung},
+	description={Eine Soft\-ware\-platt\-form, die es er\-mög\-licht, meh\-re\-re vir\-tu\-el\-le Ma\-schi\-nen auf ei\-ner phy\-si\-schen Hard\-ware zu be\-trei\-ben}
+}
+\newglossaryentry{fsmo-rollen}
+{
+	name={FSMO-Rol\-len},
+	description={Fle\-xi\-ble Sin\-gle Mas\-ter Ope\-ra\-tions - spe\-zi\-el\-le Ac\-tive Di\-rec\-to\-ry-Rol\-len, die nur auf ei\-nem Do\-main Con\-trol\-ler gleich\-zei\-tig ak\-tiv sein kön\-nen}
+}
+\newglossaryentry{passwordequivalency}
+{
+	name={Pass\-word Equi\-va\-len\-cy},
+	description={Be\-zeich\-net das Prin\-zip, bei dem der Be\-sitz ei\-nes Pass\-wort-Ha\-shes ei\-nem An\-grei\-fer die glei\-chen Au\-then\-ti\-fi\-zie\-rungs\-mög\-lich\-kei\-ten wie das Klar\-text\-pass\-wort ge\-währt. Pro\-to\-kol\-le wie NTLM sind hier\-für an\-fäl\-lig, da der Hash di\-rekt zur Be\-ant\-wor\-tung von Au\-then\-ti\-fi\-zie\-rungs\-an\-fra\-gen ge\-nutzt wer\-den kann}
+}
+\newglossaryentry{credentialdumping}
+{
+	name={Cre\-den\-tial Dum\-ping},
+	description={Ein An\-griffs\-ver\-fah\-ren, bei dem An\-mel\-de\-in\-for\-ma\-tio\-nen (z.\,B. Be\-nut\-zer\-na\-men, Pass\-wör\-ter, Ha\-shes) aus dem Ar\-beits\-spei\-cher oder der Re\-gis\-trie\-rungs\-da\-ten\-bank ei\-nes Sys\-tems ex\-tra\-hiert wer\-den. Der LSASS-Pro\-zess un\-ter Win\-dows ist ein häu\-fi\-ges Ziel für sol\-che An\-grif\-fe}
+}
+\newglossaryentry{replayattack}
+{
+	name={Re\-play-An\-griff},
+	description={Eine Form des Netz\-werk\-an\-griffs, bei der eine gül\-ti\-ge Da\-ten\-über\-tra\-gung ab\-ge\-fan\-gen und zu ei\-nem spä\-te\-ren Zeit\-punkt er\-neut ge\-sen\-det wird, um sich un\-au\-to\-ri\-siert Zu\-gang zu ver\-schaf\-fen oder eine Ak\-ti\-on im Na\-men des ur\-sprüng\-li\-chen Be\-nut\-zers aus\-zu\-füh\-ren}
+}
+\newglossaryentry{malware}
+{
+	name={Mal\-ware},
+	description={Sam\-mel\-be\-griff für Schad\-soft\-ware, die ent\-wi\-ckelt wur\-de, um un\-er\-wünsch\-te oder schäd\-li\-che Funk\-tio\-nen auf ei\-nem Com\-pu\-ter\-sys\-tem aus\-zu\-füh\-ren. Da\-zu zäh\-len Vi\-ren, Wür\-mer, Tro\-ja\-ner oder Rans\-om\-ware}
+}
+\newglossaryentry{lateralmovement}
+{
+	name={La\-te\-ral Mo\-ve\-ment},
+	description={Eine Tech\-nik, die von An\-grei\-fern nach ei\-ner ers\-ten Kom\-pro\-mit\-tie\-rung in\-ner\-halb ei\-nes Netz\-werks ver\-wen\-det wird, um sich von ei\-nem Sys\-tem zum nächs\-ten zu be\-we\-gen. Ziel ist es, auf wert\-vol\-le\-re Da\-ten oder Sys\-te\-me zu\-zu\-grei\-fen und die Kon\-trol\-le über das Netz\-werk aus\-zu\-wei\-ten}
+}
+\newglossaryentry{airgap}
+{
+	name={Air Gap},
+	description={Eine Si\-cher\-heits\-maß\-nah\-me, bei der ein Com\-pu\-ter\-sys\-tem oder Netz\-werk phy\-sisch von al\-len an\-de\-ren Netz\-wer\-ken, ins\-be\-son\-de\-re dem In\-ter\-net, iso\-liert ist. Ein Da\-ten\-aus\-tausch kann nur über phy\-si\-ka\-li\-sche Me\-di\-en wie USB-Sticks er\-fol\-gen}
+}
+\newglossaryentry{proxmoxve}
+{
+	name={Prox\-mox VE},
+	sort={Proxmox},
+	description={Eine auf De\-bi\-an ba\-sie\-ren\-de Open-Source-Vir\-tu\-a\-li\-sie\-rungs\-platt\-form, die Ker\-nel-ba\-sed Vir\-tu\-al Ma\-chine (KVM) für vir\-tu\-el\-le Ma\-schi\-nen und Li\-nux Con\-tai\-ners (LXC) für Con\-tai\-ner-Vir\-tu\-a\-li\-sie\-rung in\-te\-griert und über eine Web\-ober\-flä\-che ver\-wal\-tet wird}
+}
+\newglossaryentry{secureboot}
+{
+	name={Se\-cure Boot},
+	description={Ein Si\-cher\-heits\-stan\-dard, der Teil der UEFI-Spe\-zi\-fi\-ka\-ti\-on ist. Er stellt si\-cher, dass ein Ge\-rät nur mit Soft\-ware star\-tet, der vom Ori\-gi\-nal\-ge\-rä\-te\-her\-stel\-ler (OEM) ver\-traut wird. Da\-durch wird das La\-den und Aus\-füh\-ren von nicht au\-to\-ri\-sier\-ter oder bös\-ar\-ti\-ger Soft\-ware wäh\-rend des Sys\-tem\-starts ver\-hin\-dert}
+}
+\newglossaryentry{vtpm}
+{
+	name={vTPM},
+	description={Eine soft\-ware\-ba\-sier\-te Im\-ple\-men\-tie\-rung ei\-nes Trus\-ted Plat\-form Mo\-du\-le (TPM), die ei\-ner vir\-tu\-el\-len Ma\-schi\-ne die glei\-chen kryp\-to\-gra\-fi\-schen Funk\-tio\-nen wie ein phy\-si\-sches TPM-Si\-cher\-heits\-chip bie\-tet. Es wird für si\-cher\-heits\-kri\-ti\-sche Funk\-tio\-nen wie Bit\-Lo\-cker-Ver\-schlüs\-se\-lung oder Se\-cure Boot in vir\-tu\-a\-li\-sier\-ten Um\-ge\-bun\-gen ver\-wen\-det}
+}
+\newglossaryentry{virtio}
+{
+	name={VirtIO},
+	description={Ein Vir\-tu\-a\-li\-sie\-rungs\-stan\-dard für Netz\-werk- und Fest\-plat\-ten\-ge\-rä\-te\-trei\-ber. An\-statt ein be\-stimm\-tes phy\-si\-sches Hard\-ware\-ge\-rät zu emu\-lie\-ren, stel\-len pa\-ra\-vir\-tu\-a\-li\-sier\-te VirtIO-Trei\-ber eine op\-ti\-mier\-te Schnitt\-stel\-le zur Ver\-fü\-gung, die die Per\-for\-mance von vir\-tu\-el\-len Ma\-schi\-nen ver\-bes\-sert, da der Over\-head der Emu\-la\-ti\-on ent\-fällt}
+}
+\newglossaryentry{bestpractice}
+{
+	name={Best Prac\-tice},
+	description={Eine be\-währ\-te, emp\-foh\-le\-ne oder stan\-dar\-di\-sier\-te Vor\-ge\-hens\-wei\-se, die sich in der Pra\-xis als be\-son\-ders ef\-fek\-tiv oder ef\-fi\-zi\-ent er\-wie\-sen hat, um ein be\-stimm\-tes Ziel zu er\-rei\-chen oder ein Pro\-blem zu lö\-sen}
+}
+\newglossaryentry{gc}
+{
+	name={Glo\-bal Ca\-ta\-log},
+	sort={Global Catalog},
+	description={Eine spe\-zi\-el\-le Rol\-le ei\-nes Do\-mä\-nen\-con\-trol\-lers in ei\-ner Ac\-tive-Di\-rec\-to\-ry-Ge\-samt\-struk\-tur. Der glo\-ba\-le Ka\-ta\-log ent\-hält eine voll\-stän\-di\-ge, be\-schreib\-ba\-re Ko\-pie al\-ler Ob\-jek\-te der ei\-ge\-nen Do\-mä\-ne und eine teil\-wei\-se, schreib\-ge\-schütz\-te Ko\-pie al\-ler Ob\-jek\-te aus an\-de\-ren Do\-mä\-nen der Ge\-samt\-struk\-tur. Er ist für An\-mel\-de\-vor\-gän\-ge und do\-mä\-nen\-über\-grei\-fen\-de Such\-an\-fra\-gen es\-sen\-zi\-ell}
+}
+\newglossaryentry{sysvol}
+{
+	name={SYSVOL},
+	description={Ein frei\-ge\-ge\-be\-nes Ver\-zeich\-nis auf je\-dem Do\-mä\-nen\-con\-trol\-ler, das eine Ko\-pie der ser\-ver\-ge\-spei\-cher\-ten öf\-fent\-li\-chen Da\-tei\-en ei\-ner Do\-mä\-ne ent\-hält. Da\-zu ge\-hö\-ren ins\-be\-son\-de\-re Grup\-pen\-richt\-li\-ni\-en\-vor\-la\-gen und An\-mel\-de\-skrip\-te, die auf alle Cli\-ents in der Do\-mä\-ne re\-pli\-ziert wer\-den müs\-sen}
+}
+\newglossaryentry{reverselookupzone}
+{
+	name={Re\-ver\-se-Look\-up-Zone},
+	description={Ein Be\-reich in\-ner\-halb des Do\-main Name Sys\-tem (DNS), der für die um\-ge\-kehr\-te Na\-mens\-auf\-lö\-sung zu\-stän\-dig ist. Sie über\-setzt IP-Adres\-sen zu\-rück in ihre zu\-ge\-hö\-ri\-gen Host\-na\-men, im Ge\-gen\-satz zur For\-ward-Look\-up-Zone, die Host\-na\-men in IP-Adres\-sen auf\-löst}
+}
+\newglossaryentry{kerberos}
+{
+	name={Ker\-be\-ros},
+	description={Ein Netz\-werk-Au\-then\-ti\-fi\-zie\-rungs\-pro\-to\-koll, das auf dem Prin\-zip von Ti\-ckets ba\-siert, um Cli\-ents und Ser\-vern eine si\-che\-re Iden\-ti\-täts\-prü\-fung über ein un\-si\-che\-res Netz\-werk hin\-weg zu er\-mög\-li\-chen. Es ist das Stan\-dard-Au\-then\-ti\-fi\-zie\-rungs\-pro\-to\-koll in Ac\-tive-Di\-rec\-to\-ry-Um\-ge\-bun\-gen}
+}
+\newglossaryentry{dnsspoofing}
+{
+	name={DNS-Spoo\-fing},
+	description={Eine Form des Cy\-ber\-an\-griffs, bei der ge\-fälsch\-te Da\-ten in den Cache ei\-nes DNS-Re\-sol\-vers ein\-ge\-schleust wer\-den. Dies führt da\-zu, dass der Re\-sol\-ver eine fal\-sche IP-Adres\-se zu\-rück\-gibt und der Netz\-werk\-ver\-kehr auf ei\-nen bös\-ar\-ti\-gen Com\-pu\-ter um\-ge\-lei\-tet wer\-den kann}
+}
+\newglossaryentry{leastprivilege}
+{
+	name={Prin\-ci\-ple of Least Pri\-vi\-le\-ge},
+	sort={Principle of Least Privilege},
+	description={Ein Si\-cher\-heits\-kon\-zept, nach dem ein Be\-nut\-zer, ein Pro\-zess oder ein Pro\-gramm nur die mi\-ni\-ma\-len Be\-rech\-ti\-gun\-gen er\-hal\-ten soll\-te, die zur Er\-fül\-lung sei\-ner spe\-zi\-fi\-schen Auf\-ga\-be er\-for\-der\-lich sind. Da\-durch wird der po\-ten\-zi\-el\-le Scha\-den bei ei\-ner Kom\-pro\-mit\-tie\-rung oder Fehl\-funk\-ti\-on be\-grenzt}
+}
+\newglossaryentry{agdlp}
+{
+	name={AGDLP},
+	description={Ein von Mi\-cro\-soft emp\-foh\-le\-nes Best-Prac\-tice-Mo\-dell für die Rech\-te\-ver\-ga\-be in Ac\-tive Di\-rec\-to\-ry. Es be\-schreibt die Stra\-te\-gie, Be\-nut\-zer\-kon\-ten (Ac\-counts) in glo\-ba\-le Grup\-pen (Glo\-bal Groups) zu or\-ga\-ni\-sie\-ren, die\-se glo\-ba\-len Grup\-pen in do\-mä\-nen\-lo\-ka\-le Grup\-pen (Do\-main Lo\-cal Groups) zu ver\-schach\-teln und schließ\-lich die Be\-rech\-ti\-gun\-gen (Per\-mis\-sions) den do\-mä\-nen\-lo\-ka\-len Grup\-pen zu\-zu\-wei\-sen}
+}
+\newglossaryentry{lifecyclemanagement}
+{
+	name={Li\-fe\-cy\-cle Ma\-nage\-ment},
+	description={Be\-zeich\-net den Pro\-zess der Ver\-wal\-tung des ge\-sam\-ten Le\-bens\-zy\-klus ei\-nes Ob\-jekts oder ei\-ner Iden\-ti\-tät -- von der Er\-stel\-lung über die Nut\-zung und Än\-de\-rung bis hin zur De\-ak\-ti\-vie\-rung und Lö\-schung. Im Kon\-text von Be\-nut\-zer\-kon\-ten um\-fasst dies z.\,B. On\-boar\-ding, Rech\-te\-an\-pas\-sun\-gen und Off\-boar\-ding}
+}
+\newglossaryentry{privilegeescalation}
+{
+	name={Pri\-vi\-le\-ge Es\-ca\-la\-ti\-on},
+	description={Eine An\-griffs\-tech\-nik, bei der ein An\-grei\-fer ver\-sucht, sich hö\-he\-re Zu\-griffs\-rech\-te auf ei\-nem Sys\-tem zu ver\-schaf\-fen, als ihm ur\-sprüng\-lich zu\-ge\-wie\-sen wur\-den. Ziel ist es oft, ad\-mi\-nis\-tra\-ti\-ve Kon\-trol\-le (z.\,B. als Ad\-mi\-nis\-tra\-tor oder root) zu er\-lan\-gen}
+}
+\newglossaryentry{unc}
+{
+	name={Uni\-ver\-sal Na\-ming Con\-ven\-ti\-on},
+	description={Ein Stan\-dard zur Adres\-sie\-rung von Netz\-werk\-res\-sour\-cen wie Da\-tei\-en und Dru\-ckern in ei\-nem lo\-ka\-len Netz\-werk (LAN). Ein UNC-Pfad hat die ty\-pi\-sche Form \texttt{\textbackslash\textbackslash Ser\-ver\-na\-me\textbackslash Frei\-ga\-be\-na\-me\textbackslash Pfad}}
+}
+\newglossaryentry{oobe}
+{
+	name={Out-of-Box-Ex\-pe\-ri\-ence},
+	description={Be\-zeich\-net den Pro\-zess, den ein Be\-nut\-zer bei der ers\-ten In\-be\-trieb\-nah\-me ei\-nes neu\-en Ge\-räts oder nach ei\-ner Neu\-in\-stal\-la\-ti\-on des Be\-triebs\-sys\-tems durch\-läuft. Er um\-fasst ty\-pi\-scher\-wei\-se die Kon\-fi\-gu\-ra\-ti\-on von Spra\-che, Re\-gi\-on, Netz\-werk\-ein\-stel\-lun\-gen und Be\-nut\-zer\-kon\-ten}
+}
+\newglossaryentry{securechannel}
+{
+	name={Se\-cure Chan\-nel},
+	description={Eine au\-then\-ti\-fi\-zier\-te und ver\-schlüs\-sel\-te Ver\-bin\-dung zwi\-schen ei\-nem Do\-mä\-nen\-mit\-glied (z.\,B. ei\-nem Cli\-ent oder Ser\-ver) und ei\-nem Do\-mä\-nen\-con\-trol\-ler. Die\-ser si\-che\-re Ka\-nal wird für si\-cher\-heits\-kri\-ti\-sche Ope\-ra\-tio\-nen wie die Re\-pli\-ka\-ti\-on von Richt\-li\-ni\-en oder die Ak\-tua\-li\-sie\-rung des Com\-pu\-ter\-kon\-ten\-kenn\-worts ver\-wen\-det}
+}
+\newglossaryentry{realmd}
+{
+	name={realm\-d},
+	description={Ein Dienst, der eine ein\-heit\-li\-che Schnitt\-stel\-le für den Bei\-tritt zu ver\-schie\-de\-nen Do\-mä\-nen (Realms) wie Ac\-tive Di\-rec\-to\-ry oder FreeIPA bie\-tet. Er ab\-stra\-hiert die Kom\-ple\-xi\-tät der zu\-grun\-de\-lie\-gen\-den Kon\-fi\-gu\-ra\-ti\-ons\-werk\-zeu\-ge wie SSSD oder Ker\-be\-ros}
+}
+\newglossaryentry{autofs}
+{
+	name={Au\-toFS},
+	description={Ein Dienst im Li\-nux-Um\-feld, der Da\-tei\-sys\-te\-me (z.\,B. Netz\-werk\-frei\-ga\-ben) bei Be\-darf au\-to\-ma\-tisch ein\-bin\-det (moun\-tet) und nach ei\-ner Zeit der In\-ak\-ti\-vi\-tät wie\-der aus\-hängt. Dies ver\-bes\-sert die Sys\-tem-Per\-for\-mance und Ro\-bust\-heit}
+}
+\newglossaryentry{io}
+{
+	name={I/O (In\-put/Out\-put)},
+	sort={IO},
+	description={Sam\-mel\-be\-griff für die Kom\-mu\-ni\-ka\-ti\-on und den Da\-ten\-trans\-fer zwi\-schen ei\-nem In\-for\-ma\-ti\-ons\-ver\-ar\-bei\-tungs\-sys\-tem (wie ei\-nem Com\-pu\-ter) und der Au\-ßen\-welt oder an\-de\-ren Sys\-te\-men. Dies um\-fasst Ope\-ra\-tio\-nen wie das Le\-sen von oder Schrei\-ben auf eine Fest\-plat\-te oder den Da\-ten\-aus\-tausch über ein Netz\-werk}
+}
+\newglossaryentry{ext4}
+{
+	name={ext4 (fourth ex\-ten\-ded file\-sys\-tem)},
+	sort={ext4},
+	description={Ein Jour\-na\-ling-Da\-tei\-sys\-tem für Li\-nux, das als Nach\-fol\-ger von ext3 ent\-wi\-ckelt wur\-de. Es ist das Stan\-dard-Da\-tei\-sys\-tem für vie\-le gän\-gi\-ge Li\-nux-Dis\-tri\-bu\-tio\-nen und bie\-tet Ver\-bes\-se\-run\-gen in Be\-zug auf Leis\-tung, Zu\-ver\-läs\-sig\-keit und Spei\-cher\-ka\-pa\-zi\-tät}
+}
+\newglossaryentry{winbind}
+{
+	name={win\-bind},
+	description={Win\-bind ist ein Dienst der Sam\-ba-Sui\-te, der ei\-nen Li\-nux- oder Unix-Ser\-ver zu ei\-nem voll\-wer\-ti\-gen Mit\-glied ei\-ner Win\-dows Ac\-tive Di\-rec\-to\-ry-Do\-mä\-ne macht}
+}
+\newglossaryentry{advancedpersistentthread}{
+	name={Ad\-van\-ced Per\-sis\-tent Threat},
+	description={Eine ziel\-ge\-rich\-te\-te und lang\-an\-hal\-ten\-de Cy\-ber\-at\-ta\-cke, bei der ein An\-grei\-fer nach dem in\-itia\-len, un\-be\-merk\-ten Ein\-drin\-gen in ein Netz\-werk schritt\-wei\-se wei\-te\-re Sys\-te\-me kom\-pro\-mit\-tiert. Das Ziel ist oft die Es\-ka\-la\-ti\-on von Be\-rech\-ti\-gun\-gen, um die lang\-fris\-ti\-ge Kon\-trol\-le über kri\-ti\-sche Res\-sour\-cen oder das ge\-sam\-te Netz\-werk zu er\-lan\-gen}
+}
+\newglossaryentry{ticket}
+{
+	name={Ti\-cket},
+	description={Ein ver\-schlüs\-sel\-ter Da\-ten\-satz, der als tem\-po\-rä\-rer und si\-che\-rer Be\-rech\-ti\-gungs\-nach\-weis dient und eine pass\-wort\-lo\-se Au\-then\-ti\-fi\-zie\-rung in\-ner\-halb ei\-nes Netz\-werks er\-mög\-licht}
+}
