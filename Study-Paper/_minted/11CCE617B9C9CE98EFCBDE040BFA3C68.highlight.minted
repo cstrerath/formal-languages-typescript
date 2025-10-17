@@ -1,0 +1,22 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k+kd}{interface}\PYG{+w}{ }\PYG{n+nx}{Vector2D}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{n+nx}{x}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{number}\PYG{p}{;}
+\PYG{+w}{	}\PYG{n+nx}{y}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{number}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kd}{function}\PYG{+w}{ }\PYG{n+nx}{calculateLength}\PYG{p}{(}\PYG{n+nx}{v}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{Vector2D}\PYG{p}{)}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{number}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k}{return}\PYG{+w}{ }\PYG{n+nb}{Math}\PYG{p}{.}\PYG{n+nx}{sqrt}\PYG{p}{(}\PYG{n+nx}{v}\PYG{p}{.}\PYG{n+nx}{x}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n+nx}{v}\PYG{p}{.}\PYG{n+nx}{x}\PYG{+w}{ }\PYG{o}{+}\PYG{+w}{ }\PYG{n+nx}{v}\PYG{p}{.}\PYG{n+nx}{y}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n+nx}{v}\PYG{p}{.}\PYG{n+nx}{y}\PYG{p}{);}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kd}{class}\PYG{+w}{ }\PYG{n+nx}{Particle}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{	}\PYG{k+kr}{constructor}\PYG{p}{(}
+\PYG{+w}{	}\PYG{k}{public}\PYG{+w}{ }\PYG{n+nx}{x}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{number}\PYG{p}{,}
+\PYG{+w}{	}\PYG{k}{public}\PYG{+w}{ }\PYG{n+nx}{y}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{number}\PYG{p}{,}
+\PYG{+w}{	}\PYG{k}{public}\PYG{+w}{ }\PYG{n+nx}{velocity}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{number}
+\PYG{+w}{	}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}\PYGZcb{}}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kd}{const}\PYG{+w}{ }\PYG{n+nx}{p}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{o+ow}{new}\PYG{+w}{ }\PYG{n+nx}{Particle}\PYG{p}{(}\PYG{l+m+mf}{3}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mf}{4}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mf}{10}\PYG{p}{);}
+\PYG{k+kd}{const}\PYG{+w}{ }\PYG{n+nx}{len}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n+nx}{calculateLength}\PYG{p}{(}\PYG{n+nx}{p}\PYG{p}{);}
+\PYG{k+kd}{const}\PYG{+w}{ }\PYG{n+nx}{len2}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n+nx}{calculateLength}\PYG{p}{(\PYGZob{}}\PYG{+w}{ }\PYG{n+nx}{x}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{5}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{y}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{12}\PYG{+w}{ }\PYG{p}{\PYGZcb{});}
+\end{MintedVerbatim}

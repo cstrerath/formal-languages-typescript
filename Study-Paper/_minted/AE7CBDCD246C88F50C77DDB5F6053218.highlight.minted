@@ -1,0 +1,37 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k+kd}{const}\PYG{+w}{ }\PYG{n+nx}{grammarDefinition}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+s+sb}{`}
+\PYG{l+s+sb}{    @top Program \PYGZob{} Statement+ \PYGZcb{}}
+
+\PYG{l+s+sb}{    @tokens \PYGZob{}}
+\PYG{l+s+sb}{        \PYGZdq{}+\PYGZdq{} \PYGZdq{}\PYGZhy{}\PYGZdq{} \PYGZdq{}*\PYGZdq{} \PYGZdq{}/\PYGZdq{} \PYGZdq{}:=\PYGZdq{}}
+\PYG{l+s+sb}{        Number      \PYGZob{} \PYGZdl{}[0\PYGZhy{}9]+ (\PYGZdq{}.\PYGZdq{} \PYGZdl{}[0\PYGZhy{}9]*)?   \PYGZcb{}}
+\PYG{l+s+sb}{        Identifier  \PYGZob{} \PYGZdl{}[a\PYGZhy{}zA\PYGZhy{}Z] \PYGZdl{}[a\PYGZhy{}zA\PYGZhy{}Z0\PYGZhy{}9\PYGZus{}]* \PYGZcb{}}
+\PYG{l+s+sb}{        space       \PYGZob{} \PYGZdl{}[ \PYGZbs{}t\PYGZbs{}r\PYGZbs{}n]+ \PYGZcb{}}
+\PYG{l+s+sb}{    \PYGZcb{}}
+
+\PYG{l+s+sb}{    Statement \PYGZob{}}
+\PYG{l+s+sb}{        Identifier \PYGZdq{}:=\PYGZdq{} Expr \PYGZdq{};\PYGZdq{} |}
+\PYG{l+s+sb}{        Expr \PYGZdq{};\PYGZdq{}}
+\PYG{l+s+sb}{    \PYGZcb{}}
+
+\PYG{l+s+sb}{    Expr \PYGZob{}}
+\PYG{l+s+sb}{        Expr \PYGZdq{}+\PYGZdq{} Product |}
+\PYG{l+s+sb}{        Expr \PYGZdq{}\PYGZhy{}\PYGZdq{} Product |}
+\PYG{l+s+sb}{        Product}
+\PYG{l+s+sb}{    \PYGZcb{}}
+
+\PYG{l+s+sb}{    Product \PYGZob{}}
+\PYG{l+s+sb}{        Product \PYGZdq{}*\PYGZdq{} Factor |}
+\PYG{l+s+sb}{        Product \PYGZdq{}/\PYGZdq{} Factor |}
+\PYG{l+s+sb}{        Factor}
+\PYG{l+s+sb}{    \PYGZcb{}}
+
+\PYG{l+s+sb}{    Factor \PYGZob{}}
+\PYG{l+s+sb}{        \PYGZdq{}(\PYGZdq{} Expr \PYGZdq{})\PYGZdq{} |}
+\PYG{l+s+sb}{        Number       |}
+\PYG{l+s+sb}{        Identifier}
+\PYG{l+s+sb}{    \PYGZcb{}}
+
+\PYG{l+s+sb}{    @skip \PYGZob{} space \PYGZcb{}}
+\PYG{l+s+sb}{`}\PYG{p}{;}
+\end{MintedVerbatim}

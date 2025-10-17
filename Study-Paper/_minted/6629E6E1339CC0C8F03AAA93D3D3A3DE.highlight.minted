@@ -1,0 +1,28 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{State}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{k+kt}{string}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{k+kt}{number}\PYG{p}{;}
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{Char}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{k+kt}{string}\PYG{p}{;}
+
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{DFAState}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n+nx}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{State}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{TransRel}\PYG{+w}{ }\PYG{o}{=}
+\PYG{+w}{  }\PYG{n+nx}{RecursiveMap}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{Tuple}\PYG{o}{\PYGZlt{}}\PYG{p}{[}\PYG{n+nx}{State}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{Char}\PYG{p}{]}\PYG{o}{\PYGZgt{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{State}\PYG{o}{\PYGZgt{}\PYGZgt{}}\PYG{p}{;}
+
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{TransRelDet}\PYG{+w}{ }\PYG{o}{=}
+\PYG{+w}{  }\PYG{n+nx}{RecursiveMap}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{Tuple}\PYG{o}{\PYGZlt{}}\PYG{p}{[}\PYG{n+nx}{DFAState}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{Char}\PYG{p}{]}\PYG{o}{\PYGZgt{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{DFAState}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+
+\PYG{k+kd}{interface}\PYG{+w}{ }\PYG{n+nx}{NFA}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{n+nx}{Q}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{State}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{Sigma}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{Char}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{delta}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{TransRel}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{q0}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{State}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{A}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{State}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kd}{interface}\PYG{+w}{ }\PYG{n+nx}{DFA}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{n+nx}{Q}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{DFAState}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{Sigma}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{Char}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{delta}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{TransRelDet}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{q0}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{DFAState}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n+nx}{A}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{RecursiveSet}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{DFAState}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}

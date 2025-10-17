@@ -1,0 +1,12 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{n}{State}       \PYG{o}{=} \PYG{n}{TypeVar}\PYG{p}{(}\PYG{l+s+s2}{\PYGZdq{}State\PYGZdq{}}\PYG{p}{,} \PYG{n+nb}{str}\PYG{p}{,} \PYG{n+nb}{int}\PYG{p}{)}
+\PYG{n}{Char}        \PYG{o}{=} \PYG{n+nb}{str}
+\PYG{n}{TransRel}    \PYG{o}{=} \PYG{n+nb}{dict}\PYG{p}{[}\PYG{n+nb}{tuple}\PYG{p}{[}\PYG{n}{State}\PYG{p}{,} \PYG{n}{Char}\PYG{p}{],} \PYG{n+nb}{set}\PYG{p}{[}\PYG{n}{State}\PYG{p}{]]}
+\PYG{n}{TransRelDet} \PYG{o}{=} \PYG{n+nb}{dict}\PYG{p}{[}\PYG{n+nb}{tuple}\PYG{p}{[}\PYG{n+nb}{frozenset}\PYG{p}{[}\PYG{n}{State}\PYG{p}{],} \PYG{n}{Char}\PYG{p}{],} \PYG{n+nb}{frozenset}\PYG{p}{[}\PYG{n}{State}\PYG{p}{]]}
+
+\PYG{n}{NFA} \PYG{o}{=} \PYG{n+nb}{tuple}\PYG{p}{[}\PYG{n+nb}{set}\PYG{p}{[}\PYG{n}{State}\PYG{p}{],} \PYG{n+nb}{set}\PYG{p}{[}\PYG{n}{Char}\PYG{p}{],} \PYG{n}{TransRel}\PYG{p}{,} \PYG{n}{State}\PYG{p}{,} \PYG{n+nb}{set}\PYG{p}{[}\PYG{n}{State}\PYG{p}{]]}
+\PYG{n}{DFA} \PYG{o}{=} \PYG{n+nb}{tuple}\PYG{p}{[}
+    \PYG{n+nb}{set}\PYG{p}{[}\PYG{n+nb}{frozenset}\PYG{p}{[}\PYG{n}{State}\PYG{p}{]],} \PYG{n+nb}{set}\PYG{p}{[}\PYG{n}{Char}\PYG{p}{],} \PYG{n}{TransRelDet}\PYG{p}{,}
+    \PYG{n+nb}{frozenset}\PYG{p}{[}\PYG{n}{State}\PYG{p}{],} \PYG{n+nb}{set}\PYG{p}{[}\PYG{n+nb}{frozenset}\PYG{p}{[}\PYG{n}{State}\PYG{p}{]]}
+\PYG{p}{]}
+\end{MintedVerbatim}

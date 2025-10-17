@@ -1,0 +1,8 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{TokenList}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{k+kt}{string}\PYG{p}{[];}
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{ParseResult}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{[}\PYG{k+kt}{number}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{TokenList}\PYG{p}{];}
+\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{Parser}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{p}{(}\PYG{n+nx}{TL}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{TokenList}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{=\PYGZgt{}}\PYG{+w}{ }\PYG{n+nx}{ParseResult}\PYG{p}{;}
+
+\PYG{k+kd}{function}\PYG{+w}{ }\PYG{n+nx}{parseExpr}\PYG{p}{(}\PYG{n+nx}{TL}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{TokenList}\PYG{p}{)}\PYG{o}{:}\PYG{+w}{ }\PYG{n+nx}{ParseResult}\PYG{+w}{ }\PYG{p}{\PYGZob{}}\PYG{+w}{ }\PYG{c+cm}{/* ... */}\PYG{+w}{ }\PYG{p}{\PYGZcb{}}
+\PYG{k+kd}{function}\PYG{+w}{ }\PYG{n+nx}{parseFactor}\PYG{p}{(}\PYG{n+nx}{TL}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{TokenList}\PYG{p}{)}\PYG{o}{:}\PYG{+w}{ }\PYG{n+nx}{ParseResult}\PYG{+w}{ }\PYG{p}{\PYGZob{}}\PYG{+w}{ }\PYG{c+cm}{/* ... */}\PYG{+w}{ }\PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}

@@ -1,0 +1,4 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{n}{ParseTree}     \PYG{o}{=} \PYG{n+nb}{tuple}\PYG{p}{[}\PYG{n+nb}{str}\PYG{p}{,} \PYG{n+nb}{list}\PYG{p}{[}\PYG{l+s+s2}{\PYGZdq{}ParseTree\PYGZdq{}}\PYG{p}{]]}
+\PYG{n}{ParseTreeList} \PYG{o}{=} \PYG{n+nb}{list}\PYG{p}{[}\PYG{n}{ParseTree}\PYG{p}{]}
+\end{MintedVerbatim}

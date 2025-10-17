@@ -1,0 +1,5 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{n}{NestedTuple} \PYG{o}{=} \PYG{n}{TypeVar}\PYG{p}{(}\PYG{l+s+s1}{\PYGZsq{}NestedTuple\PYGZsq{}}\PYG{p}{)}
+\PYG{n}{NestedTuple} \PYG{o}{=} \PYG{n+nb}{int} \PYG{o}{|} \PYG{n+nb}{str} \PYG{o}{|} \PYG{n+nb}{tuple}\PYG{p}{[}\PYG{n}{NestedTuple}\PYG{p}{,} \PYG{o}{...}\PYG{p}{]}
+\PYG{n}{Number}      \PYG{o}{=} \PYG{n+nb}{int} \PYG{o}{|} \PYG{n+nb}{float}
+\end{MintedVerbatim}
