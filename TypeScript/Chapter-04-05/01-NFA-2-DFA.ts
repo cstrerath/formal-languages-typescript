@@ -1,78 +1,78 @@
-// 01-NFA-2-DFA.ts
-// DFA-Konstruktion aus NFA mit ε-Übergängen (speichersicher & ohne Duplikate)
+import { RecursiveSet } from "recursive-set";
+
+// --- Types ---
 
 export type State = string | number;
 export type Char = string;
 
-// Transitionen als String-Key "q,c"
-export type TransRel = Map<string, Set<State>>;
-export type TransRelDet = Map<string, Set<State>>;
+export type TransRel = Map<string, RecursiveSet<State>>;
+export type TransRelDet = Map<string, RecursiveSet<State>>;
 
 export type NFA = {
-  Q: Set<State>;
-  Sigma: Set<Char>;
+  Q: RecursiveSet<State>;
+  Sigma: RecursiveSet<Char>;
   delta: TransRel;
   q0: State;
-  A: Set<State>;
+  A: RecursiveSet<State>;
 };
 
 export type DFA = {
-  Q: Set<Set<State>>; // Menge der DFA-Zustände (jeder ist eine Menge von NFA-Zuständen)
-  Sigma: Set<Char>;
-  delta: TransRelDet; // "setKey(M),c" -> N
-  q0: Set<State>;
-  A: Set<Set<State>>;
+  Q: RecursiveSet<RecursiveSet<State>>; // Menge der DFA-Zustände (Mengen von NFA-Zuständen)
+  Sigma: RecursiveSet<Char>;
+  delta: TransRelDet;
+  q0: RecursiveSet<State>;
+  A: RecursiveSet<RecursiveSet<State>>;
 };
 
-// ------------------------------------------------------------
-// Utilities
-// ------------------------------------------------------------
+// --- Helper Functions ---
 
-function key(q: State, c: Char): string {
-  return `${q},${c}`;
+export function key(q: State | RecursiveSet<State>, c: Char): string {
+  return `${q.toString()},${c}`;
 }
 
-function toSortedArray(s: Set<State>): (string | number)[] {
-  // States können number oder string sein -> stabil als string vergleichen
-  return Array.from(s).sort((a, b) => String(a).localeCompare(String(b)));
-}
-
-function setKey(s: Set<State>): string {
-  return JSON.stringify(toSortedArray(s));
-}
-
-export function bigUnion<T>(sets: Set<Set<T>>): Set<T> {
-  const result = new Set<T>();
+export function bigUnion<T>(sets: RecursiveSet<RecursiveSet<T>>): RecursiveSet<T> {
+  const result = new RecursiveSet<T>();
+  
   for (const subset of sets) {
-    for (const x of subset) result.add(x);
+    // Explicit cast to help TS inference with nested recursive sets
+    const s = subset as RecursiveSet<T>;
+    for (const x of s) {
+      result.add(x as T); 
+    }
   }
   return result;
 }
 
-// ------------------------------------------------------------
-// Kernfunktionen
-// ------------------------------------------------------------
+// --- Core Algorithms ---
 
-export function epsClosure(s: State, delta: TransRel): Set<State> {
-  let result = new Set<State>([s]);
+export function epsClosure(s: State, delta: TransRel): RecursiveSet<State> {
+  let result = new RecursiveSet<State>(s);
+
   while (true) {
-    const newStates = new Set<State>();
+    const newStates = new RecursiveSet<State>();
     for (const q of result) {
-      const targets = delta.get(key(q, 'ε'));
-      if (targets) for (const t of targets) newStates.add(t);
+      // q is guaranteed to be a State (primitive) in this NFA context
+      const targets = delta.get(key(q as State, 'ε'));
+      if (targets) {
+        for (const t of targets) newStates.add(t);
+      }
     }
-    const combined = new Set([...result, ...newStates]);
+    
+    const combined = result.union(newStates);
+
+    // Fixed-point check: Size check is sufficient for monotonically growing sets
     if (combined.size === result.size) return result;
     result = combined;
   }
 }
 
-export function deltaHat(s: State, c: Char, delta: TransRel): Set<State> {
-  const reachable = new Set<State>();
+export function deltaHat(s: State, c: Char, delta: TransRel): RecursiveSet<State> {
+  const reachable = new RecursiveSet<State>();
   const targets = delta.get(key(s, c));
+
   if (targets) {
     for (const q of targets) {
-      const clos = epsClosure(q, delta);
+      const clos = epsClosure(q as State, delta);
       for (const r of clos) reachable.add(r);
     }
   }
@@ -80,42 +80,41 @@ export function deltaHat(s: State, c: Char, delta: TransRel): Set<State> {
 }
 
 export function capitalDelta(
-  M: Set<State>,
+  M: RecursiveSet<State>,
   c: Char,
   delta: TransRel
-): Set<State> {
-  const partials = new Set<Set<State>>();
-  for (const q of M) partials.add(deltaHat(q, c, delta));
+): RecursiveSet<State> {
+  const partials = new RecursiveSet<RecursiveSet<State>>();
+  for (const q of M) {
+    partials.add(deltaHat(q as State, c, delta));
+  }
   return bigUnion(partials);
 }
 
-// WICHTIG: keine Set<Set<...>>-Vereinigungen mehr in der Fixpunkt-Schleife.
-// Wir verwenden BFS mit Kanonisierung (setKey).
 export function allStates(
-  Q0: Set<State>,
+  Q0: RecursiveSet<State>, 
   delta: TransRel,
-  Sigma: Set<Char>
-): Set<Set<State>> {
-  const seen = new Map<string, Set<State>>();
-  const queue: Set<State>[] = [];
+  Sigma: RecursiveSet<Char>
+): RecursiveSet<RecursiveSet<State>> {
+  const states = new RecursiveSet<RecursiveSet<State>>();
 
-  const startKey = setKey(Q0);
-  seen.set(startKey, Q0);
-  queue.push(Q0);
+  const queue: RecursiveSet<State>[] = [Q0];
+  states.add(Q0);
 
   while (queue.length > 0) {
     const M = queue.shift()!;
-    for (const c of Sigma) {
-      const N = capitalDelta(M, c, delta); // kann leer sein – ist ok
-      const k = setKey(N);
-      if (!seen.has(k)) {
-        seen.set(k, N);
+    for (const rawC of Sigma) {
+      const c = rawC as Char;
+      const N = capitalDelta(M, c, delta); 
+
+      // Efficient structural check handled by RecursiveSet
+      if (!states.has(N)) {
+        states.add(N);
         queue.push(N);
       }
     }
   }
-  // Rückgabe als Set<Set<State>>
-  return new Set(seen.values());
+  return states;
 }
 
 export function nfa2dfa(nfa: NFA): DFA {
@@ -125,23 +124,36 @@ export function nfa2dfa(nfa: NFA): DFA {
   const newStates = allStates(newStart, delta, Sigma);
 
   const newDelta: TransRelDet = new Map();
-  for (const M of newStates) {
-    const Mk = setKey(M);
-    for (const c of Sigma) {
-      const N = capitalDelta(M, c, delta);
-      newDelta.set(`${Mk},${c}`, N);
+  
+  // Iterate over DFA states (sets of NFA states)
+  for (const rawM of newStates) {
+    const M = rawM as RecursiveSet<State>; 
+
+    for (const rawC of Sigma) {
+        const c = rawC as Char; 
+
+        const N = capitalDelta(M, c, delta);
+        newDelta.set(key(M, c), N);
     }
   }
 
-  const newFinal = new Set<Set<State>>();
-  for (const M of newStates) {
-    for (const a of A) {
-      if (M.has(a)) {
-        newFinal.add(M);
-        break;
-      }
+  const newFinal = new RecursiveSet<RecursiveSet<State>>();
+  
+  for (const rawM of newStates) {
+    const M = rawM as RecursiveSet<State>;
+    // Check if M contains any accepting state from NFA
+    const intersection = M.intersection(A);
+    
+    if (!intersection.isEmpty()) {
+      newFinal.add(M);
     }
   }
 
-  return { Q: newStates, Sigma, delta: newDelta, q0: newStart, A: newFinal };
+  return {
+    Q: newStates,
+    Sigma,
+    delta: newDelta,
+    q0: newStart,
+    A: newFinal
+  };
 }
