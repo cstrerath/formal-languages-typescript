@@ -1,109 +1,175 @@
-// ---------------------------------------------------------------------------
-// 05-DFA-2-RegExp.ts
-// Converts a Deterministic Finite Automaton (DFA) into an equivalent
-// Regular Expression according to the algorithm from the lecture.
-// ---------------------------------------------------------------------------
+import { RecursiveSet } from 'recursive-set';
 
-// ---------- Basic Type Definitions -----------------------------------------
+// ============================================================
+// 1. Type Definitions (wie 01-NFA-2-DFA.ts & 03-Regexp-2-NFA.ts)
+// ============================================================
 
+/** Abstract type for states (can be string or number) */
+export type State = string | number;
+
+/** Abstract type for characters (alphabet symbols) */
 export type Char = string;
 
-// Recursive Type for Regular Expressions
-// Equivalent to: RegExp = int | Char | tuple[RegExp, ...]
-export type RegExp = number | Char | [RegExp, ...RegExp[]];
+/**
+ * Transition relation for NFA:
+ * Maps a string key "state,char" to a set of reachable states.
+ * (Für DFA brauchen wir eigentlich nur TransRelDet, aber egal.)
+ */
+export type TransRel = Map<string, RecursiveSet<State>>;
 
-// States are represented as numeric IDs
-export type State = number;
+/**
+ * Transition relation for DFA:
+ * Maps a string key "stateSet,char" to a single set of states
+ * (the target state in the DFA).
+ * Die Ziel-RecursiveSet<State> repräsentiert EINEN DFA-Zustand.
+ */
+export type TransRelDet = Map<string, RecursiveSet<State>>;
 
-// Transition Relation: (State, Char) → State
-export type TransRel = Map<[State, Char], State>;
+/** Helper to generate keys for transition maps (wie in 01-NFA-2-DFA.ts). */
+export function key(q: State | RecursiveSet<State>, c: Char): string {
+  return `${q.toString()},${c}`;
+}
 
-// DFA Definition: (Q, Σ, δ, q0, F)
+/** Operators for Regular Expressions */
+export type BinaryOp = '⋅' | '+';
+export type UnaryOp = '*';
+
+/**
+ * Regular Expression type:
+ * - 0      represents the empty set (∅)
+ * - string represents either a symbol from Σ or epsilon ('ε')
+ * - [r, '*']                is r*
+ * - [r1, '⋅', r2]           is r1 r2
+ * - [r1, '+', r2]           is r1 + r2
+ */
+export type RegExp =
+  | number
+  | string
+  | [RegExp, UnaryOp]
+  | [RegExp, BinaryOp, RegExp];
+
+/** Deterministic Finite Automaton (wie in 01-NFA-2-DFA.ts) */
 export interface DFA {
-  Q: Set<State>;
-  Sigma: Set<Char>;
-  delta: TransRel;
-  q0: State;
-  F: Set<State>;
+  Q: RecursiveSet<RecursiveSet<State>>; // States are sets of NFA states
+  Sigma: RecursiveSet<Char>;
+  delta: TransRelDet;
+  q0: RecursiveSet<State>;
+  A: RecursiveSet<RecursiveSet<State>>;
 }
 
-// ---------- Conversion Functions -------------------------------------------
+// ============================================================
+// 2. regexpSum – Summe von RegExps
+// ============================================================
 
-// Helper: Sum (union) of a set of regular expressions
-export function regexp_sum(S: Set<RegExp> | RegExp[]): RegExp {
-  const list = Array.from(S);
-  const n = list.length;
+/**
+ * Bildet die Summe (Disjunktion) einer Menge bzw. Liste von RegExps:
+ *   regexpSum({r1, r2, r3}) = r1 + r2 + r3
+ *
+ * - Leere Menge/Liste -> 0
+ * - Ein Element       -> dieses Element
+ */
+export function regexpSum(S: Set<RegExp> | RegExp[]): RegExp {
+  const elems: RegExp[] = S instanceof Set ? Array.from(S) : S.slice();
+  const n = elems.length;
 
-  switch (n) {
-    case 0:
-      return 0; // empty language
-    case 1:
-      return list[0];
-    default: {
-      const [r, ...rest] = list;
-      return [r, '+', regexp_sum(rest)] as RegExp;
-    }
+  if (n === 0) {
+    return 0;
   }
+  if (n === 1) {
+    return elems[0];
+  }
+
+  const [r, ...rest] = elems;
+  return [r, '+', regexpSum(rest)];
 }
 
-// Recursive function rpq(p1, p2, Σ, δ, Allowed)
+// ============================================================
+// 3. rpq-Funktion (State-Elimination)
+// ============================================================
+
+/**
+ * rpq(p1, p2, Σ, δ, Allowed):
+ *
+ * Gibt einen regulären Ausdruck für alle Wörter an,
+ * die Zustand p1 nach p2 bringen, wobei als Zwischenzustände
+ * NUR Zustände aus `Allowed` benutzt werden dürfen.
+ *
+ * Direkte Portierung von rpq aus dem Python-Notebook.
+ */
 export function rpq(
-  p1: State,
-  p2: State,
-  Sigma: Set<Char>,
-  delta: TransRel,
-  Allowed: State[] | Set<State>
+  p1: RecursiveSet<State>,
+  p2: RecursiveSet<State>,
+  Sigma: RecursiveSet<Char>,
+  delta: TransRelDet,
+  Allowed: RecursiveSet<State>[]
 ): RegExp {
-  const allowedList = Array.from(Allowed);
+  // Basisfall: keine Zwischenzustände mehr erlaubt
+  if (Allowed.length === 0) {
+    const allChars = new Set<RegExp>();
 
-  // Case 1: Allowed is empty
-  if (allowedList.length === 0) {
-    // All characters that lead from p1 to p2
-    const AllChars = new Set<RegExp>(
-      Array.from(Sigma).filter((c) => {
-        for (const [[q, sym], target] of delta.entries()) {
-          if (q === p1 && sym === c && target === p2) {
-            return true;
-          }
-        }
-        return false;
-      })
-    );
+    // AllChars = { c in Σ | δ(p1, c) == p2 }
+    for (const symbol of Sigma) {
+      const c = symbol as Char;
+      const target = delta.get(key(p1, c));
 
-    const r = regexp_sum(AllChars);
+      // Wir verlassen uns hier darauf, dass dieselbe RecursiveSet-Instanz
+      // für Zustände in Q, A und delta verwendet wird (wie in 01-NFA-2-DFA.ts).
+      if (target === p2) {
+        allChars.add(c);
+      }
+    }
 
+    const r = regexpSum(allChars);
+
+    // Wenn Start- und Zielzustand gleich sind, ist zusätzlich ε erlaubt
     if (p1 === p2) {
-      // ε + r
-      return ['ε', '+', r] as RegExp;
+      // In den TS-Dateien wird 'ε' als Epsilon verwendet.
+      return ['ε', '+', r];
     } else {
       return r;
     }
   }
 
-  // Case 2: Allowed = {q} ∪ RestAllowed
-  const [q, ...RestAllowed] = allowedList;
+  // Rekursionsfall: einen Zwischenzustand q aus Allowed eliminieren
+  const [q, ...RestAllowed] = Allowed;
 
   const rp1p2 = rpq(p1, p2, Sigma, delta, RestAllowed);
   const rp1q = rpq(p1, q, Sigma, delta, RestAllowed);
   const rqq = rpq(q, q, Sigma, delta, RestAllowed);
   const rqp2 = rpq(q, p2, Sigma, delta, RestAllowed);
 
-  // rpq(p1,p2,Allowed) := rp1p2 + rp1q ⋅ rqq* ⋅ rqp2
-  return [rp1p2, '+', [[rp1q, '⋅', [rqq, '*']], '⋅', rqp2]] as RegExp;
+  // Term:  (rp1q ⋅ rqq* ⋅ rqp2)
+  const loop: RegExp = [rqq, '*'];
+  const concat1: RegExp = [rp1q, '⋅', loop];
+  const concat2: RegExp = [concat1, '⋅', rqp2];
+
+  // Gesamtergebnis: rp1p2 + (rp1q ⋅ rqq* ⋅ rqp2)
+  return [rp1p2, '+', concat2];
 }
 
-// Converts a DFA into an equivalent regular expression
-export function dfa_2_regexp(F: DFA): RegExp {
-  const States = F.Q;
-  const Sigma = F.Sigma;
-  const delta = F.delta;
-  const q0 = F.q0;
-  const Accepting = F.F;
+// ============================================================
+// 4. Hauptfunktion: DFA → RegExp
+// ============================================================
 
-  const regexSet = new Set<RegExp>();
-  for (const p of Accepting) {
-    regexSet.add(rpq(q0, p, Sigma, delta, Array.from(States)));
+/**
+ * Wandelt einen DFA in einen äquivalenten regulären Ausdruck um,
+ * mittels rekursiver Zustandseliminierung (rpq).
+ */
+export function dfa2regexp(F: DFA): RegExp {
+  const { Q, Sigma, delta, q0, A } = F;
+
+  // Allowed-States-Liste: alle Zustände des DFA
+  const allStates = Array.from(Q) as RecursiveSet<State>[];
+
+  const parts = new Set<RegExp>();
+
+  // Für jeden akzeptierenden Zustand p wird r_{q0,p} berechnet
+  for (const acc of A) {
+    const p = acc as RecursiveSet<State>;
+    const r = rpq(q0, p, Sigma, delta, allStates);
+    parts.add(r);
   }
 
-  return regexp_sum(regexSet);
+  // Gesamtsprache ist die Summe über alle akzeptierenden Zustände
+  return regexpSum(parts);
 }
