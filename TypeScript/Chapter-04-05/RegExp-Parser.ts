@@ -1,4 +1,4 @@
-import { RegExp, UnaryOp, BinaryOp } from "./03-RegExp-2-NFA";
+import { RegExp, UnaryOp, BinaryOp } from "./03-Regexp-2-NFA";
 
 // ============================================================
 // 1. Type Definitions
