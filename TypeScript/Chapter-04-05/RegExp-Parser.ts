@@ -1,3 +1,4 @@
+import { Tuple } from 'recursive-set';
 import { RegExp, UnaryOp, BinaryOp } from "./03-RegExp-2-NFA";
 
 // ============================================================
@@ -69,7 +70,12 @@ function parseRegExp(tokens: string[]): ParseResult {
         const nextTokens = rest.slice(1);
         const [right, rightRest] = parseProduct(nextTokens);
         
-        result = [result, '+', right];
+        // Use Tuple for Union
+        result = new Tuple<[RegExp, BinaryOp, RegExp]>(
+            result, 
+            '+' as BinaryOp, 
+            right
+        );
         rest = rightRest;
     }
 
@@ -90,7 +96,12 @@ function parseProduct(tokens: string[]): ParseResult {
     while (rest.length > 0 && isAtomStart(rest[0])) {
         const [right, rightRest] = parseFactor(rest);
         
-        result = [result, '⋅', right];
+        // Use Tuple for Concatenation
+        result = new Tuple<[RegExp, BinaryOp, RegExp]>(
+            result, 
+            '⋅' as BinaryOp, 
+            right
+        );
         rest = rightRest;
     }
 
@@ -105,8 +116,8 @@ function parseFactor(tokens: string[]): ParseResult {
 
     // Check for Kleene Star '*'
     if (rest.length > 0 && rest[0] === '*') {
-        // Postfix notation in our RegExp type: [RegExp, UnaryOp]
-        atom = [atom, '*' as UnaryOp];
+        // Use Tuple for Kleene Star
+        atom = new Tuple<[RegExp, UnaryOp]>(atom, '*' as UnaryOp);
         rest = rest.slice(1);
     }
 
@@ -137,7 +148,7 @@ function parseAtom(tokens: string[]): ParseResult {
 
     // Case 2: Empty Set
     if (t === '∅') {
-        return [0, rest]; // 0 represents ∅
+        return [0, rest]; // 0 represents ∅ (matches RegExp = number | ...)
     }
 
     // Case 3: Epsilon
@@ -154,3 +165,4 @@ function parseAtom(tokens: string[]): ParseResult {
     error(`Unexpected token '${t}'`, tokens);
     return [0, []]; // Unreachable
 }
+
