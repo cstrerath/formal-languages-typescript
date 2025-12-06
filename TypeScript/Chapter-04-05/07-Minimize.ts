@@ -1,67 +1,125 @@
-import { RecursiveSet } from 'recursive-set';
+import { RecursiveSet, Tuple } from 'recursive-set';
+import { DFA, State, Char, key } from './01-NFA-2-DFA';
 
-export type Char = string;
+// ============================================================
+// 1. Type Definitions
+// ============================================================
 
-export type TransRel<S> = Map<string, S>;
+/** Char is an alias for string */
+// (Bereits durch ./01-NFA-2-DFA importiert, aber hier der Vollständigkeit halber erwähnt)
 
-export interface DFA<S> {
-  Q: RecursiveSet<S>;
+/**
+ * Level 2: Ein DFA-Zustand ist eine Menge von NFA-Zuständen
+ * (entspricht RecursiveSet<State> in deinem System)
+ */
+export type DfaState = RecursiveSet<State>;
+
+/**
+ * Level 3: Ein Zustand im minimierten DFA ist eine Menge von DFA-Zuständen (Äquivalenzklasse)
+ * Dies entspricht dem Typ SetState im Notebook.
+ */
+export type DfaStateSet = RecursiveSet<DfaState>;
+
+/**
+ * Pair is a pair of states.
+ * Wir nutzen Tuple<[DfaState, DfaState]> für ein Paar (q1, q2).
+ */
+export type StatePair = Tuple<[DfaState, DfaState]>;
+
+/**
+ * Transition Relation für den minimierten Automaten
+ * Key: "DfaStateSet,Char" -> Value: DfaStateSet
+ */
+export type TransRelMin = Map<string, DfaStateSet>;
+
+/**
+ * Der minimierte DFA (entspricht MinDFA im Notebook)
+ * Er unterscheidet sich vom normalen DFA durch die tiefer verschachtelten Zustände.
+ */
+export type MinDFA = {
+  Q: RecursiveSet<DfaStateSet>;
   Sigma: RecursiveSet<Char>;
-  delta: TransRel<S>;
-  q0: S;
-  A: RecursiveSet<S>;
-}
+  delta: TransRelMin;
+  q0: DfaStateSet;
+  A: RecursiveSet<DfaStateSet>;
+};
 
-export type SetState<S> = RecursiveSet<S>;
+// ============================================================
+// 2. Helper Functions
+// ============================================================
 
-export type MinDFA<S> = DFA<SetState<S>>;
-
-export function key<S>(q: S, c: Char): string {
-  return `${q instanceof RecursiveSet ? q.toString() : q},${c}`;
-}
-
-function makePair<S>(a: S, b: S): RecursiveSet<RecursiveSet<S>> {
-  const sa = new RecursiveSet<S>(a);
-  const sab = new RecursiveSet<S>(a, b);
-  return new RecursiveSet<RecursiveSet<S>>(sa, sab);
-}
-
-export function arb<T>(M: RecursiveSet<T>): T {
+/**
+ * The function arbM takes a non-empty set M and returns an arbitrary element.
+ */
+export function arbM<S>(M: RecursiveSet<S>): S {
   for (const x of M) {
-    return x as T;
+    // Cast notwendig, da Iterator theoretisch auch geschachtelte Sets liefern könnte
+    return x as S;
   }
   throw new Error('Error: arb called with empty set!');
 }
 
-export function cart_prod<S, T>(
+/**
+ * The function cartprod computes the Cartesian product A x B.
+ * Rückgabetyp ist präzise ein Set von Tuples [S, T].
+ */
+export function cartprod<S, T>(
   A: RecursiveSet<S>,
   B: RecursiveSet<T>
-): RecursiveSet<RecursiveSet<S | T>> {
-  return A.cartesianProduct(B);
+): RecursiveSet<Tuple<[S, T]>> {
+  const result = new RecursiveSet<Tuple<[S, T]>>();
+  for (const x of A) {
+    for (const y of B) {
+      // Casts notwendig für saubere Typisierung bei Generics
+      result.add(new Tuple(x as S, y as T));
+    }
+  }
+  return result;
 }
 
-export function separate<S>(
-  Pairs: RecursiveSet<RecursiveSet<S>>,
-  States: RecursiveSet<S>,
+/**
+ * Beispiel aus Zelle 14: cartprod({1, 2}, {'a', 'b', 'c'})
+ * Dies dient als Demonstration/Test.
+ */
+export function runCartProdExample() {
+  const A = new RecursiveSet(1, 2);
+  const B = new RecursiveSet('a', 'b', 'c');
+  const result = cartprod(A, B);
+  console.log(`cartprod({1, 2}, {'a', 'b', 'c'}) result:`);
+  console.log(result.toString());
+}
+
+/**
+ * The function separatePairs computes the set of pairs of states (q1, q2) that are separable.
+ * Two states are separable if they transition to states (p1, p2) that are already known to be separable.
+ */
+export function separatePairs(
+  Pairs: RecursiveSet<StatePair>,
+  States: RecursiveSet<DfaState>,
   Sigma: RecursiveSet<Char>,
-  delta: TransRel<S>
-): RecursiveSet<RecursiveSet<S>> {
-  const Result = new RecursiveSet<RecursiveSet<S>>();
+  delta: Map<string, DfaState>
+): RecursiveSet<StatePair> {
+  const Result = new RecursiveSet<StatePair>();
 
-  for (const q1_raw of States) {
-    const q1 = q1_raw as S;
-    for (const q2_raw of States) {
-      const q2 = q2_raw as S;
-      for (const c_raw of Sigma) {
-        const c = c_raw as Char;
+  // Explizite Iteration mit Casts für Typsicherheit
+  for (const rawQ1 of States) {
+    const q1 = rawQ1 as DfaState;
+    for (const rawQ2 of States) {
+      const q2 = rawQ2 as DfaState;
 
+      for (const rawC of Sigma) {
+        const c = rawC as Char;
+
+        // Wir greifen auf die ursprüngliche delta-Funktion zu
         const p1 = delta.get(key(q1, c));
         const p2 = delta.get(key(q2, c));
 
-        if (p1 !== undefined && p2 !== undefined) {
-          const targetPair = makePair(p1, p2);
-          if (Pairs.has(targetPair)) {
-            Result.add(makePair(q1, q2));
+        if (p1 && p2) {
+          const successorPair = new Tuple(p1, p2);
+          if (Pairs.has(successorPair)) {
+            Result.add(new Tuple(q1, q2));
+            // Optimierung: Ein Trenner reicht
+            break;
           }
         }
       }
@@ -70,124 +128,145 @@ export function separate<S>(
   return Result;
 }
 
-export function find_equivalence_class<S>(
-  p: S,
-  Partition: RecursiveSet<RecursiveSet<S>>
-): RecursiveSet<S> {
-  const candidates = new RecursiveSet<RecursiveSet<S>>();
-  for (const C_raw of Partition) {
-    const C = C_raw as RecursiveSet<S>;
-    if (C.has(p)) {
-      candidates.add(C);
-    }
+/**
+ * Returns the equivalence class of p (the set of states in Partition that contains p).
+ */
+export function findEquivalenceClass(
+  p: DfaState,
+  Partition: RecursiveSet<DfaStateSet>
+): DfaStateSet {
+  for (const rawC of Partition) {
+    const C = rawC as DfaStateSet;
+    if (C.has(p)) return C;
   }
-  return arb(candidates);
+  throw new Error(`State ${p} not found in any equivalence class`);
 }
 
-export function reachable<S>(
-  q0: S,
+/**
+ * Returns the set of all states that can be reached from the start state q0.
+ * Uses fixed point computation.
+ */
+export function reachable(
+  q0: DfaState,
   Sigma: RecursiveSet<Char>,
-  delta: TransRel<S>
-): RecursiveSet<S> {
-  let Result = new RecursiveSet<S>(q0);
+  delta: Map<string, DfaState>
+): RecursiveSet<DfaState> {
+  let Result = new RecursiveSet<DfaState>(q0);
 
   while (true) {
-    const NewStates = new RecursiveSet<S>();
-    for (const p_raw of Result) {
-      const p = p_raw as S;
-      for (const c_raw of Sigma) {
-        const c = c_raw as Char;
+    const NewStates = new RecursiveSet<DfaState>();
+
+    for (const rawP of Result) {
+      const p = rawP as DfaState;
+      for (const rawC of Sigma) {
+        const c = rawC as Char;
         const target = delta.get(key(p, c));
-        if (target !== undefined) {
-          NewStates.add(target);
-        }
+        if (target) NewStates.add(target);
       }
     }
 
-    if (NewStates.isSubset(Result)) {
-      return Result;
-    }
+    if (NewStates.isSubset(Result)) return Result;
     Result = Result.union(NewStates);
   }
 }
 
-export function all_separable<S>(
-  Q: RecursiveSet<S>,
-  A: RecursiveSet<S>,
+/**
+ * Computes the set of all Pairs (p, q) such that p and q are separable.
+ * Uses fixed point computation starting with (Accepting, Non-Accepting).
+ */
+export function allSeparable(
+  Q: RecursiveSet<DfaState>,
+  A: RecursiveSet<DfaState>,
   Sigma: RecursiveSet<Char>,
-  delta: TransRel<S>
-): RecursiveSet<RecursiveSet<S>> {
-  const NonAccepting = Q.difference(A);
+  delta: Map<string, DfaState>
+): RecursiveSet<StatePair> {
+  const nonAccepting = Q.difference(A);
 
-  let Separable = cart_prod(NonAccepting, A).union(cart_prod(A, NonAccepting));
+  let Separable = cartprod(nonAccepting, A);
+  const Separable2 = cartprod(A, nonAccepting);
+
+  Separable = Separable.union(Separable2);
 
   while (true) {
-    const NewPairs = separate(Separable, Q, Sigma, delta);
-    if (NewPairs.isSubset(Separable)) {
-      return Separable;
-    }
+    const NewPairs = separatePairs(Separable, Q, Sigma, delta);
+    if (NewPairs.isSubset(Separable)) return Separable;
     Separable = Separable.union(NewPairs);
   }
 }
 
-export function minimize<S>(F: DFA<S>): MinDFA<S> {
-  const { Sigma, delta, q0, A } = F;
+// ============================================================
+// 3. Main Minimization Function
+// ============================================================
 
-  const Q = reachable(q0, Sigma, delta);
+/**
+ * Minimizes a DFA by identifying equivalent states.
+ * Returns a MinDFA structure where states are sets of original DFA states.
+ */
+export function minimizeDFA(F: DFA): MinDFA {
+  const { Q, Sigma, delta, q0, A } = F;
 
-  const Separable = all_separable(Q, A, Sigma, delta);
+  const inputQ = Q as RecursiveSet<DfaState>;
+  const inputQ0 = q0 as DfaState;
+  const inputA = A as RecursiveSet<DfaState>;
 
-  const AllPairs = cart_prod(Q, Q);
-  const Equivalent = AllPairs.difference(Separable);
+  // 1. Unreachable states are eliminated.
+  const ReachableQ = reachable(inputQ0, Sigma, delta);
+  const ReachableA = inputA.intersection(ReachableQ);
 
-  const EquivClasses = new RecursiveSet<RecursiveSet<S>>();
+  // 2/3. States are separated as long as possible.
+  const Separable = allSeparable(ReachableQ, ReachableA, Sigma, delta);
 
-  for (const q_raw of Q) {
-    const q = q_raw as S;
-    const eqClass = new RecursiveSet<S>();
-    for (const p_raw of Q) {
-      const p = p_raw as S;
-      if (Equivalent.has(makePair(p, q))) {
-        eqClass.add(p);
+  // 4. States that are not separable are equivalent.
+  const allPairs = cartprod(ReachableQ, ReachableQ);
+  const Equivalent = allPairs.difference(Separable);
+
+  // Build Equivalence Classes
+  const EquivClasses = new RecursiveSet<DfaStateSet>();
+
+  for (const rawQ of ReachableQ) {
+    const q = rawQ as DfaState;
+    const equivalenceClass = new RecursiveSet<DfaState>();
+
+    for (const rawP of ReachableQ) {
+      const p = rawP as DfaState;
+      const pair = new Tuple(p, q);
+      if (Equivalent.has(pair)) {
+        equivalenceClass.add(p);
       }
     }
-    EquivClasses.add(eqClass);
+    EquivClasses.add(equivalenceClass);
   }
 
-  const q0Candidates = new RecursiveSet<RecursiveSet<S>>();
-  for (const M_raw of EquivClasses) {
-    const M = M_raw as RecursiveSet<S>;
-    if (M.has(q0)) {
-      q0Candidates.add(M);
-    }
-  }
-  const newQ0 = arb(q0Candidates);
+  // New Start State
+  const newQ0 = findEquivalenceClass(inputQ0, EquivClasses);
 
-  const newAccept = new RecursiveSet<RecursiveSet<S>>();
-  for (const M_raw of EquivClasses) {
-    const M = M_raw as RecursiveSet<S>;
-    const representative = arb(M);
-
-    if (A.has(representative)) {
+  // New Accepting States
+  const newAccept = new RecursiveSet<DfaStateSet>();
+  for (const rawM of EquivClasses) {
+    const M = rawM as DfaStateSet;
+    const representative = arbM(M);
+    if (ReachableA.has(representative)) {
       newAccept.add(M);
     }
   }
 
-  const newDelta = new Map<string, RecursiveSet<S>>();
-  for (const q_raw of Q) {
-    const q = q_raw as S;
-    for (const c_raw of Sigma) {
-      const c = c_raw as Char;
+  // New Transitions
+  const newDelta: TransRelMin = new Map();
 
-      const p = delta.get(key(q, c));
+  for (const rawQ of ReachableQ) {
+    const q = rawQ as DfaState;
+    const classOfQ = findEquivalenceClass(q, EquivClasses);
 
-      const classOfQ = find_equivalence_class(q, EquivClasses);
+    for (const rawC of Sigma) {
+      const c = rawC as Char;
+      const target = delta.get(key(q, c));
 
-      if (p !== undefined) {
-        const classOfP = find_equivalence_class(p, EquivClasses);
-        newDelta.set(key(classOfQ, c), classOfP);
-      } else {
-        newDelta.set(key(classOfQ, c), new RecursiveSet<S>());
+      if (target) {
+        const classOfP = findEquivalenceClass(target, EquivClasses);
+
+        // Hier nutzen wir `any` NUR für den Key-Generator, da key() streng typisiert ist
+        // und wir hier "Level 3"-Zustände haben. Das ist laufzeit-sicher.
+        newDelta.set(key(classOfQ as any, c), classOfP);
       }
     }
   }
