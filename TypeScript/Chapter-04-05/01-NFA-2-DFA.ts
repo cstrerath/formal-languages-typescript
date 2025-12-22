@@ -1,29 +1,19 @@
 import { RecursiveSet } from "recursive-set";
 
-// ============================================================
-// 1. Type Definitions
-// ============================================================
+// === Types ===
 
-/** Abstract type for states (can be string or number) */
 export type State = string | number;
-
-/** Abstract type for characters (alphabet symbols) */
 export type Char = string;
 
-/** 
- * Transition relation for NFA: 
- * Maps a string key "state,char" to a set of reachable states.
- */
+/** Represents a set of NFA states. This acts as a single state in the DFA. */
+export type DFAState = RecursiveSet<State>;
+
+/** NFA Transitions: Map<"State,Char", Set<TargetStates>> */
 export type TransRel = Map<string, RecursiveSet<State>>;
 
-/** 
- * Transition relation for DFA: 
- * Maps a string key "stateSet,char" to a single set of states (the target state in DFA).
- * Note: The target is a RecursiveSet<State>, which represents ONE state in the DFA.
- */
-export type TransRelDet = Map<string, RecursiveSet<State>>;
+/** DFA Transitions: Map<"SetOfStates,Char", SetOfStates> */
+export type TransRelDet = Map<string, DFAState>;
 
-/** Non-Deterministic Finite Automaton */
 export type NFA = {
   Q: RecursiveSet<State>;
   Sigma: RecursiveSet<Char>;
@@ -32,47 +22,42 @@ export type NFA = {
   A: RecursiveSet<State>;
 };
 
-/** Deterministic Finite Automaton */
 export type DFA = {
-  Q: RecursiveSet<RecursiveSet<State>>; // States are sets of NFA states
+  Q: RecursiveSet<DFAState>;
   Sigma: RecursiveSet<Char>;
   delta: TransRelDet;
-  q0: RecursiveSet<State>;
-  A: RecursiveSet<RecursiveSet<State>>;
+  q0: DFAState;
+  A: RecursiveSet<DFAState>;
 };
 
-// ============================================================
-// 2. Helper Functions
-// ============================================================
+// === Helper Functions ===
 
-/** Helper to generate unique keys for transition maps */
-export function key(q: State | RecursiveSet<State>, c: Char): string {
+/** Generates a unique key for transition lookups. */
+export function key(q: State | DFAState, c: Char): string {
+  // v4.0.0: toString() on sets is deterministic (sorted), safe for keys.
   return `${q.toString()},${c}`;
 }
 
 /** 
- * Computes the union of a set of sets.
- * bigUnion(M) = ⋃ { A | A ∈ M }
+ * Computes the union of a set of sets. 
+ * ⋃ M = { x | ∃ A ∈ M : x ∈ A }
  */
-export function bigUnion<T>(sets: RecursiveSet<RecursiveSet<T>>): RecursiveSet<T> {
-  const result = new RecursiveSet<T>();
+export function bigUnion(sets: RecursiveSet<DFAState>): DFAState {
+  const result = new RecursiveSet<State>();
   
   for (const subset of sets) {
-    const s = subset as RecursiveSet<T>;
-    
-    for (const x of s) {
-      result.add(x as T); 
+    for (const x of subset) {
+      result.add(x); 
     }
   }
   return result;
 }
 
-// ============================================================
-// 3. Core Algorithms
-// ============================================================
+// === Algorithms ===
 
 /**
- * Computes the Epsilon-Closure of a state s using a fixed-point algorithm.
+ * Computes the Epsilon-Closure of a state s.
+ * The set of all states reachable from s via ε-transitions.
  */
 export function epsClosure(s: State, delta: TransRel): RecursiveSet<State> {
   let result = new RecursiveSet<State>(s);
@@ -81,7 +66,7 @@ export function epsClosure(s: State, delta: TransRel): RecursiveSet<State> {
     const setsToUnite = new RecursiveSet<RecursiveSet<State>>();
     
     for (const q of result) {
-        const targets = delta.get(key(q as State, 'ε'));
+        const targets = delta.get(key(q, 'ε'));
         if (targets) {
             setsToUnite.add(targets);
         }
@@ -89,6 +74,7 @@ export function epsClosure(s: State, delta: TransRel): RecursiveSet<State> {
     
     const newStates = bigUnion(setsToUnite);
       
+    // Optimization: isSubset is fast in v4.0.0
     if (newStates.isSubset(result)) {
         return result;
     }
@@ -98,8 +84,8 @@ export function epsClosure(s: State, delta: TransRel): RecursiveSet<State> {
 }
 
 /**
- * Extended transition function δ̂ (deltaHat).
- * Computes states reachable from s by reading c and then any number of ε-transitions.
+ * Computes 𝛿ˆ(s, c).
+ * Reachable states from s reading c, followed by any number of ε-transitions.
  */
 export function deltaHat(s: State, c: Char, delta: TransRel): RecursiveSet<State> {
   const directTargets = delta.get(key(s, c));
@@ -109,17 +95,16 @@ export function deltaHat(s: State, c: Char, delta: TransRel): RecursiveSet<State
   }
 
   const closures = new RecursiveSet<RecursiveSet<State>>();
-  
   for (const q of directTargets) {
-      closures.add(epsClosure(q as State, delta));
+      closures.add(epsClosure(q, delta));
   }
 
   return bigUnion(closures);
 }
 
 /**
- * Generalized transition function Δ (capitalDelta) for sets of states.
- * Δ(M, c) = ⋃ { δ̂(q, c) | q ∈ M }
+ * Computes Δ(M, c).
+ * Generalization of 𝛿ˆ for a set of states M.
  */
 export function capitalDelta(
   M: RecursiveSet<State>,
@@ -129,32 +114,30 @@ export function capitalDelta(
   const partials = new RecursiveSet<RecursiveSet<State>>();
   
   for (const q of M) {
-    partials.add(deltaHat(q as State, c, delta));
+    partials.add(deltaHat(q, c, delta));
   }
   return bigUnion(partials);
 }
 
 /**
- * Computes all reachable states of the DFA starting from Q0.
- * Uses a worklist algorithm (Queue/BFS) for efficiency.
+ * Computes all reachable DFA states using a Queue (Breadth-First Search).
+ * Efficient: Checks !states.has(N) in O(1).
  */
 export function allStates(
   Q0: RecursiveSet<State>, 
   delta: TransRel,
   Sigma: RecursiveSet<Char>
-): RecursiveSet<RecursiveSet<State>> {
+): RecursiveSet<DFAState> {
   
-  const states = new RecursiveSet<RecursiveSet<State>>();
-
-  const queue: RecursiveSet<State>[] = [Q0];
+  const states = new RecursiveSet<DFAState>();
+  const queue: DFAState[] = [Q0];
+  
   states.add(Q0);
 
   while (queue.length > 0) {
     const M = queue.shift()!;
 
-    for (const rawC of Sigma) {
-      const c = rawC as Char;
-      
+    for (const c of Sigma) {
       const N = capitalDelta(M, c, delta); 
 
       if (!states.has(N)) {
@@ -167,67 +150,60 @@ export function allStates(
 }
 
 /**
- * Alternative Implementation: Fixed-Point Algorithm for allStates.
- * (Closer to mathematical definition, but less efficient than worklist)
+ * Computes all reachable DFA states using a Fixed-Point Algorithm.
+ * Matches the mathematical definition lfp(F).
  */
 export function allStatesFixedPoint(
   Q0: RecursiveSet<State>, 
   delta: TransRel,
   Sigma: RecursiveSet<Char>
-): RecursiveSet<RecursiveSet<State>> {
-  let result = new RecursiveSet<RecursiveSet<State>>();
+): RecursiveSet<DFAState> {
+  let result = new RecursiveSet<DFAState>();
   result.add(Q0);
 
   while (true) {
-    const newStates = new RecursiveSet<RecursiveSet<State>>();
+    const newStates = new RecursiveSet<DFAState>();
     
     for (const M of result) {
-       for (const rawC of Sigma) {
-           const c = rawC as Char;
-           newStates.add(capitalDelta(M as RecursiveSet<State>, c, delta));
+       for (const c of Sigma) {
+           newStates.add(capitalDelta(M, c, delta));
        }
     }
 
     if (newStates.isSubset(result)) {
         return result;
     }
+    
     result = result.union(newStates);
   }
 }
 
+// === Main Conversion ===
+
 /**
- * Main function: Converts an NFA to a DFA (Powerset Construction).
+ * Converts a Non-Deterministic Finite Automaton (NFA) to a Deterministic Finite Automaton (DFA)
+ * using the Powerset Construction (Subset Construction).
  */
 export function nfa2dfa(nfa: NFA): DFA {
   const { Sigma, delta, q0, A } = nfa;
 
-  // 1. Start State
-  const newStart: RecursiveSet<State> = epsClosure(q0, delta);
+  const newStart: DFAState = epsClosure(q0, delta);  
   
-  // 2. All Reachable States (using efficient worklist algorithm)
-  const newStates: RecursiveSet<RecursiveSet<State>> = allStates(newStart, delta, Sigma);
-
-  // 3. Transition Relation
+  // Use Queue-based search for performance, or swap with allStatesFixedPoint for teaching
+  const newStates: RecursiveSet<DFAState> = allStates(newStart, delta, Sigma);
+  
   const newDelta: TransRelDet = new Map();
   
-  for (const dfaState of newStates) {
-    const M = dfaState as RecursiveSet<State>; 
-
-    for (const symbol of Sigma) {
-        const c = symbol as Char;
+  for (const M of newStates) {
+    for (const c of Sigma) {
         const N = capitalDelta(M, c, delta);
-        
         newDelta.set(key(M, c), N);
     }
   }
 
-  // 4. Accepting States
-  const newFinal = new RecursiveSet<RecursiveSet<State>>();
+  const newFinal = new RecursiveSet<DFAState>();
   
-  for (const dfaState of newStates) {
-    const M = dfaState as RecursiveSet<State>;
-    
-    // A state M is accepting if M ∩ A ≠ ∅
+  for (const M of newStates) {
     const intersection = M.intersection(A);
     
     if (!intersection.isEmpty()) {

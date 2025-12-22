@@ -1,137 +1,119 @@
 import { RecursiveSet, Tuple } from 'recursive-set';
-import { State, Char, DFA, NFA, nfa2dfa } from './01-NFA-2-DFA';
+import { State, Char, DFA, nfa2dfa } from './01-NFA-2-DFA';
 import { RegExp, RegExp2NFA } from './03-RegExp-2-NFA';
 
-// === Type Definitions ===
+// === Types ===
 
-// Tuple erwartet ein Array-Format für Generics: Tuple<[S, S]>
-export type StatePair<S> = Tuple<[S, S]>;
+export type DFAState = RecursiveSet<State>;
+export type StatePair = Tuple<[DFAState, DFAState]>;
 
 export type GenericDFA<S> = {
-  Q: RecursiveSet<S>;
-  Sigma: RecursiveSet<Char>;
-  delta: Map<string, S>;
-  q0: S;
-  A: RecursiveSet<S>;
+    Q: RecursiveSet<S>;
+    Sigma: RecursiveSet<Char>;
+    delta: Map<string, S>;
+    q0: S;
+    A: RecursiveSet<S>;
 };
 
-// === Helper Functions ===
+// === Helpers ===
 
 export function genKey<S>(state: S, c: Char): string {
-  return `${String(state)},${c}`;
+    return `${state.toString()},${c}`;
 }
 
-// === Core Functions ===
+/**
+ * Computes a Product Automaton to check L(F1) \ L(F2)
+ * States = Q1 x Q2
+ * Accepting = A1 x (Q2 \ A2)
+ */
+export function fsm_complement(
+    F1: GenericDFA<DFAState>, 
+    F2: GenericDFA<DFAState>
+): GenericDFA<StatePair> {
+    const newStates = F1.Q.cartesianProduct(F2.Q); 
+    const newDelta = new Map<string, StatePair>();
 
-export function fsm_complement<S>(
-  F1: GenericDFA<S>,
-  F2: GenericDFA<S>
-): GenericDFA<StatePair<S>> {
-  // Wir weisen Variablen einzeln zu, um Destructuring-Konflikte mit "exports" zu vermeiden
-  const Q1 = F1.Q;
-  const Sigma = F1.Sigma;
-  const delta1 = F1.delta;
-  const q1 = F1.q0;
-  const A1 = F1.A;
+    for (const pair of newStates) {
+        const p1 = pair.values[0];
+        const p2 = pair.values[1];
 
-  const Q2 = F2.Q;
-  const delta2 = F2.delta;
-  const q2 = F2.q0;
-  const A2 = F2.A;
+        for (const c of F1.Sigma) {
+            const next1 = F1.delta.get(genKey(p1, c));
+            const next2 = F2.delta.get(genKey(p2, c));
 
-  // Casten des Rückgabewerts auf den erwarteten Typ
-  const newStates = Q1.cartesianProduct(Q2) as RecursiveSet<StatePair<S>>;
-
-  const newDelta = new Map<string, StatePair<S>>();
-
-  for (const element of newStates) {
-    // ASSERTION: Wir wissen, dass element ein Tuple ist
-    const statePair = element as StatePair<S>;
-
-    const p1 = statePair.get(0);
-    const p2 = statePair.get(1);
-
-    if (p1 === undefined || p2 === undefined) continue;
-
-    for (const sigmaElement of Sigma) {
-      // ASSERTION: Wir wissen, dass sigmaElement ein Char ist
-      const c = sigmaElement as unknown as Char;
-
-      const next1 = delta1.get(genKey(p1, c));
-      const next2 = delta2.get(genKey(p2, c));
-
-      if (next1 !== undefined && next2 !== undefined) {
-        const nextPair = new Tuple(next1, next2);
-        newDelta.set(genKey(statePair, c), nextPair);
-      }
-    }
-  }
-
-  const startPair = new Tuple(q1, q2);
-
-  const diffSet = Q2.difference(A2);
-  const newAccepting = A1.cartesianProduct(diffSet) as RecursiveSet<
-    StatePair<S>
-  >;
-
-  return {
-    Q: newStates,
-    Sigma: Sigma,
-    delta: newDelta,
-    q0: startPair,
-    A: newAccepting,
-  };
-}
-
-export function regexp2DFA(r: RegExp, Sigma: RecursiveSet<Char>): DFA {
-  const converter = new RegExp2NFA(Sigma);
-  const nfa = converter.toNFA(r);
-  return nfa2dfa(nfa);
-}
-
-export function is_empty<S>(F: GenericDFA<S>): boolean {
-  const Sigma = F.Sigma;
-  const delta = F.delta;
-  const q0 = F.q0;
-  const A = F.A;
-
-  let reachable = new RecursiveSet<S>(q0);
-
-  while (true) {
-    const newFound = new RecursiveSet<S>();
-
-    for (const q of reachable) {
-      const state = q as S;
-
-      for (const sigmaElement of Sigma) {
-        const c = sigmaElement as unknown as Char;
-
-        const target = delta.get(genKey(state, c));
-        if (target !== undefined) {
-          newFound.add(target);
+            if (next1 && next2) {
+                const nextPair: StatePair = new Tuple<[DFAState, DFAState]>(next1, next2);
+                newDelta.set(genKey(pair, c), nextPair);
+            }
         }
-      }
     }
 
-    if (newFound.isSubset(reachable)) {
-      break;
-    }
-    reachable = reachable.union(newFound);
-  }
+    const startPair: StatePair = new Tuple<[DFAState, DFAState]>(F1.q0, F2.q0);
 
-  return reachable.intersection(A).isEmpty();
+    const diffSet = F2.Q.difference(F2.A); // Q2 \ A2
+    const newAccepting = F1.A.cartesianProduct(diffSet);
+
+    return {
+        Q: newStates,
+        Sigma: F1.Sigma,
+        delta: newDelta,
+        q0: startPair,
+        A: newAccepting
+    };
 }
 
+/**
+ * Converts a RegExp directly to a DFA
+ */
+export function regexp2DFA(r: RegExp, Sigma: RecursiveSet<Char>): DFA {
+    const converter = new RegExp2NFA(Sigma);
+    const nfa = converter.toNFA(r);
+    return nfa2dfa(nfa);
+}
+
+/**
+ * Checks if the Language of a Generic DFA is empty.
+ * Uses Breadth-First-Search / Reachability analysis.
+ */
+export function is_empty<S>(F: GenericDFA<S>): boolean {
+    let reachable = new RecursiveSet<S>(F.q0);
+
+    while (true) {
+        const newFound = new RecursiveSet<S>();
+
+        for (const q of reachable) {
+            for (const c of F.Sigma) {
+                const target = F.delta.get(genKey(q, c));
+                if (target) {
+                    newFound.add(target);
+                }
+            }
+        }
+
+        if (newFound.isSubset(reachable)) {
+            break;
+        }
+        
+        reachable = reachable.union(newFound);
+    }
+
+    return reachable.intersection(F.A).isEmpty();
+}
+
+/**
+ * Main function to check if two Regular Expressions are equivalent.
+ * r1 ≡ r2 iff (L(r1) \ L(r2) = ∅) AND (L(r2) \ L(r1) = ∅)
+ */
 export function regExpEquiv(
-  r1: RegExp,
-  r2: RegExp,
-  Sigma: RecursiveSet<Char>
+    r1: RegExp,
+    r2: RegExp,
+    Sigma: RecursiveSet<Char>
 ): boolean {
-  const F1 = regexp2DFA(r1, Sigma);
-  const F2 = regexp2DFA(r2, Sigma);
+    const F1 = regexp2DFA(r1, Sigma);
+    const F2 = regexp2DFA(r2, Sigma);
+    
+    const r1MinusR2 = fsm_complement(F1, F2);
+    const r2MinusR1 = fsm_complement(F2, F1);
 
-  const r1MinusR2 = fsm_complement(F1, F2);
-  const r2MinusR1 = fsm_complement(F2, F1);
-
-  return is_empty(r1MinusR2) && is_empty(r2MinusR1);
+    return is_empty(r1MinusR2) && is_empty(r2MinusR1);
 }

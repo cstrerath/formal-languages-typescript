@@ -1,226 +1,186 @@
 import { RecursiveSet, Tuple } from 'recursive-set';
 
-// ============================================================
-// 1. Type Definitions
-// ============================================================
+// === Types ===
 
-/** Operators for Regular Expressions */
 export type BinaryOp = '⋅' | '+';
-export type UnaryOp = '*';
+export type UnaryOp  = '*';
 
-/**
- * The Regular Expression Type (Recursive)
- * - 0 represents the empty set (∅)
- * - string represents a character or epsilon ('ε')
- */
-export type RegExp =
-  | number
-  | string
-  | Tuple<[RegExp, UnaryOp]>
-  | Tuple<[RegExp, BinaryOp, RegExp]>;
-
-/** Character type */
+export type State = number;
 export type Char = string;
 
-/** State type (integers) */
-export type State = number;
+export type RegExp = 
+  | number      // 0 (Empty Set)
+  | string      // 'ε' or Char
+  | Tuple<[RegExp, UnaryOp]>          // Kleene Star
+  | Tuple<[RegExp, BinaryOp, RegExp]>; // Concatenation / Union
 
-/** Helper to generate unique keys "state,char" */
-export function key(q: State, c: Char): string {
+// Note: Key generation is now safe due to sorted set toString()
+function key(q: State, c: Char): string {
   return `${q},${c}`;
 }
 
-/** Transition Relation: Map<"q,c", Set<q_next>> */
 export type Delta = Map<string, RecursiveSet<State>>;
 
-/** NFA Structure: [Q, Sigma, delta, q0, A] */
 export type NFA = {
-  Q: RecursiveSet<State>;
-  Sigma: RecursiveSet<Char>;
-  delta: Delta;
-  q0: State;
-  A: RecursiveSet<State>;
+    Q: RecursiveSet<State>;
+    Sigma: RecursiveSet<Char>;
+    delta: Delta;
+    q0: State;
+    A: RecursiveSet<State>;
 };
 
-// ============================================================
-// 2. State Generator
-// ============================================================
+// === Helper Class: State Generator ===
 
-/** Helper class to generate unique integer states */
 export class StateGenerator {
-  private stateCount: number = 0;
+    private stateCount: number = 0;
 
-  getNewState(): State {
-    this.stateCount += 1;
-    return this.stateCount;
-  }
+    getNewState(): State {
+        this.stateCount += 1;
+        return this.stateCount;
+    }
 }
 
-// ============================================================
-// 3. NFA Construction Functions
-// ============================================================
+// === Helper: Get Single Element (Clean way) ===
 
-/** Creates an NFA that accepts nothing (∅) */
-export function genEmptyNFA(
-  gen: StateGenerator,
-  Sigma: RecursiveSet<Char>
-): NFA {
-  const q0 = gen.getNewState();
-  const q1 = gen.getNewState();
-
-  return {
-    Q: new RecursiveSet(q0, q1),
-    Sigma: Sigma,
-    delta: new Map(),
-    q0: q0,
-    A: new RecursiveSet(q1),
-  };
+/** Get an arbitrary element from a set (Used to get unique start/end states) */
+function getOnlyElement(S: RecursiveSet<State>): State {
+    for (const s of S) return s;
+    throw new Error("Set is empty, expected one element.");
 }
 
-/** Creates an NFA that accepts epsilon (ε) */
-export function genEpsilonNFA(
-  gen: StateGenerator,
-  Sigma: RecursiveSet<Char>
-): NFA {
-  const q0 = gen.getNewState();
-  const q1 = gen.getNewState();
+// === NFA Construction Primitives ===
 
-  const delta: Delta = new Map();
-  delta.set(key(q0, 'ε'), new RecursiveSet(q1));
-
-  return {
-    Q: new RecursiveSet(q0, q1),
-    Sigma: Sigma,
-    delta: delta,
-    q0: q0,
-    A: new RecursiveSet(q1),
-  };
+export function genEmptyNFA(gen: StateGenerator, Sigma: RecursiveSet<Char>): NFA {
+    const q0 = gen.getNewState();
+    const q1 = gen.getNewState();
+    
+    return {
+        Q: new RecursiveSet(q0, q1),
+        Sigma: Sigma,
+        delta: new Map(),
+        q0: q0,
+        A: new RecursiveSet(q1)
+    };
 }
 
-/** Creates an NFA that accepts a single character c */
-export function genCharNFA(
-  gen: StateGenerator,
-  Sigma: RecursiveSet<Char>,
-  c: Char
-): NFA {
-  const q0 = gen.getNewState();
-  const q1 = gen.getNewState();
-
-  const delta: Delta = new Map();
-  delta.set(key(q0, c), new RecursiveSet(q1));
-
-  return {
-    Q: new RecursiveSet(q0, q1),
-    Sigma: Sigma,
-    delta: delta,
-    q0: q0,
-    A: new RecursiveSet(q1),
-  };
+export function genEpsilonNFA(gen: StateGenerator, Sigma: RecursiveSet<Char>): NFA {
+    const q0 = gen.getNewState();
+    const q1 = gen.getNewState();
+    
+    const delta: Delta = new Map();
+    delta.set(key(q0, 'ε'), new RecursiveSet(q1));
+    
+    return {
+        Q: new RecursiveSet(q0, q1),
+        Sigma: Sigma,
+        delta: delta,
+        q0: q0,
+        A: new RecursiveSet(q1)
+    };
 }
 
-/** Helper to merge two transition maps */
-export function copyDelta(d1: Delta, d2: Delta): Delta {
-  const newDelta = new Map(d1);
-  for (const [k, v] of d2) {
-    newDelta.set(k, v);
-  }
-  return newDelta;
+export function genCharNFA(gen: StateGenerator, Sigma: RecursiveSet<Char>, c: Char): NFA {
+    const q0 = gen.getNewState();
+    const q1 = gen.getNewState();
+    
+    const delta: Delta = new Map();
+    delta.set(key(q0, c), new RecursiveSet(q1));
+    
+    return {
+        Q: new RecursiveSet(q0, q1),
+        Sigma: Sigma,
+        delta: delta,
+        q0: q0,
+        A: new RecursiveSet(q1)
+    };
 }
 
-/** Concatenation of two NFAs (r1 ⋅ r2) */
+// === Combination Logic ===
+
+function copyDelta(d1: Delta, d2: Delta): Delta {
+    const newDelta = new Map(d1);
+    for (const [k, v] of d2) {
+        newDelta.set(k, v);
+    }
+    return newDelta;
+}
+
 export function catenate(gen: StateGenerator, f1: NFA, f2: NFA): NFA {
-  const Q1 = f1.Q;
-  const Sigma = f1.Sigma;
-  const delta1 = f1.delta;
-  const q1 = f1.q0;
-  const A1 = f1.A;
-
-  const Q2 = f2.Q;
-  const delta2 = f2.delta;
-  const q3 = f2.q0;
-  const A2 = f2.A;
-
-  const q2 = Array.from(A1)[0] as State;
-
-  const delta = copyDelta(delta1, delta2);
-
-  delta.set(key(q2, 'ε'), new RecursiveSet(q3));
-
-  return {
-    Q: Q1.union(Q2),
-    Sigma: Sigma,
-    delta: delta,
-    q0: q1,
-    A: A2,
-  };
+    const { Q: Q1, Sigma, delta: delta1, q0: q1, A: A1 } = f1;
+    const { Q: Q2, delta: delta2, q0: q3, A: A2 } = f2;
+    
+    // Connect End of F1 (q2) -> Start of F2 (q3) via Epsilon
+    const q2 = getOnlyElement(A1);
+    
+    const delta = copyDelta(delta1, delta2);
+    delta.set(key(q2, 'ε'), new RecursiveSet(q3));
+    
+    return {
+        Q: Q1.union(Q2),
+        Sigma: Sigma,
+        delta: delta,
+        q0: q1,
+        A: A2
+    };
 }
 
-/** Disjunction of two NFAs (r1 + r2) */
 export function disjunction(gen: StateGenerator, f1: NFA, f2: NFA): NFA {
-  const Q1 = f1.Q;
-  const Sigma = f1.Sigma;
-  const delta1 = f1.delta;
-  const q1 = f1.q0;
-  const A1 = f1.A;
-
-  const Q2 = f2.Q;
-  const delta2 = f2.delta;
-  const q2 = f2.q0;
-  const A2 = f2.A;
-
-  const q3 = Array.from(A1)[0] as State;
-  const q4 = Array.from(A2)[0] as State;
-
-  const q0 = gen.getNewState();
-  const q5 = gen.getNewState();
-
-  const delta = copyDelta(delta1, delta2);
-
-  delta.set(key(q0, 'ε'), new RecursiveSet(q1, q2));
-  delta.set(key(q3, 'ε'), new RecursiveSet(q5));
-  delta.set(key(q4, 'ε'), new RecursiveSet(q5));
-
-  return {
-    Q: new RecursiveSet(q0, q5).union(Q1).union(Q2),
-    Sigma: Sigma,
-    delta: delta,
-    q0: q0,
-    A: new RecursiveSet(q5),
-  };
+    const { Q: Q1, Sigma, delta: delta1, q0: q1, A: A1 } = f1;
+    const { Q: Q2, delta: delta2, q0: q2, A: A2 } = f2;
+    
+    const q3 = getOnlyElement(A1);
+    const q4 = getOnlyElement(A2);
+    
+    const q0 = gen.getNewState();
+    const q5 = gen.getNewState();
+    
+    const delta = copyDelta(delta1, delta2);
+    
+    // Split: q0 -> q1 (Start F1) and q0 -> q2 (Start F2)
+    delta.set(key(q0, 'ε'), new RecursiveSet(q1, q2));
+    
+    // Join: q3 (End F1) -> q5 and q4 (End F2) -> q5
+    delta.set(key(q3, 'ε'), new RecursiveSet(q5));
+    delta.set(key(q4, 'ε'), new RecursiveSet(q5));
+    
+    return {
+        Q: new RecursiveSet(q0, q5).union(Q1).union(Q2),
+        Sigma: Sigma,
+        delta: delta,
+        q0: q0,
+        A: new RecursiveSet(q5)
+    };
 }
 
-/** Kleene Star of an NFA (r*) */
 export function kleene(gen: StateGenerator, f: NFA): NFA {
-  const M = f.Q;
-  const Sigma = f.Sigma;
-  const delta0 = f.delta;
-  const q1 = f.q0;
-  const A = f.A;
-
-  const q2 = Array.from(A)[0] as State;
-
-  const q0 = gen.getNewState();
-  const q3 = gen.getNewState();
-
-  const delta = new Map(delta0);
-
-  delta.set(key(q0, 'ε'), new RecursiveSet(q1, q3));
-  delta.set(key(q2, 'ε'), new RecursiveSet(q1, q3));
-
-  return {
-    Q: new RecursiveSet(q0, q3).union(M),
-    Sigma: Sigma,
-    delta: delta,
-    q0: q0,
-    A: new RecursiveSet(q3),
-  };
+    const { Q: M, Sigma, delta: delta0, q0: q1, A } = f;
+    
+    const q2 = getOnlyElement(A);
+    
+    const q0 = gen.getNewState();
+    const q3 = gen.getNewState();
+    
+    const delta = new Map(delta0);
+    
+    // Loop Logic:
+    // q0 -> q1 (Enter)
+    // q0 -> q3 (Skip/Empty)
+    // q2 -> q1 (Loop back)
+    // q2 -> q3 (Exit)
+    delta.set(key(q0, 'ε'), new RecursiveSet(q1, q3));
+    delta.set(key(q2, 'ε'), new RecursiveSet(q1, q3));
+    
+    return {
+        Q: new RecursiveSet(q0, q3).union(M),
+        Sigma: Sigma,
+        delta: delta,
+        q0: q0,
+        A: new RecursiveSet(q3)
+    };
 }
 
-// ============================================================
-// 4. Main Converter Class
-// ============================================================
+// === Main Class ===
 
-/** Main class to convert Regular Expressions to NFAs */
 export class RegExp2NFA {
   private gen: StateGenerator;
   private sigma: RecursiveSet<Char>;
@@ -230,26 +190,24 @@ export class RegExp2NFA {
     this.gen = new StateGenerator();
   }
 
-    public toNFA(r: RegExp): NFA {
-    // 1. Base Case: Empty Set
+  public toNFA(r: RegExp): NFA {
+    // Base Case: Empty Set
     if (r === 0) {
       return genEmptyNFA(this.gen, this.sigma);
     }
 
-    // 2. Base Case: Epsilon
+    // Base Case: Epsilon
     if (r === 'ε') {
       return genEpsilonNFA(this.gen, this.sigma);
     }
 
-    // 3. Base Case: Character (single letter string)
+    // Base Case: Character
     if (typeof r === 'string' && r.length === 1) {
       return genCharNFA(this.gen, this.sigma, r);
     }
 
-    // 4. Recursive Cases: Tuple Operations
+    // Recursive Step: Tuple (Operations)
     if (r instanceof Tuple) {
-      // Wir greifen direkt auf das zugrunde liegende Array zu, das ist in JS/TS sicherer
-      // bei komplexen Union-Types als der generische .get() Aufruf.
       const val = r.values; 
 
       // Kleene Star: [RegExp, '*']
@@ -258,7 +216,7 @@ export class RegExp2NFA {
         return kleene(this.gen, this.toNFA(inner));
       }
 
-      // Binary Operations (Concatenation or Union)
+      // Binary Ops: [RegExp, Op, RegExp]
       if (val.length === 3) {
         const left = val[0] as RegExp;
         const op = val[1];
@@ -273,8 +231,8 @@ export class RegExp2NFA {
         }
       }
     }
-
-    throw new Error(`${JSON.stringify(r)} is not a proper regular expression.`);
+    
+    // If we reach here, the input was not a valid RegExp structure
+    throw new Error(`Invalid RegExp structure: ${JSON.stringify(r)}`);
   }
-
 }

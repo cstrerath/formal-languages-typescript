@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@viz-js/viz": "^3.24.0",
+    "chevrotain": "^10.5.0",
+    "recursive-set": "^5.0.2"
+  }
+}
