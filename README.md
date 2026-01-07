@@ -47,7 +47,7 @@ npm install -g tslab
 tslab install
 
 # Install Jupyter Notebook Classic
-conda install nbclassic
+conda install -c conda-forge nbclassic
 
 # Start Jupyter Notebook
 jupyter nbclassic
