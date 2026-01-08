@@ -1,7 +1,11 @@
 {
   "dependencies": {
+    "@lezer/common": "^1.5.0",
+    "@lezer/generator": "^1.8.0",
+    "@lezer/lr": "^1.4.7",
     "@viz-js/viz": "^3.24.0",
     "chevrotain": "^10.5.0",
+    "entities": "^7.0.0",
     "recursive-set": "^5.0.2"
   }
 }
