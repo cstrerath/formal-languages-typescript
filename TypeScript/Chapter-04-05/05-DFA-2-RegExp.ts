@@ -1,10 +1,4 @@
-import { display } from "tslab";
-import { readFileSync } from "fs";
-
-const css = readFileSync("../style.css", "utf8");
-display.html(`<style>${css}</style>`);
-
-import { RecursiveSet, Value, Tuple } from 'recursive-set';
+import { RecursiveSet, Tuple } from 'recursive-set';
 
 export type State = string | number;
 
@@ -25,10 +19,10 @@ export type DFA = {
 export type BinaryOp = '⋅' | '+';
 export type UnaryOp = '*';
 
-export type RegExp = 
-  | number 
-  | string 
-  | Tuple<[RegExp, UnaryOp]> 
+export type RegExp =
+  | number
+  | string
+  | Tuple<[RegExp, UnaryOp]>
   | Tuple<[RegExp, BinaryOp, RegExp]>;
 
 export function key(q: State | DFAState, c: Char): string {
@@ -36,7 +30,7 @@ export function key(q: State | DFAState, c: Char): string {
 }
 
 function regexpSum(S: RecursiveSet<RegExp> | RegExp[]): RegExp {
-  const elems: readonly RegExp[] = (S instanceof RecursiveSet) ? S.raw : S;
+  const elems: readonly RegExp[] = S instanceof RecursiveSet ? S.raw : S;
   const n = elems.length;
 
   if (n === 0) return 0;
@@ -44,11 +38,7 @@ function regexpSum(S: RecursiveSet<RegExp> | RegExp[]): RegExp {
 
   const [r, ...rest] = elems;
 
-  return new Tuple(
-    r, 
-    '+', 
-    regexpSum(rest)
-  );
+  return new Tuple(r, '+', regexpSum(rest));
 }
 
 function rpq(
@@ -60,10 +50,10 @@ function rpq(
 ): RegExp {
   if (Allowed.length === 0) {
     const allChars: Char[] = [];
-    
+
     for (const c of Sigma) {
       const target = delta.get(key(p1, c));
-      
+
       if (target && target.equals(p2)) {
         allChars.push(c);
       }
@@ -81,26 +71,22 @@ function rpq(
   const [q, ...RestAllowed] = Allowed;
 
   const rp1p2 = rpq(p1, p2, Sigma, delta, RestAllowed);
-  const rp1q  = rpq(p1, q,  Sigma, delta, RestAllowed);
-  const rqq   = rpq(q,  q,  Sigma, delta, RestAllowed);
-  const rqp2  = rpq(q,  p2, Sigma, delta, RestAllowed);
+  const rp1q = rpq(p1, q, Sigma, delta, RestAllowed);
+  const rqq = rpq(q, q, Sigma, delta, RestAllowed);
+  const rqp2 = rpq(q, p2, Sigma, delta, RestAllowed);
 
   const loop = new Tuple(rqq, '*');
   const concat1 = new Tuple(rp1q, '⋅', loop);
   const concat2 = new Tuple(concat1, '⋅', rqp2);
 
-  return new Tuple(
-    rp1p2, 
-    '+', 
-    concat2
-  );
+  return new Tuple(rp1p2, '+', concat2);
 }
 
 export function dfa2regexp(F: DFA): RegExp {
   const { Q, Sigma, delta, q0, A } = F;
-  
-  const allStates = Q.raw; 
-  
+
+  const allStates = Q.raw;
+
   const parts: RegExp[] = [];
 
   for (const acc of A) {
@@ -110,5 +96,3 @@ export function dfa2regexp(F: DFA): RegExp {
 
   return regexpSum(parts);
 }
-
-
