@@ -1,10 +1,15 @@
-import { RecursiveSet, Tuple } from "recursive-set";
+import { display } from "tslab";
+import { readFileSync } from "fs";
+
+const css = readFileSync("../style.css", "utf8");
+display.html(`<style>${css}</style>`);
+
+import { RecursiveSet, Value, Tuple } from "recursive-set";
 
 // === LOCAL TYPES ===
-export type LocalBinaryOp = '⋅' | '+';
-export type LocalUnaryOp = '*';
+type LocalBinaryOp = '⋅' | '+';
+type LocalUnaryOp = '*';
 
-// Die rekursive Definition
 export type MyRegExp = 
   | number      
   | string      
@@ -14,115 +19,141 @@ export type MyRegExp =
 type Subst = Map<string, MyRegExp>;
 type Rule = [MyRegExp, MyRegExp];
 
-// === TYPE GUARDS ===
-// Helfen TypeScript zu verstehen, welche Variante von MyRegExp vorliegt
+// === THE VIEW PATTERN ===
+type RegExpView = 
+  | { kind: 'atom', value: number | string }
+  | { kind: 'variable', name: string } // Spezialfall von Atom
+  | { kind: 'unary', inner: MyRegExp }
+  | { kind: 'binary', left: MyRegExp, op: LocalBinaryOp, right: MyRegExp };
 
-function isAtom(r: MyRegExp): r is number | string {
-    return typeof r === 'number' || typeof r === 'string';
+function getView(r: MyRegExp): RegExpView {
+    if (r instanceof Tuple) {
+        const raw = r.raw;
+        
+        // Unary: [Inner, '*']
+        if (raw.length === 2 && raw[1] === '*') {
+            return { 
+                kind: 'unary', 
+                inner: raw[0] as MyRegExp 
+            };
+        }
+        
+        // Binary: [Left, Op, Right]
+        if (raw.length === 3) {
+            return { 
+                kind: 'binary', 
+                left: raw[0] as MyRegExp, 
+                op: raw[1] as LocalBinaryOp, 
+                right: raw[2] as MyRegExp 
+            };
+        }
+    }
+    
+    // Primitives
+    if (typeof r === 'string') {
+        if (r.length === 1 && r >= 'A' && r <= 'Z') {
+            return { kind: 'variable', name: r };
+        }
+        return { kind: 'atom', value: r };
+    }
+    
+    if (typeof r === 'number') {
+        return { kind: 'atom', value: r };
+    }
+
+    throw new Error(`Unknown RegExp structure: ${r}`);
 }
 
-function isVariable(r: MyRegExp): r is string {
-    return typeof r === 'string' && r.length === 1 && r >= 'A' && r <= 'Z';
-}
-
-// Prüft, ob es ein Kleene Star Tuple ist: [RegExp, '*']
-function isKleene(r: MyRegExp): r is Tuple<[MyRegExp, LocalUnaryOp]> {
-    return r instanceof Tuple && r.length === 2 && r.values[1] === '*';
-}
-
-// Prüft, ob es eine binäre Operation ist: [RegExp, Op, RegExp]
-function isBinary(r: MyRegExp): r is Tuple<[MyRegExp, LocalBinaryOp, MyRegExp]> {
-    return r instanceof Tuple && r.length === 3;
-}
-
-// === HELPER FUNCTION T (Typsicher durch Overloads) ===
-
-// 1. Signatur: Unary (Kleene)
-function T(arg1: MyRegExp, op: LocalUnaryOp): MyRegExp;
-// 2. Signatur: Binary (Concat/Union)
-function T(arg1: MyRegExp, op: LocalBinaryOp, arg3: MyRegExp): MyRegExp;
-// Implementation
 function T(...args: (MyRegExp | string)[]): MyRegExp {
-    // Wir wissen durch die Overloads, dass die Argumente korrekt sind.
-    // Der Cast am Ende ist notwendig, da 'new Tuple' generisch ist und 
-    // wir es auf unseren Union-Type reduzieren wollen.
     return new Tuple(...args) as unknown as MyRegExp;
 }
-
 
 // === MATCHING LOGIC ===
 
 function deepEquals(a: MyRegExp, b: MyRegExp): boolean {
     if (a === b) return true;
-    if (isAtom(a) || isAtom(b)) return a === b;
-    
-    // Hier nutzen wir Type Narrowing durch Checks
-    if (isKleene(a) && isKleene(b)) {
-        return deepEquals(a.values[0], b.values[0]);
-    }
 
-    if (isBinary(a) && isBinary(b)) {
-        return a.values[1] === b.values[1] && // Operator check
-               deepEquals(a.values[0], b.values[0]) && // Left
-               deepEquals(a.values[2], b.values[2]);   // Right
+    const vA = getView(a);
+    const vB = getView(b);
+
+    // Wenn die Typen nicht gleich sind, können sie nicht gleich sein
+    if (vA.kind !== vB.kind) return false;
+
+    // TypeScript weiß jetzt durch "Narrowing", welche Felder existieren!
+    if (vA.kind === 'atom' && vB.kind === 'atom') {
+        return vA.value === vB.value;
+    }
+    if (vA.kind === 'variable' && vB.kind === 'variable') {
+        return vA.name === vB.name;
+    }
+    if (vA.kind === 'unary' && vB.kind === 'unary') {
+        return deepEquals(vA.inner, vB.inner);
+    }
+    if (vA.kind === 'binary' && vB.kind === 'binary') {
+        return vA.op === vB.op && 
+               deepEquals(vA.left, vB.left) && 
+               deepEquals(vA.right, vB.right);
     }
 
     return false;
 }
 
 function match(pattern: MyRegExp, term: MyRegExp, substitution: Subst): boolean {
+    const vPat = getView(pattern);
+
     // 1. Variable Match
-    if (isVariable(pattern)) {
-        if (substitution.has(pattern)) {
-            return deepEquals(substitution.get(pattern)!, term);
+    if (vPat.kind === 'variable') {
+        const varName = vPat.name;
+        if (substitution.has(varName)) {
+            return deepEquals(substitution.get(varName)!, term);
         } else {
-            substitution.set(pattern, term);
+            substitution.set(varName, term);
             return true;
         }
     }
 
-    // 2. Primitives Match
-    if (isAtom(pattern) || isAtom(term)) {
-        return pattern === term;
+    const vTerm = getView(term);
+
+    // 2. Structure Match
+    if (vPat.kind !== vTerm.kind) return false;
+
+    if (vPat.kind === 'atom' && vTerm.kind === 'atom') {
+        return vPat.value === vTerm.value;
     }
 
-    // 3. Tuple Match
-    // Wenn Pattern Kleene ist, muss Term auch Kleene sein
-    if (isKleene(pattern) && isKleene(term)) {
-        return match(pattern.values[0], term.values[0], substitution);
+    if (vPat.kind === 'unary' && vTerm.kind === 'unary') {
+        return match(vPat.inner, vTerm.inner, substitution);
     }
 
-    // Wenn Pattern Binary ist, muss Term auch Binary sein
-    if (isBinary(pattern) && isBinary(term)) {
-        if (pattern.values[1] !== term.values[1]) return false;
-        return match(pattern.values[0], term.values[0], substitution) &&
-               match(pattern.values[2], term.values[2], substitution);
+    if (vPat.kind === 'binary' && vTerm.kind === 'binary') {
+        if (vPat.op !== vTerm.op) return false;
+        return match(vPat.left, vTerm.left, substitution) &&
+               match(vPat.right, vTerm.right, substitution);
     }
 
     return false;
 }
 
 function apply(term: MyRegExp, substitution: Subst): MyRegExp {
-    if (isVariable(term)) {
-        if (substitution.has(term)) {
-            return substitution.get(term)!; 
-        }
+    const v = getView(term);
+
+    if (v.kind === 'variable') {
+        return substitution.has(v.name) ? substitution.get(v.name)! : term;
+    }
+
+    if (v.kind === 'atom') {
         return term;
     }
 
-    if (isAtom(term)) {
-        return term;
+    if (v.kind === 'unary') {
+        const inner = apply(v.inner, substitution);
+        return new Tuple(inner, '*') as unknown as MyRegExp;
     }
 
-    if (isKleene(term)) {
-        const inner = apply(term.values[0], substitution);
-        return new Tuple(inner, term.values[1]) as unknown as MyRegExp;
-    }
-
-    if (isBinary(term)) {
-        const left = apply(term.values[0], substitution);
-        const right = apply(term.values[2], substitution);
-        return new Tuple(left, term.values[1], right) as unknown as MyRegExp;
+    if (v.kind === 'binary') {
+        const left = apply(v.left, substitution);
+        const right = apply(v.right, substitution);
+        return new Tuple(left, v.op, right) as unknown as MyRegExp;
     }
 
     return term;
@@ -130,6 +161,7 @@ function apply(term: MyRegExp, substitution: Subst): MyRegExp {
 
 function rewrite(term: MyRegExp, rule: Rule): { simplified: boolean, result: MyRegExp } {
     const [lhs, rhs] = rule;
+    // Neue Map für jeden Versuch
     const substitution: Subst = new Map();
 
     if (match(lhs, term, substitution)) {
@@ -140,15 +172,15 @@ function rewrite(term: MyRegExp, rule: Rule): { simplified: boolean, result: MyR
 }
 
 // === THE RULES ===
-// Durch die Overloads von T() oben meckert TS hier nicht mehr über Tuple-Typen
+
 function getRules(): Rule[] {
     const rules: Rule[] = [
-        // Addition
+        // Addition (Identity & Idempotence)
         [T('R', '+', 0), 'R'],
         [T(0, '+', 'R'), 'R'],
         [T('R', '+', 'R'), 'R'],
 
-        // Kleene & Epsilon
+        // Kleene Star & Epsilon Simplifications
         [T('ε', '+', T('R', '*')), T('R', '*')],
         [T(T('R', '*'), '+', 'ε'), T('R', '*')],
         [T('ε', '+', T('R', '⋅', T('R', '*'))), T('R', '*')],
@@ -156,11 +188,11 @@ function getRules(): Rule[] {
         [T(T('R', '⋅', T('R', '*')), '+', 'ε'), T('R', '*')],
         [T(T(T('R', '*'), '⋅', 'R'), '+', 'ε'), T('R', '*')],
 
-        // Distributiv-ähnliche Regeln
+        // Distributive Laws (Arden's Rule specifics)
         [T('S', '+', T('S', '⋅', 'T')), T('S', '⋅', T('ε', '+', 'T'))],
         [T('S', '+', T('T', '⋅', 'S')), T(T('ε', '+', 'T'), '⋅', 'S')],
 
-        // Multiplikation
+        // Multiplication (Annihilator & Identity)
         [T(0, '⋅', 'R'), 0],
         [T('R', '⋅', 0), 0],
         [T('ε', '⋅', 'R'), 'R'],
@@ -172,26 +204,28 @@ function getRules(): Rule[] {
         [T(T('R', '*'), '⋅', T('R', '+', 'ε')), T('R', '*')],
         [T(T('R', '*'), '⋅', T('ε', '+', 'R')), T('R', '*')],
 
-        // Kleene Konstanten
+        // Constant Kleene Stars
         [T(0, '*'), 'ε'],
         [T('ε', '*'), 'ε'],
         
-        // Nested Kleene
+        // Nested Kleene Stars
         [T(T('ε', '+', 'R'), '*'), T('R', '*')],
         [T(T('R', '+', 'ε'), '*'), T('R', '*')],
 
-        // Assoziativität
+        // Associativity (Rebalancing to the right)
         [T('R', '+', T('S', '+', 'T')), T(T('R', '+', 'S'), '+', 'T')],
         [T('R', '⋅', T('S', '⋅', 'T')), T(T('R', '⋅', 'S'), '⋅', 'T')],
         
-        // Komplexere Absorption
+        // Complex Absorption
         [T(T('R', '⋅', T('S', '*')), '⋅', T('ε', '+', 'S')), T('R', '⋅', T('S', '*'))]
     ];
     return rules;
 }
 
 function simplifyOnce(term: MyRegExp, rules: Rule[]): MyRegExp {
-    if (isAtom(term)) return term;
+    const v = getView(term);
+    
+    if (v.kind === 'atom' || v.kind === 'variable') return term;
 
     // 1. Try to rewrite current node
     for (const rule of rules) {
@@ -202,80 +236,71 @@ function simplifyOnce(term: MyRegExp, rules: Rule[]): MyRegExp {
     }
 
     // 2. Recurse into children
-    if (isKleene(term)) {
-        const newInner = simplifyOnce(term.values[0], rules);
+    if (v.kind === 'unary') {
+        const newInner = simplifyOnce(v.inner, rules);
         return new Tuple(newInner, '*') as unknown as MyRegExp;
     }
 
-    if (isBinary(term)) {
-        const newLeft = simplifyOnce(term.values[0], rules);
-        const newRight = simplifyOnce(term.values[2], rules);
-        return new Tuple(newLeft, term.values[1], newRight) as unknown as MyRegExp;
+    if (v.kind === 'binary') {
+        const newLeft = simplifyOnce(v.left, rules);
+        const newRight = simplifyOnce(v.right, rules);
+        return new Tuple(newLeft, v.op, newRight) as unknown as MyRegExp;
     }
 
     return term;
 }
 
-/**
- * MAIN FUNCTION: Fixpoint iteration.
- */
 export function simplify(t: MyRegExp): MyRegExp {
     const rules = getRules();
     let current = t;
-    
     let iterations = 0;
-    const MAX_ITERATIONS = 1000; 
+    const MAX = 1000;
 
     while (true) {
         const next = simplifyOnce(current, rules);
-        
-        if (deepEquals(current, next)) {
-            return next;
-        }
+        if (deepEquals(current, next)) return next;
         
         current = next;
-        iterations++;
-        if (iterations > MAX_ITERATIONS) {
-            console.warn("Simplification limit reached. Possible cycle.");
+        if (++iterations > MAX) {
+            console.warn("Limit reached");
             return current;
         }
     }
 }
 
-// === STRING OUTPUT ===
 export function regexpToString(r: MyRegExp): string {
-    if (r === 0) return "0";
-    if (r === "ε" || r === "𝜀") return "𝜀";
-    if (typeof r === 'string') return r;
-    if (typeof r === 'number') return r.toString();
+    const v = getView(r);
 
-    if (isKleene(r)) {
-        const inner = r.values[0];
-        const sInner = regexpToString(inner);
+    if (v.kind === 'atom') {
+        if (v.value === 0) return "0";
+        if (v.value === "ε") return "ε";
+        return v.value.toString();
+    }
+    
+    if (v.kind === 'variable') {
+        return v.name;
+    }
 
-        if (isAtom(inner)) {
+    if (v.kind === 'unary') {
+        const sInner = regexpToString(v.inner);
+        // Prüfe ob inner atomar ist (Klammern sparen)
+        const vInner = getView(v.inner);
+        if (vInner.kind === 'atom' || vInner.kind === 'variable') {
             return sInner + "*";
         } else {
             return "(" + sInner + ")*";
         }
     }
 
-    if (isBinary(r)) {
-        const left = r.values[0];
-        const op = r.values[1];
-        const right = r.values[2];
+    if (v.kind === 'binary') {
+        const s1 = regexpToString(v.left);
+        const s2 = regexpToString(v.right);
 
-        const s1 = regexpToString(left);
-        const s2 = regexpToString(right);
-
-        if (op === "⋅") {
-            return s1 + s2; 
-        }
-
-        if (op === "+") {
-            return "(" + s1 + "+" + s2 + ")";
-        }
+        if (v.op === "⋅") return s1 + s2;
+        if (v.op === "+") return "(" + s1 + "+" + s2 + ")";
     }
 
     return JSON.stringify(r);
 }
+
+
