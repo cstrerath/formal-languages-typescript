@@ -1,11 +1,16 @@
+import { display } from "tslab";
+import { readFileSync } from "fs";
+
+const css = readFileSync("../style.css", "utf8");
+display.html(`<style>${css}</style>`);
+
 import { RecursiveSet, Tuple, Value } from "recursive-set";
 import { key } from "./05-DFA-2-RegExp";
 
+// === Existing Types ===
 export type State = string | number;
 type Char = string;
-
 export type DFAState = RecursiveSet<State>; 
-
 export type TransRelDet = Map<string, DFAState>;
 
 export type DFA = {
@@ -16,11 +21,19 @@ export type DFA = {
   A: RecursiveSet<DFAState>;
 };
 
-// === Minimization Specific Types ===
+// === New Types for Minimization (Mathematical View) ===
 
 type Pair = Tuple<[DFAState, DFAState]>;
-type EquivClass = RecursiveSet<DFAState>;
-export type Partition = RecursiveSet<RecursiveSet<DFAState>>
+type MinState = RecursiveSet<DFAState>;
+type MinTransRel = Map<string, MinState>;
+
+type MinDFA = {
+    Q: RecursiveSet<MinState>;
+    Sigma: RecursiveSet<Char>;
+    delta: MinTransRel;
+    q0: MinState;
+    A: RecursiveSet<MinState>;
+}
 
 function arb<T extends Value>(M: RecursiveSet<T>): T {
   if (M.isEmpty()) throw new Error("Error: arb called with empty set!");
@@ -41,7 +54,7 @@ function separate(
   delta: TransRelDet
 ): RecursiveSet<Pair> {
   
-  const newPairsArr: Pair[] = [];
+  const newPairs: Pair[] = [];
   
   const statesArr = States.raw;
   const sigmaArr = Sigma.raw;
@@ -53,16 +66,27 @@ function separate(
         const p2 = delta.get(key(q2, c));
         
         if (p1 && p2) {
-          const targetPair = new Tuple(p1, p2);
+          const targetPair = new Tuple<[DFAState, DFAState]>(p1, p2);
           
           if (Pairs.has(targetPair)) {
-            newPairsArr.push(new Tuple(q1, q2));
+            newPairs.push(new Tuple<[DFAState, DFAState]>(q1, q2));
+            break;
           }
         }
       }
     }
   }
-  return RecursiveSet.fromArray(newPairsArr);
+  return RecursiveSet.fromArray(newPairs);
+}
+
+function findEquivalenceClass(
+  p: DFAState, 
+  Partition: RecursiveSet<MinState>
+): MinState {
+  for (const C of Partition) {
+    if (C.has(p)) return C;
+  }
+  throw new Error(`State ${p} not found in partition`);
 }
 
 function allSeparable(
@@ -114,7 +138,39 @@ function reachable(
   return visited;
 }
 
-export function computeMinimizationPartition(F: DFA): Partition {
+function reachableFixedPoint(
+  q0: DFAState, 
+  Sigma: RecursiveSet<Char>, 
+  delta: TransRelDet
+): RecursiveSet<DFAState> {
+  
+  let Result = new RecursiveSet<DFAState>(q0);
+  
+  while (true) {
+    const NewStates = new RecursiveSet<DFAState>();
+    
+    for (const p of Result) {
+      for (const c of Sigma) {
+        const target = delta.get(key(p, c));
+        if (target) {
+          NewStates.add(target);
+        }
+      }
+    }
+    
+    if (NewStates.isSubset(Result)) {
+      return Result;
+    }
+    Result = Result.union(NewStates);
+  }
+}
+
+// Local helper for MinKeys
+function minKey(q: MinState, c: Char): string {
+  return `${q.toString()},${c}`;
+}
+
+export function minimize(F: DFA): MinDFA {
   let { Q, Sigma, delta, q0, A } = F;
   
   Q = reachable(q0, Sigma, delta);
@@ -122,82 +178,70 @@ export function computeMinimizationPartition(F: DFA): Partition {
   
   const Separable = allSeparable(Q, reachableA, Sigma, delta);
   
-  const EquivClasses = new RecursiveSet<EquivClass>();
+  const EquivClasses = new RecursiveSet<MinState>();
   const Processed = new RecursiveSet<DFAState>();
 
   for (const q of Q) {
     if (Processed.has(q)) continue;
 
-    const cls = new RecursiveSet<DFAState>();
+    const equivalenceClass = new RecursiveSet<DFAState>();
+    
     for (const p of Q) {
-      const pairToCheck = new Tuple(p, q);
+      const pairToCheck = new Tuple<[DFAState, DFAState]>(p, q);
       if (!Separable.has(pairToCheck)) {
-        cls.add(p);
+        equivalenceClass.add(p);
         Processed.add(p);
       }
     }
-    EquivClasses.add(cls);
+    EquivClasses.add(equivalenceClass);
   }
   
-  return EquivClasses;
-}
-
-export function minimize(F: DFA): DFA {
-  const { q0, A, delta, Sigma } = F;
+  let newQ0: MinState | undefined;
   
-  const EquivClasses = computeMinimizationPartition(F);
-
-  const classToNewState = new Map<string, DFAState>();
-  const newStatesArr: DFAState[] = [];
+  const stateToClass = new Map<string, MinState>();
   
-  for (const cls of EquivClasses) {
-      let mergedState = new RecursiveSet<State>();
-      for (const oldState of cls) {
-          mergedState = mergedState.union(oldState);
-      }
+  for (const M of EquivClasses) {
+      if (M.has(q0)) newQ0 = M;
       
-      newStatesArr.push(mergedState);
-      classToNewState.set(cls.toString(), mergedState);
-  }
-
-  const getNewStateForOld = (oldState: DFAState): DFAState => {
-     for (const cls of EquivClasses) {
-         if (cls.has(oldState)) {
-             return classToNewState.get(cls.toString())!;
-         }
-     }
-     throw new Error(`State ${oldState} lost during minimization`);
-  };
-
-  const newQ0 = getNewStateForOld(q0);
-
-  const newAcceptArr: DFAState[] = [];
-  for (const cls of EquivClasses) {
-      const rep = arb(cls);
-      if (A.has(rep)) {
-          newAcceptArr.push(classToNewState.get(cls.toString())!);
+      for (const state of M) {
+          stateToClass.set(state.toString(), M);
       }
   }
+  
+  if (!newQ0) throw new Error("Start state vanished!");
 
-  const newDelta: TransRelDet = new Map();
-  for (const cls of EquivClasses) {
-      const newState = classToNewState.get(cls.toString())!;
-      const rep = arb(cls); 
+  const newAcceptArr: MinState[] = [];
+  for (const M of EquivClasses) {
+    const representative = arb(M);
+    if (A.has(representative)) {
+      newAcceptArr.push(M);
+    }
+  }
+  
+  const newDelta: MinTransRel = new Map();
+  
+  for (const M of EquivClasses) {
+    const q = arb(M); 
+    for (const c of Sigma) {
+      const target = delta.get(key(q, c));
       
-      for (const c of Sigma) {
-          const targetOld = delta.get(key(rep, c));
-          if (targetOld) {
-              const targetNew = getNewStateForOld(targetOld);
-              newDelta.set(key(newState, c), targetNew);
-          }
+      if (target) {
+        const targetClass = stateToClass.get(target.toString());
+        
+        if (targetClass) {
+             newDelta.set(minKey(M, c), targetClass);
+        }
       }
+    }
   }
   
   return {
-    Q: RecursiveSet.fromArray(newStatesArr),
+    Q: EquivClasses,
     Sigma,
     delta: newDelta,
     q0: newQ0,
     A: RecursiveSet.fromArray(newAcceptArr)
   };
 }
+
+
