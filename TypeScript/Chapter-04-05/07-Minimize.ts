@@ -1,17 +1,13 @@
 import { RecursiveSet, Tuple, Value } from "recursive-set";
 import { key } from "./05-DFA-2-RegExp";
 
-// === Basic Types ===
 export type State = string | number;
 type Char = string;
 
-// A state in a DFA is a Set of original atomic states
 export type DFAState = RecursiveSet<State>; 
 
-// Standard DFA Transition Map
 export type TransRelDet = Map<string, DFAState>;
 
-// The Standard DFA structure
 export type DFA = {
   Q: RecursiveSet<DFAState>;
   Sigma: RecursiveSet<Char>;
@@ -22,11 +18,9 @@ export type DFA = {
 
 // === Minimization Specific Types ===
 
-// A pair of states (p, q)
 type Pair = Tuple<[DFAState, DFAState]>;
-
-// Intermediate: An equivalence class is a set of DFAStates
 type EquivClass = RecursiveSet<DFAState>;
+export type Partition = RecursiveSet<RecursiveSet<DFAState>>
 
 function arb<T extends Value>(M: RecursiveSet<T>): T {
   if (M.isEmpty()) throw new Error("Error: arb called with empty set!");
@@ -120,28 +114,21 @@ function reachable(
   return visited;
 }
 
-export function minimize(F: DFA): DFA {
+export function computeMinimizationPartition(F: DFA): Partition {
   let { Q, Sigma, delta, q0, A } = F;
   
-  // 1. Filter Reachable States
   Q = reachable(q0, Sigma, delta);
   const reachableA = A.intersection(Q);
   
-  // 2. Calculate Separable Pairs
   const Separable = allSeparable(Q, reachableA, Sigma, delta);
   
-  // 3. Identify Equivalent Classes
   const EquivClasses = new RecursiveSet<EquivClass>();
   const Processed = new RecursiveSet<DFAState>();
 
-  // Map each old state to its Equivalence Class (for fast lookup)
-  // Since we can't use object keys for Sets, we assume partitioning works correctly
-  // and build the classes list first.
   for (const q of Q) {
     if (Processed.has(q)) continue;
 
     const cls = new RecursiveSet<DFAState>();
-    // Find all p equivalent to q
     for (const p of Q) {
       const pairToCheck = new Tuple(p, q);
       if (!Separable.has(pairToCheck)) {
@@ -151,30 +138,28 @@ export function minimize(F: DFA): DFA {
     }
     EquivClasses.add(cls);
   }
+  
+  return EquivClasses;
+}
 
-  // === FLATTENING / RENAMING STEP ===
-  // To verify strict DFA type, we map each EquivClass (Set of Sets)
-  // to a new simple DFAState (Set of a single Number).
-  // Example: Class {{1,2}, {3,4}} -> becomes State {1} (new ID)
+export function minimize(F: DFA): DFA {
+  const { q0, A, delta, Sigma } = F;
+  
+  const EquivClasses = computeMinimizationPartition(F);
 
   const classToNewState = new Map<string, DFAState>();
   const newStatesArr: DFAState[] = [];
   
-  // Generate IDs deterministically
-  let idCounter = 0;
-  // Sorting EquivClasses by their string representation ensures deterministic numbering
-  // RecursiveSet iterator is sorted, so this loop is deterministic.
   for (const cls of EquivClasses) {
-      // Create a singleton set as the new state identifier (e.g. {0}, {1}, {2})
-      const newState = RecursiveSet.fromSortedUnsafe([idCounter++]);
-      newStatesArr.push(newState);
+      let mergedState = new RecursiveSet<State>();
+      for (const oldState of cls) {
+          mergedState = mergedState.union(oldState);
+      }
       
-      // Map the CLASS to this new state
-      // Key: cls.toString() is safe in v7 (canonical representation)
-      classToNewState.set(cls.toString(), newState);
+      newStatesArr.push(mergedState);
+      classToNewState.set(cls.toString(), mergedState);
   }
 
-  // Helper to find which new state an OLD state belongs to
   const getNewStateForOld = (oldState: DFAState): DFAState => {
      for (const cls of EquivClasses) {
          if (cls.has(oldState)) {
@@ -184,26 +169,20 @@ export function minimize(F: DFA): DFA {
      throw new Error(`State ${oldState} lost during minimization`);
   };
 
-  // 4. Construct New Start State
   const newQ0 = getNewStateForOld(q0);
 
-  // 5. Construct New Accepting States
   const newAcceptArr: DFAState[] = [];
   for (const cls of EquivClasses) {
-      // If any element in the class was accepting, the new state is accepting
-      // (Consistency implies all or none are accepting)
       const rep = arb(cls);
       if (A.has(rep)) {
           newAcceptArr.push(classToNewState.get(cls.toString())!);
       }
   }
 
-  // 6. Construct New Delta
   const newDelta: TransRelDet = new Map();
-  
   for (const cls of EquivClasses) {
       const newState = classToNewState.get(cls.toString())!;
-      const rep = arb(cls); // Representative from original DFA
+      const rep = arb(cls); 
       
       for (const c of Sigma) {
           const targetOld = delta.get(key(rep, c));
@@ -222,7 +201,3 @@ export function minimize(F: DFA): DFA {
     A: RecursiveSet.fromArray(newAcceptArr)
   };
 }
-
-
-
-
