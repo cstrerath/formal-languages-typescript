@@ -5,23 +5,20 @@ import {
   DFA,
   DFAState,
   nfa2dfa,
-  key as fsmKey,
+  key,
+  TransitionKey,
 } from "./01-NFA-2-DFA";
 import { RegExp, RegExp2NFA } from "./03-RegExp-2-NFA";
 
-type StatePair = Tuple<[DFAState, DFAState]>;
+export type StatePair = Tuple<[DFAState, DFAState]>;
 
 export type ProductDFA = {
   Q: RecursiveSet<StatePair>;
   Sigma: RecursiveSet<Char>;
-  delta: Map<string, StatePair>;
+  delta: Map<TransitionKey, StatePair>;
   q0: StatePair;
   A: RecursiveSet<StatePair>;
 };
-
-function genKeyPair(state: StatePair, c: Char): string {
-  return `${state.toString()},${c}`;
-}
 
 function unwrapPair(pair: StatePair): [DFAState, DFAState] {
     const raw = pair.raw;
@@ -31,18 +28,18 @@ function unwrapPair(pair: StatePair): [DFAState, DFAState] {
 export function fsm_complement(F1: DFA, F2: DFA): ProductDFA {
   const newStates = F1.Q.cartesianProduct(F2.Q);
   
-  const newDelta = new Map<string, StatePair>();
+  const newDelta = new Map<TransitionKey, StatePair>();
 
   for (const pair of newStates) {
     const [p1, p2] = unwrapPair(pair);
 
     for (const c of F1.Sigma) {
-      const next1 = F1.delta.get(fsmKey(p1, c));
-      const next2 = F2.delta.get(fsmKey(p2, c));
+      const next1 = F1.delta.get(key(p1, c));
+      const next2 = F2.delta.get(key(p2, c));
 
       if (next1 && next2) {
         const nextPair = new Tuple(next1, next2);
-        newDelta.set(genKeyPair(pair, c), nextPair);
+        newDelta.set(key(pair, c), nextPair);
       }
     }
   }
@@ -75,7 +72,7 @@ function is_empty(F: ProductDFA): boolean {
 
     for (const q of reachable) {
       for (const c of F.Sigma) {
-        const target = F.delta.get(genKeyPair(q, c));
+        const target = F.delta.get(key(q as any, c));
         if (target) {
           newFoundArr.push(target);
         }
