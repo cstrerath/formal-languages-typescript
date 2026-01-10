@@ -1,6 +1,12 @@
-import { Tuple } from 'recursive-set';
+import { Tuple } from "recursive-set";
 // Wir importieren die strikten Typen aus Modul 03
-import { RegExp, UnaryOp, BinaryOp, EmptySet, Epsilon } from "./03-RegExp-2-NFA";
+import {
+    RegExp,
+    UnaryOp,
+    BinaryOp,
+    EmptySet,
+    Epsilon,
+} from "./03-RegExp-2-NFA";
 
 // === Types ===
 
@@ -9,7 +15,9 @@ type ParseResult = [RegExp, string[]];
 // === Helpers ===
 
 function error(msg: string, tokens: string[]): never {
-    throw new Error(`Parse Error: ${msg}. Remaining tokens: ${JSON.stringify(tokens)}`);
+    throw new Error(
+        `Parse Error: ${msg}. Remaining tokens: ${JSON.stringify(tokens)}`,
+    );
 }
 
 function tokenize(s: string): string[] {
@@ -33,16 +41,12 @@ function isAtomStart(t: string): boolean {
 function parseRegExp(tokens: string[]): ParseResult {
     let [result, rest] = parseProduct(tokens);
 
-    while (rest.length > 0 && rest[0] === '+') {
+    while (rest.length > 0 && rest[0] === "+") {
         const nextTokens = rest.slice(1);
         const [right, rightRest] = parseProduct(nextTokens);
-        
+
         // Strict Tuple Construction
-        result = new Tuple<[RegExp, BinaryOp, RegExp]>(
-            result, 
-            '+', 
-            right
-        );
+        result = new Tuple<[RegExp, BinaryOp, RegExp]>(result, "+", right);
         rest = rightRest;
     }
 
@@ -58,13 +62,9 @@ function parseProduct(tokens: string[]): ParseResult {
 
     while (rest.length > 0 && isAtomStart(rest[0])) {
         const [right, rightRest] = parseFactor(rest);
-        
+
         // Strict Tuple Construction
-        result = new Tuple<[RegExp, BinaryOp, RegExp]>(
-            result, 
-            '⋅', 
-            right
-        );
+        result = new Tuple<[RegExp, BinaryOp, RegExp]>(result, "⋅", right);
         rest = rightRest;
     }
 
@@ -78,9 +78,9 @@ function parseProduct(tokens: string[]): ParseResult {
 function parseFactor(tokens: string[]): ParseResult {
     let [atom, rest] = parseAtom(tokens);
 
-    if (rest.length > 0 && rest[0] === '*') {
+    if (rest.length > 0 && rest[0] === "*") {
         // Strict Tuple Construction
-        atom = new Tuple<[RegExp, UnaryOp]>(atom, '*');
+        atom = new Tuple<[RegExp, UnaryOp]>(atom, "*");
         rest = rest.slice(1);
     }
 
@@ -100,10 +100,10 @@ function parseAtom(tokens: string[]): ParseResult {
     const rest = tokens.slice(1);
 
     // 1. Parentheses
-    if (t === '(') {
+    if (t === "(") {
         const [expr, afterExpr] = parseRegExp(rest);
-        
-        if (afterExpr.length === 0 || afterExpr[0] !== ')') {
+
+        if (afterExpr.length === 0 || afterExpr[0] !== ")") {
             error("Expected ')'", afterExpr);
         }
         return [expr, afterExpr.slice(1)];
@@ -111,10 +111,10 @@ function parseAtom(tokens: string[]): ParseResult {
 
     // 2. Empty Set (Literal 0)
     // Cast to EmptySet needed if type inference is strict on 'number'
-    if (t === '∅') return [0 as EmptySet, rest];
-    
+    if (t === "∅") return [0 as EmptySet, rest];
+
     // 3. Epsilon
-    if (t === 'ε') return ['ε' as Epsilon, rest];
+    if (t === "ε") return ["ε" as Epsilon, rest];
 
     // 4. Character
     if (/^[a-zA-Z]$/.test(t)) return [t, rest];
@@ -129,10 +129,10 @@ function parseAtom(tokens: string[]): ParseResult {
 export function parse(s: string): RegExp {
     const tokens = tokenize(s);
     const [result, rest] = parseRegExp(tokens);
-    
+
     if (rest.length > 0) {
         error("Unexpected trailing tokens", rest);
     }
-    
+
     return result;
 }
