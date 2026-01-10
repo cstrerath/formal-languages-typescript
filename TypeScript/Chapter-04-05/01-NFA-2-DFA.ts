@@ -1,12 +1,45 @@
-import { RecursiveSet, Value } from 'recursive-set';
+import { RecursiveSet, Value } from "recursive-set";
+
+// ============================================================
+// 1. Basic Types
+// ============================================================
 
 export type State = string | number;
 
 export type Char = string;
 
-export type TransRel = Map<string, RecursiveSet<State>>;
+// DFA State: A set of atomic NFA states (subset construction)
+export type DFAState = RecursiveSet<State>;
 
-export type TransRelDet = Map<string, RecursiveSet<State>>;
+// ============================================================
+// 2. Transition Keys (Branded Type)
+// ============================================================
+
+declare const TransitionKeyBrand: unique symbol;
+
+export type TransitionKey = string & { [TransitionKeyBrand]: true };
+
+/**
+ * Universal Key Generator.
+ * Accepts atomic states (NFA) or sets of states (DFA/MinDFA).
+ */
+export function key(q: Value, c: Char): TransitionKey {
+  return `${q.toString()},${c}` as TransitionKey;
+}
+
+// ============================================================
+// 3. Transition Relations
+// ============================================================
+
+// NFA: (State, Char) -> Set of States
+export type TransRel = Map<TransitionKey, RecursiveSet<State>>;
+
+// DFA: (DFAState, Char) -> DFAState
+export type TransRelDet = Map<TransitionKey, DFAState>;
+
+// ============================================================
+// 4. Automata Definitions
+// ============================================================
 
 export type NFA = {
   Q: RecursiveSet<State>;
@@ -16,8 +49,6 @@ export type NFA = {
   A: RecursiveSet<State>;
 };
 
-export type DFAState = RecursiveSet<State>;
-
 export type DFA = {
   Q: RecursiveSet<DFAState>;
   Sigma: RecursiveSet<Char>;
@@ -26,100 +57,75 @@ export type DFA = {
   A: RecursiveSet<DFAState>;
 };
 
-export function key(q: State | DFAState, c: Char): string {
-  return `${q.toString()},${c}`;
-}
+// ============================================================
+// 5. Helper Functions & Algorithms
+// ============================================================
 
-function bigUnion(sets: RecursiveSet<DFAState>): DFAState {
+export function bigUnion(sets: RecursiveSet<DFAState>): DFAState {
   const allElements: State[] = [];
-
+  
   for (const subset of sets) {
     for (const elem of subset.raw) {
-      allElements.push(elem);
+        allElements.push(elem);
     }
   }
   return RecursiveSet.fromArray(allElements);
 }
 
-function epsClosure(s: State, delta: TransRel): RecursiveSet<State> {
+export function epsClosure(s: State, delta: TransRel): RecursiveSet<State> {
   let result = new RecursiveSet<State>(s);
 
   while (true) {
-    const nextStatesArr: State[] = [];
-
+    const newStatesParts = new RecursiveSet<DFAState>();
+    
     for (const q of result) {
-      const targets = delta.get(key(q, 'ε'));
-      if (targets) {
-        for (const t of targets.raw) nextStatesArr.push(t);
-      }
+        const targets = delta.get(key(q, 'ε'));
+        if (targets) {
+            newStatesParts.add(targets);
+        }
     }
-
-    const nextStates = RecursiveSet.fromArray(nextStatesArr);
-
-    if (nextStates.isSubset(result)) {
-      return result;
+    const newStates = bigUnion(newStatesParts);
+    
+    if (newStates.isSubset(result)) {
+        return result;
     }
-
-    result = result.union(nextStates);
+    
+    result = result.union(newStates);
   }
 }
 
-function deltaHat(s: State, c: Char, delta: TransRel): RecursiveSet<State> {
+export function deltaHat(s: State, c: Char, delta: TransRel): RecursiveSet<State> {
   const directTargets = delta.get(key(s, c));
-
+  
   if (!directTargets || directTargets.isEmpty()) {
-    return new RecursiveSet<State>();
+      return new RecursiveSet<State>();
   }
 
   const closures = new RecursiveSet<RecursiveSet<State>>();
-
+  
   for (const q of directTargets) {
-    closures.add(epsClosure(q, delta));
+      closures.add(epsClosure(q, delta));
   }
 
   return bigUnion(closures);
 }
 
-function capitalDelta(
+export function capitalDelta(
   M: RecursiveSet<State>,
   c: Char,
   delta: TransRel
 ): RecursiveSet<State> {
   const partials = new RecursiveSet<RecursiveSet<State>>();
-
+  
   for (const q of M) {
     partials.add(deltaHat(q, c, delta));
   }
-
+  
   return bigUnion(partials);
 }
 
-function allStates(
-  Q0: DFAState,
-  delta: TransRel,
-  Sigma: RecursiveSet<Char>
-): RecursiveSet<DFAState> {
-  const states = new RecursiveSet<DFAState>(Q0);
-  const queue: DFAState[] = [Q0];
-
-  let head = 0;
-  while (head < queue.length) {
-    const M = queue[head++];
-
-    for (const c of Sigma) {
-      const N = capitalDelta(M, c, delta);
-
-      if (!states.has(N)) {
-        states.add(N);
-        queue.push(N);
-      }
-    }
-  }
-  return states;
-}
-
-function allStatesFixedPoint(
-  Q0: DFAState,
+export function allStates(
+  Q0: DFAState, 
   delta: TransRel,
   Sigma: RecursiveSet<Char>
 ): RecursiveSet<DFAState> {
@@ -127,19 +133,19 @@ function allStatesFixedPoint(
 
   while (true) {
     const candidates: DFAState[] = [];
-
+    
     for (const M of result) {
-      for (const c of Sigma) {
-        candidates.push(capitalDelta(M, c, delta));
-      }
+       for (const c of Sigma) {
+           candidates.push(capitalDelta(M, c, delta));
+       }
     }
 
     const newStates = RecursiveSet.fromArray(candidates);
 
     if (newStates.isSubset(result)) {
-      return result;
+        return result;
     }
-
+    
     result = result.union(newStates);
   }
 }
@@ -147,29 +153,29 @@ function allStatesFixedPoint(
 export function nfa2dfa(nfa: NFA): DFA {
   const { Sigma, delta, q0, A } = nfa;
 
-  const newStart: DFAState = epsClosure(q0, delta);
-
+  const newStart: DFAState = epsClosure(q0, delta);  
+  
   const newStates: RecursiveSet<DFAState> = allStates(newStart, delta, Sigma);
-
+  
   const newDelta: TransRelDet = new Map();
-
+  
   for (const M of newStates) {
     for (const c of Sigma) {
-      const N = capitalDelta(M, c, delta);
-      newDelta.set(key(M, c), N);
+        const N = capitalDelta(M, c, delta);
+        newDelta.set(key(M, c), N);
     }
   }
 
   const newFinalArr: DFAState[] = [];
-
+  
   for (const M of newStates) {
     const intersection = M.intersection(A);
-
+    
     if (!intersection.isEmpty()) {
       newFinalArr.push(M);
     }
   }
-
+  
   const newFinal = RecursiveSet.fromArray(newFinalArr);
 
   return {
@@ -177,6 +183,6 @@ export function nfa2dfa(nfa: NFA): DFA {
     Sigma,
     delta: newDelta,
     q0: newStart,
-    A: newFinal,
+    A: newFinal
   };
 }
