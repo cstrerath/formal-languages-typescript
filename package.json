@@ -7,5 +7,8 @@
     "chevrotain": "^10.5.0",
     "entities": "^7.0.0",
     "recursive-set": "^7.0.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4"
   }
 }
