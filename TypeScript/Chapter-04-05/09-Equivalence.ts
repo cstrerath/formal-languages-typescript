@@ -72,7 +72,7 @@ function is_empty(F: ProductDFA): boolean {
 
     for (const q of reachable) {
       for (const c of F.Sigma) {
-        const target = F.delta.get(key(q as any, c));
+        const target = F.delta.get(key(q, c));
         if (target) {
           newFoundArr.push(target);
         }
