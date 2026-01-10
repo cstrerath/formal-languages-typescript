@@ -1,169 +1,138 @@
-import { Tuple } from 'recursive-set';
-import { RegExp, UnaryOp, BinaryOp } from './03-RegExp-2-NFA';
+import { Tuple } from "recursive-set";
+// Wir importieren die strikten Typen aus Modul 03
+import {
+    RegExp,
+    UnaryOp,
+    BinaryOp,
+    EmptySet,
+    Epsilon,
+} from "./03-RegExp-2-NFA";
 
-// ============================================================
-// 1. Type Definitions
-// ============================================================
+// === Types ===
 
-/**
- * The ParseTree uses the same structure as our RegExp type.
- * We align it with our RegExp definition from module 03.
- */
-export type ParseTree = RegExp;
+type ParseResult = [RegExp, string[]];
 
-/**
- * A helper type for the parser result:
- * [ParsedObject, RemainingTokens]
- */
-type ParseResult = [ParseTree, string[]];
+// === Helpers ===
 
-// ============================================================
-// 2. Tokenizer
-// ============================================================
-
-/**
- * Tokenizes the input string into a list of significant tokens.
- * Recognizes: +, *, (, ), ∅, ε, and single letters.
- * Discards whitespace.
- */
-export function tokenize(s: string): string[] {
-  // Regex to match all valid tokens
-  const tokenRegex = /[+*()]|[a-zA-Z]|∅|ε/g;
-  const matches = s.match(tokenRegex);
-
-  return matches ? matches : [];
-}
-
-// ============================================================
-// 3. Parser Functions (Recursive Descent)
-// ============================================================
-
-/**
- * Helper to throw readable parse errors
- */
 function error(msg: string, tokens: string[]): never {
-  throw new Error(
-    `Parse Error: ${msg}. Remaining tokens: ${JSON.stringify(tokens)}`
-  );
+    throw new Error(
+        `Parse Error: ${msg}. Remaining tokens: ${JSON.stringify(tokens)}`,
+    );
 }
 
-/**
- * Main Parse Function
- */
-export function parse(s: string): ParseTree {
-  const tokens = tokenize(s);
-  const [result, rest] = parseRegExp(tokens);
-
-  if (rest.length > 0) {
-    error('Unexpected trailing tokens', rest);
-  }
-
-  return result;
+function tokenize(s: string): string[] {
+    // Erkennt Operatoren, Klammern, Buchstaben, Leere Menge (∅) und Epsilon (ε)
+    const tokenRegex = /[+*()]|[a-zA-Z]|∅|ε/g;
+    const matches = s.match(tokenRegex);
+    return matches ? matches : [];
 }
 
+// Helper für "Is start of a new atom?" (für implizite Konkatenation)
+function isAtomStart(t: string): boolean {
+    return /^[a-zA-Z(∅ε]$/.test(t);
+}
+
+// === Recursive Descent Parser Functions ===
+
 /**
- * Parses: regExp -> product ('+' product)*
+ * Parses Union: A + B
+ * Grammar: regExp → product ('+' product)*
  */
 function parseRegExp(tokens: string[]): ParseResult {
-  let [result, rest] = parseProduct(tokens);
+    let [result, rest] = parseProduct(tokens);
 
-  // While next token is '+', consume it and parse next product
-  while (rest.length > 0 && rest[0] === '+') {
-    const nextTokens = rest.slice(1);
-    const [right, rightRest] = parseProduct(nextTokens);
+    while (rest.length > 0 && rest[0] === "+") {
+        const nextTokens = rest.slice(1);
+        const [right, rightRest] = parseProduct(nextTokens);
 
-    // Use Tuple for Union
-    result = new Tuple<[RegExp, BinaryOp, RegExp]>(
-      result,
-      '+' as BinaryOp,
-      right
-    );
-    rest = rightRest;
-  }
-
-  return [result, rest];
-}
-
-/**
- * Parses: product -> factor factor*
- * Note: In our regex syntax, concatenation is implicit (e.g., "ab").
- * We interpret this as (factor '⋅' factor '⋅' factor...)
- */
-function parseProduct(tokens: string[]): ParseResult {
-  let [result, rest] = parseFactor(tokens);
-
-  // Helper to check if a token can start a new factor (Atom)
-  const isAtomStart = (t: string) => /^[a-zA-Z(∅ε]$/.test(t);
-
-  while (rest.length > 0 && isAtomStart(rest[0])) {
-    const [right, rightRest] = parseFactor(rest);
-
-    // Use Tuple for Concatenation
-    result = new Tuple<[RegExp, BinaryOp, RegExp]>(
-      result,
-      '⋅' as BinaryOp,
-      right
-    );
-    rest = rightRest;
-  }
-
-  return [result, rest];
-}
-
-/**
- * Parses: factor -> atom '*'?
- */
-function parseFactor(tokens: string[]): ParseResult {
-  let [atom, rest] = parseAtom(tokens);
-
-  // Check for Kleene Star '*'
-  if (rest.length > 0 && rest[0] === '*') {
-    // Use Tuple for Kleene Star
-    atom = new Tuple<[RegExp, UnaryOp]>(atom, '*' as UnaryOp);
-    rest = rest.slice(1);
-  }
-
-  return [atom, rest];
-}
-
-/**
- * Parses: atom -> '(' regExp ')' | '∅' | 'ε' | LETTER
- */
-function parseAtom(tokens: string[]): ParseResult {
-  if (tokens.length === 0) {
-    error('Unexpected end of input', tokens);
-  }
-
-  const t = tokens[0];
-  const rest = tokens.slice(1);
-
-  // Case 1: Parentheses
-  if (t === '(') {
-    const [expr, afterExpr] = parseRegExp(rest);
-
-    if (afterExpr.length === 0 || afterExpr[0] !== ')') {
-      error("Expected ')'", afterExpr);
+        // Strict Tuple Construction
+        result = new Tuple<[RegExp, BinaryOp, RegExp]>(result, "+", right);
+        rest = rightRest;
     }
 
-    return [expr, afterExpr.slice(1)]; // Consume ')'
-  }
+    return [result, rest];
+}
 
-  // Case 2: Empty Set
-  if (t === '∅') {
-    return [0, rest]; // 0 represents ∅ (matches RegExp = number | ...)
-  }
+/**
+ * Parses Concatenation (Implicit): AB
+ * Grammar: product → factor factor*
+ */
+function parseProduct(tokens: string[]): ParseResult {
+    let [result, rest] = parseFactor(tokens);
 
-  // Case 3: Epsilon
-  if (t === 'ε') {
-    return ['ε', rest];
-  }
+    while (rest.length > 0 && isAtomStart(rest[0])) {
+        const [right, rightRest] = parseFactor(rest);
 
-  // Case 4: Letter (a-z, A-Z)
-  if (/^[a-zA-Z]$/.test(t)) {
-    return [t, rest];
-  }
+        // Strict Tuple Construction
+        result = new Tuple<[RegExp, BinaryOp, RegExp]>(result, "⋅", right);
+        rest = rightRest;
+    }
 
-  // Error
-  error(`Unexpected token '${t}'`, tokens);
-  return [0, []]; // Unreachable
+    return [result, rest];
+}
+
+/**
+ * Parses Kleene Star: A*
+ * Grammar: factor → atom '*'?
+ */
+function parseFactor(tokens: string[]): ParseResult {
+    let [atom, rest] = parseAtom(tokens);
+
+    if (rest.length > 0 && rest[0] === "*") {
+        // Strict Tuple Construction
+        atom = new Tuple<[RegExp, UnaryOp]>(atom, "*");
+        rest = rest.slice(1);
+    }
+
+    return [atom, rest];
+}
+
+/**
+ * Parses Atoms: (A), ∅, ε, a
+ * Grammar: atom → '(' regExp ')' | LETTER | 'ε' | '∅'
+ */
+function parseAtom(tokens: string[]): ParseResult {
+    if (tokens.length === 0) {
+        error("Unexpected end of input", tokens);
+    }
+
+    const t = tokens[0];
+    const rest = tokens.slice(1);
+
+    // 1. Parentheses
+    if (t === "(") {
+        const [expr, afterExpr] = parseRegExp(rest);
+
+        if (afterExpr.length === 0 || afterExpr[0] !== ")") {
+            error("Expected ')'", afterExpr);
+        }
+        return [expr, afterExpr.slice(1)];
+    }
+
+    // 2. Empty Set (Literal 0)
+    // Cast to EmptySet needed if type inference is strict on 'number'
+    if (t === "∅") return [0 as EmptySet, rest];
+
+    // 3. Epsilon
+    if (t === "ε") return ["ε" as Epsilon, rest];
+
+    // 4. Character
+    if (/^[a-zA-Z]$/.test(t)) return [t, rest];
+
+    error(`Unexpected token '${t}'`, tokens);
+    // Unreachable, but satisfies TS return type check
+    return [0, []];
+}
+
+// === Main Export ===
+
+export function parse(s: string): RegExp {
+    const tokens = tokenize(s);
+    const [result, rest] = parseRegExp(tokens);
+
+    if (rest.length > 0) {
+        error("Unexpected trailing tokens", rest);
+    }
+
+    return result;
 }
