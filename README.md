@@ -24,63 +24,77 @@ This project is a TypeScript translation of the original Python notebooks:
 
 ## Prerequisites
 
-### 1. Install Anaconda
+You need a Conda distribution to manage the Python environment and Jupyter, and Node.js for the TypeScript kernel.
 
-Download and install Anaconda from:
-[https://www.anaconda.com/download](https://www.anaconda.com/download)
+### 1. Install Conda (Choose one)
 
-### 2. Set Up TypeScript Kernel for Jupyter
+**Option A: Miniforge (Recommended)**
+Lightweight, faster, and uses `conda-forge` by default.
+- Download: [https://github.com/conda-forge/miniforge](https://github.com/conda-forge/miniforge)
 
-After installing Anaconda, follow these steps to install the TypeScript kernel:
+**Option B: Anaconda (Classic)**
+Standard distribution, includes a GUI.
+- Download: [https://www.anaconda.com/download](https://www.anaconda.com/download)
 
-```
-# Activate base environment
-conda activate base
+---
 
-# Install Node.js via conda
-conda install nodejs
+### 2. Setup Environment & TypeScript Kernel
 
-# Install tslab globally
+We recommend creating a dedicated environment named `fl-ts` (Formal Languages TypeScript) to avoid conflicts with other projects.
+
+Open your terminal (or Anaconda Prompt on Windows) and run:
+
+```bash
+# 1. Create a clean environment with Python and Node.js
+conda create -n fl-ts python=3.12 nodejs -y
+
+# 2. Activate the environment
+conda activate fl-ts
+
+# 3. Install Jupyter Notebook Classic and core tools
+conda install -c conda-forge nbclassic jupyter_core -y
+
+# 4. Install tslab (TypeScript kernel) globally within the environment
 npm install -g tslab
 
-# Register tslab with Jupyter
+# 5. Register tslab with Jupyter
 tslab install
-
-# Install Jupyter Notebook Classic
-conda install -c conda-forge nbclassic
-
-# Start Jupyter Notebook
-jupyter nbclassic
 
 ```
 
 ### 3. Install Dependencies
 
-The notebooks will automatically install Chevrotain when first run, or you can install it manually:
+This project uses a package.json file to manage TypeScript dependencies (Chevrotain, Viz.js, Recursive-Set).
+
+1. Navigate to the root of this repository (where package.json is located).
+2. Run the installation command:
 
 ```
-npm install chevrotain
+npm install
 ```
 
 ## Usage
 
 1. Clone this repository
-2. Navigate to the repository directory
-3. Start Jupyter Notebook: `jupyter nbclassic`
-4. Open any notebook in the `TypeScript/` directory
-5. Select the "TypeScript" kernel when prompted
+2. Ensure your environment is active: `conda activate fl-ts`
+3. Navigate to the repository directory
+4. Start Jupyter Notebook: `jupyter nbclassic`
+5. Open any notebook in the `TypeScript/` directory
+6. Ensure the kernel is set to **TypeScript** (usually automatic, or select via Kernel -> Change Kernel).
 
 ## Libraries Used
 
-- **[Chevrotain](https://chevrotain.io/)**: Parser Building Toolkit for JavaScript/TypeScript
-- **[tslab](https://github.com/yunabe/tslab)**: Interactive TypeScript programming with Jupyter
+This project utilizes a specific technology stack to ensure type safety and computational efficiency:
 
-## Differences from Original
+* **[recursive-set (v7)](https://www.npmjs.com/package/recursive-set)**: A high-performance Set implementation designed for ZFC set theory operations.
+* **[tslab](https://github.com/yunabe/tslab)**: An interactive TypeScript kernel for Jupyter, enabling the execution of TypeScript code within the notebook environment and providing integration with standard Jupyter features.
+* **[Chevrotain](https://chevrotain.io/)**: A parser building toolkit used for lexical analysis and parsing of context-free grammars.
+* **[@viz-js/viz](https://github.com/mdaines/viz-js)**: A WebAssembly port of Graphviz, used to render automata and syntax trees directly within the browser client.
 
-This TypeScript version uses:
-- **Chevrotain** instead of Ply for lexical analysis and parsing
-- **TypeScript** type system for enhanced type safety
-- Modern JavaScript/TypeScript patterns and syntax
+## Key Differences from Original
+
+* **Static Typing:** The codebase leverages TypeScript's type system to enforce strict typing structures.
+* **Unified Set Structure:** The project utilizes `recursive-set` to manage collections, replacing the distinction between `set` (mutable) and `frozenset` (immutable) found in Python.
 
 The educational content and examples remain as close to the original as possible.
 
