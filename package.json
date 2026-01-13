@@ -6,7 +6,8 @@
     "@viz-js/viz": "^3.24.0",
     "chevrotain": "^10.5.0",
     "entities": "^7.0.0",
-    "recursive-set": "^7.0.1"
+    "recursive-set": "^7.0.1",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "prettier": "^3.7.4"
