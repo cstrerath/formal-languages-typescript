@@ -1,17 +1,7 @@
 import { RecursiveSet, RecursiveMap, Tuple, Value } from 'recursive-set';
 import { NFA, State, Char, TransRel } from "./01-NFA-2-DFA";
 
-// ============================================================================
-// 1. AST CLASS DEFINITIONS (The "Single Source of Truth")
-// ============================================================================
-
-/**
- * Base class for all Regular Expression Nodes.
- * Extends Tuple for structural equality and hashability.
- */
 abstract class RegExpNode<T extends Value[]> extends Tuple<T> {}
-
-// --- Atomic Types ---
 
 class EmptySet extends RegExpNode<[0]> {
     constructor() { super(0); }
@@ -26,19 +16,12 @@ class CharNode extends RegExpNode<[Char]> {
     get value(): Char { return this.get(0); }
 }
 
-/** * Represents a Variable (e.g., "R", "S").
- * We define it HERE so that composite types (Star, Union) accept it as a child.
- */
 class Variable extends RegExpNode<[string]> {
     constructor(name: string) { super(name); }
     get name(): string { return this.get(0); }
 }
 
-// --- Composite Types ---
-
-/** * The Union Type of all possible nodes.
- * Effectively, this is a "Pattern" type.
- */
+// 1. The Recursive Union Type
 type RegExp = 
     | EmptySet 
     | Epsilon 
@@ -48,11 +31,13 @@ type RegExp =
     | Concat 
     | Union;
 
+// 2. Operator Types
 type UnaryOp = '*';
 type BinaryOp = '⋅' | '+';
 
+// 3. Composite Class Implementations
+
 class Star extends RegExpNode<[RegExp, UnaryOp]> {
-    // Accepts RegExp (including Variable) -> Type safe for Rewrite System
     constructor(inner: RegExp) { super(inner, '*'); }
     get inner(): RegExp { return this.get(0); }
 }
@@ -79,11 +64,6 @@ class StateGenerator {
     getNewState(): State {
         return ++this.stateCount;
     }
-}
-
-function getOnlyElement(S: RecursiveSet<State>): State {
-    for (const s of S) return s;
-    throw new Error("Unreachable");
 }
 
 function genEmptyNFA(gen: StateGenerator, Sigma: RecursiveSet<Char>): NFA {
@@ -135,134 +115,64 @@ function genCharNFA(
     };
 }
 
-function copyDelta(d1: TransRel, d2: TransRel): TransRel {
-    const newDelta = new RecursiveMap<Tuple<[State, Char]>, RecursiveSet<State>>();    
-    for (const [k, v] of d1) newDelta.set(k, v);
-    for (const [k, v] of d2) newDelta.set(k, v);
-    return newDelta;
-}
-
 function catenate(gen: StateGenerator, f1: NFA, f2: NFA): NFA {
-    const q1 = f1.q0;
-    const q3 = f2.q0;
-    const q2 = getOnlyElement(f1.A);
-    
-    const delta = copyDelta(f1.δ, f2.δ);
+    const q1 = f1.q0, q3 = f2.q0;
+    if (f1.A.size !== 1) throw new Error("Thompson NFA must have exactly 1 accepting state");
+    const [q2] = f1.A; 
+    const delta = f1.δ.mutableCopy();
+    for (const [k, v] of f2.δ) { delta.set(k, v); }
     delta.set(new Tuple(q2, 'ε'), new RecursiveSet(q3));
-    
-    return {
-        Q: f1.Q.union(f2.Q),
-        Σ: f1.Σ,
-        δ: delta,
-        q0: q1,
-        A: f2.A
-    };
+
+    return { Q: f1.Q.union(f2.Q), Σ: f1.Σ, δ: delta, q0: q1, A: f2.A };
 }
 
 function disjunction(gen: StateGenerator, f1: NFA, f2: NFA): NFA {
-    const q1 = f1.q0;
-    const q2 = f2.q0;
-    const q3 = getOnlyElement(f1.A);
-    const q4 = getOnlyElement(f2.A);
-    
+    const q1 = f1.q0, q2 = f2.q0;
+    if (f1.A.size !== 1 || f2.A.size !== 1) throw new Error("Invalid NFA structure");
+    const [q3] = f1.A;
+    const [q4] = f2.A;
     const q0 = gen.getNewState();
     const q5 = gen.getNewState();
-    
-    const delta = copyDelta(f1.δ, f2.δ);
-    
+    const delta = f1.δ.mutableCopy();
+    for (const [k, v] of f2.δ) { delta.set(k, v); }
     delta.set(new Tuple(q0, 'ε'), new RecursiveSet(q1, q2));
-    
-    const targetQ5 = new RecursiveSet(q5);
-    delta.set(new Tuple(q3, 'ε'), targetQ5);
-    delta.set(new Tuple(q4, 'ε'), targetQ5);
-    
-    return {
-        Q: new RecursiveSet(q0, q5).union(f1.Q).union(f2.Q),
-        Σ: f1.Σ,
-        δ: delta,
-        q0: q0,
-        A: targetQ5
-    };
+    const endState = new RecursiveSet(q5);
+    delta.set(new Tuple(q3, 'ε'), new RecursiveSet(q5));
+    delta.set(new Tuple(q4, 'ε'), new RecursiveSet(q5));
+
+    return { Q: new RecursiveSet(q0, q5).union(f1.Q).union(f2.Q), Σ: f1.Σ, δ: delta, q0: q0, A: new RecursiveSet(q5) };
 }
 
 function kleene(gen: StateGenerator, f: NFA): NFA {
     const q1 = f.q0;
-    const q2 = getOnlyElement(f.A);
-    
+    if (f.A.size !== 1) throw new Error("Invalid NFA structure");
+    const [q2] = f.A;
     const q0 = gen.getNewState();
     const q3 = gen.getNewState();
-    
-    const delta = new RecursiveMap<Tuple<[State, Char]>, RecursiveSet<State>>();
-    for (const [k, v] of f.δ) delta.set(k, v);
-    
-    const targets = new RecursiveSet(q1, q3);
-    
-    delta.set(new Tuple(q0, 'ε'), targets);
-    delta.set(new Tuple(q2, 'ε'), targets);
-    
-    return {
-        Q: new RecursiveSet(q0, q3).union(f.Q),
-        Σ: f.Σ,
-        δ: delta,
-        q0: q0,
-        A: new RecursiveSet(q3)
-    };
+    const delta = f.δ.mutableCopy();
+    delta.set(new Tuple(q0, 'ε'), new RecursiveSet(q1, q3));
+    delta.set(new Tuple(q2, 'ε'), new RecursiveSet(q1, q3));
+
+    return { Q: new RecursiveSet(q0, q3).union(f.Q), Σ: f.Σ, δ: delta, q0: q0, A: new RecursiveSet(q3) };
 }
 
 class RegExp2NFA {
-    private gen: StateGenerator;
-    private sigma: RecursiveSet<Char>;
-
-    constructor(sigma: RecursiveSet<Char>) {
-        this.sigma = sigma;
-        this.gen = new StateGenerator();
-    }
+    private gen = new StateGenerator();
+    constructor(private sigma: RecursiveSet<Char>) {}
 
     public toNFA(r: RegExp): NFA {
-        // Strict Type Guarding using instanceof
-        
-        if (r instanceof EmptySet) {
+        if (r instanceof EmptySet)
             return genEmptyNFA(this.gen, this.sigma);
-        }
-
-        if (r instanceof Epsilon) {
+        if (r instanceof Epsilon)
             return genEpsilonNFA(this.gen, this.sigma);
-        }
-
-        if (r instanceof CharNode) {
+        if (r instanceof CharNode)
             return genCharNFA(this.gen, this.sigma, r.value);
-        }
-
-        // --- Composite Types ---
-        
-        if (r instanceof Star) {
+        if (r instanceof Star)
             return kleene(this.gen, this.toNFA(r.inner));
-        }
-
-        if (r instanceof Concat) {
-            return catenate(
-                this.gen,
-                this.toNFA(r.left),
-                this.toNFA(r.right)
-            );
-        }
-
-        if (r instanceof Union) {
-            return disjunction(
-                this.gen,
-                this.toNFA(r.left),
-                this.toNFA(r.right)
-            );
-        }
-
-        // --- Error Case for Variables ---
-        // This makes the system robust: The Type System allows Variables,
-        // but the Logic Layer ensures we don't compile them.
-        if (r instanceof Variable) {
-            throw new Error(`Cannot convert Variable '${r.name}' to NFA. Resolve variables first.`);
-        }
-
-        // TypeScript now knows 'r' is never, but good to keep for runtime safety
+        if (r instanceof Concat) 
+            return catenate(this.gen, this.toNFA(r.left), this.toNFA(r.right));
+        if (r instanceof Union) 
+            return disjunction(this.gen, this.toNFA(r.left), this.toNFA(r.right));
         throw new Error(`Unknown RegExp Node: ${r}`);
     }
 }
