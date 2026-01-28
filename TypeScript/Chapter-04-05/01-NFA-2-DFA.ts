@@ -1,4 +1,4 @@
-import { RecursiveSet, RecursiveMap, Tuple } from "./recursive-set";
+import { RecursiveSet, RecursiveMap, Tuple } from "recursive-set";
 
 type State = string | number;
 

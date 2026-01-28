@@ -1,5 +1,5 @@
-import { RecursiveSet, RecursiveMap, Tuple, Value } from "./recursive-set";
-import { DFA, NFA, State, Char, DFAState } from "./01-NFA-2-DFA"; // Passe Import-Pfad ggf. an
+import { RecursiveSet, RecursiveMap, Tuple, Value } from "recursive-set";
+import { DFA, NFA, State, Char, DFAState } from "./01-NFA-2-DFA";
 
 // ============================================================================
 // DFA VISUALIZATION (DOT) - FIXED
