@@ -1,23 +1,31 @@
-import { RecursiveSet, Tuple } from "recursive-set";
-import { DFA, DFAState, State, Char, TransRelDet, key } from "./01-NFA-2-DFA";
+import { display } from "tslab";
+import { readFileSync } from "fs";
+
+const css = readFileSync("../style.css", "utf8");
+display.html(`<style>${css}</style>`);
+
+import { RecursiveSet, RecursiveMap, Tuple } from "recursive-set";
+import { DFA, DFAState, State, Char, TransRelDet } from "./01-NFA-2-DFA";
 import {
     RegExp,
-    BinaryOp,
-    UnaryOp,
     EmptySet,
     Epsilon,
+    CharNode,
+    Star,
+    Concat,
+    Union
 } from "./03-RegExp-2-NFA";
 
 function regexpSum(S: RecursiveSet<RegExp> | RegExp[]): RegExp {
-    const elems: readonly RegExp[] = S instanceof RecursiveSet ? S.raw : S;
+    const elems: RegExp[] = S instanceof RecursiveSet ? [...S] : S;
     const n = elems.length;
 
-    if (n === 0) return 0;
+    if (n === 0) return new EmptySet();
     if (n === 1) return elems[0];
 
     const [r, ...rest] = elems;
 
-    return new Tuple(r, "+", regexpSum(rest));
+    return new Union(r, regexpSum(rest));
 }
 
 function rpq(
@@ -28,20 +36,20 @@ function rpq(
     Allowed: readonly DFAState[],
 ): RegExp {
     if (Allowed.length === 0) {
-        const allChars: Char[] = [];
+        const allChars: RegExp[] = [];
 
         for (const c of Sigma) {
-            const target = delta.get(key(p1, c));
+            const target = delta.get(new Tuple(p1, c));
 
             if (target && target.equals(p2)) {
-                allChars.push(c);
+                allChars.push(new CharNode(c));
             }
         }
 
         const r = regexpSum(allChars);
 
         if (p1.equals(p2)) {
-            return new Tuple("ε", "+", r);
+            return new Union(new Epsilon(), r);
         } else {
             return r;
         }
@@ -54,24 +62,26 @@ function rpq(
     const rqq = rpq(q, q, Sigma, delta, RestAllowed);
     const rqp2 = rpq(q, p2, Sigma, delta, RestAllowed);
 
-    const loop = new Tuple(rqq, "*");
-    const concat1 = new Tuple(rp1q, "⋅", loop);
-    const concat2 = new Tuple(concat1, "⋅", rqp2);
+    const loop = new Star(rqq);
+    const concat1 = new Concat(rp1q, loop);
+    const concat2 = new Concat(concat1, rqp2);
 
-    return new Tuple(rp1p2, "+", concat2);
+    return new Union(rp1p2, concat2);
 }
 
-export function dfa2regexp(F: DFA): RegExp {
-    const { Q, Sigma, delta, q0, A } = F;
+function dfa2regexp(F: DFA): RegExp {
+    const { Q, Σ, δ, q0, A } = F;
 
-    const allStates = Q.raw;
+    const allStates: DFAState[] = [...Q];
 
     const parts: RegExp[] = [];
 
     for (const acc of A) {
-        const r = rpq(q0, acc, Sigma, delta, allStates);
+        const r = rpq(q0, acc, Σ, δ, allStates);
         parts.push(r);
     }
 
     return regexpSum(parts);
 }
+
+export {dfa2regexp}

@@ -2,79 +2,76 @@ import { RecursiveSet, RecursiveMap, Tuple, Value } from 'recursive-set';
 import { NFA, State, Char, TransRel } from "./01-NFA-2-DFA";
 
 // ============================================================================
-// AST CLASS DEFINITIONS
+// 1. AST CLASS DEFINITIONS (The "Single Source of Truth")
 // ============================================================================
 
 /**
  * Base class for all Regular Expression Nodes.
- * All nodes are Tuples, ensuring structural equality and hashability.
+ * Extends Tuple for structural equality and hashability.
  */
 abstract class RegExpNode<T extends Value[]> extends Tuple<T> {}
 
 // --- Atomic Types ---
 
-/** Represents the Empty Set (∅). */
 class EmptySet extends RegExpNode<[0]> {
     constructor() { super(0); }
 }
 
-/** Represents Epsilon (ε). */
 class Epsilon extends RegExpNode<['ε']> {
     constructor() { super('ε'); }
 }
 
-/** Represents a single character (c ∈ Σ). */
 class CharNode extends RegExpNode<[Char]> {
     constructor(c: Char) { super(c); }
     get value(): Char { return this.get(0); }
 }
 
+/** * Represents a Variable (e.g., "R", "S").
+ * We define it HERE so that composite types (Star, Union) accept it as a child.
+ */
+class Variable extends RegExpNode<[string]> {
+    constructor(name: string) { super(name); }
+    get name(): string { return this.get(0); }
+}
+
 // --- Composite Types ---
 
-type UnaryOp = '*';
-type BinaryOp = '⋅' | '+';
-
-/** * Represents the Kleene Star (r*).
- * We wrap the inner expression.
- */
-class Star extends RegExpNode<[RegExp, UnaryOp]> {
-    constructor(inner: RegExp) { super(inner, '*'); }
-    get inner(): RegExp { return this.get(0); }
-}
-
-/** * Abstract base for Binary Operations to ensure type safety.
- */
-abstract class BinaryRegExp<L extends RegExp, R extends RegExp> 
-    extends RegExpNode<[L, BinaryOp, R]> {
-    
-    constructor(left: L, op: BinaryOp, right: R) {
-        super(left, op, right);
-    }
-
-    get left(): L { return this.get(0); }
-    get right(): R { return this.get(2); }
-}
-
-/** Represents Concatenation (r1 ⋅ r2). */
-class Concat extends BinaryRegExp<RegExp, RegExp> {
-    constructor(left: RegExp, right: RegExp) { super(left, '⋅', right); }
-}
-
-/** Represents Union (r1 + r2). */
-class Union extends BinaryRegExp<RegExp, RegExp> {
-    constructor(left: RegExp, right: RegExp) { super(left, '+', right); }
-}
-
-/** * The Union Type of all possible Regular Expression nodes.
- * This is the type used in function signatures.
+/** * The Union Type of all possible nodes.
+ * Effectively, this is a "Pattern" type.
  */
 type RegExp = 
     | EmptySet 
     | Epsilon 
     | CharNode 
+    | Variable 
     | Star 
     | Concat 
     | Union;
+
+type UnaryOp = '*';
+type BinaryOp = '⋅' | '+';
+
+class Star extends RegExpNode<[RegExp, UnaryOp]> {
+    // Accepts RegExp (including Variable) -> Type safe for Rewrite System
+    constructor(inner: RegExp) { super(inner, '*'); }
+    get inner(): RegExp { return this.get(0); }
+}
+
+abstract class BinaryRegExp extends RegExpNode<[RegExp, BinaryOp, RegExp]> {
+    constructor(left: RegExp, op: BinaryOp, right: RegExp) {
+        super(left, op, right);
+    }
+    get left(): RegExp { return this.get(0); }
+    get right(): RegExp { return this.get(2); }
+}
+
+class Concat extends BinaryRegExp {
+    constructor(left: RegExp, right: RegExp) { super(left, '⋅', right); }
+}
+
+class Union extends BinaryRegExp {
+    constructor(left: RegExp, right: RegExp) { super(left, '+', right); }
+}
 
 class StateGenerator {
     private stateCount: number = 0;
@@ -214,25 +211,30 @@ function kleene(gen: StateGenerator, f: NFA): NFA {
 
 class RegExp2NFA {
     private gen: StateGenerator;
-    private Σ: RecursiveSet<Char>;
+    private sigma: RecursiveSet<Char>;
 
-    constructor(Σ: RecursiveSet<Char>) {
-        this.Σ = Σ;
+    constructor(sigma: RecursiveSet<Char>) {
+        this.sigma = sigma;
         this.gen = new StateGenerator();
     }
 
     public toNFA(r: RegExp): NFA {
+        // Strict Type Guarding using instanceof
+        
         if (r instanceof EmptySet) {
-            return genEmptyNFA(this.gen, this.Σ);
+            return genEmptyNFA(this.gen, this.sigma);
         }
 
         if (r instanceof Epsilon) {
-            return genEpsilonNFA(this.gen, this.Σ);
+            return genEpsilonNFA(this.gen, this.sigma);
         }
 
         if (r instanceof CharNode) {
-            return genCharNFA(this.gen, this.Σ, r.value);
+            return genCharNFA(this.gen, this.sigma, r.value);
         }
+
+        // --- Composite Types ---
+        
         if (r instanceof Star) {
             return kleene(this.gen, this.toNFA(r.inner));
         }
@@ -253,17 +255,28 @@ class RegExp2NFA {
             );
         }
 
+        // --- Error Case for Variables ---
+        // This makes the system robust: The Type System allows Variables,
+        // but the Logic Layer ensures we don't compile them.
+        if (r instanceof Variable) {
+            throw new Error(`Cannot convert Variable '${r.name}' to NFA. Resolve variables first.`);
+        }
+
+        // TypeScript now knows 'r' is never, but good to keep for runtime safety
         throw new Error(`Unknown RegExp Node: ${r}`);
     }
 }
 
+
 export {
     RegExp,
+    RegExpNode,
     RegExp2NFA,
     EmptySet,
     Epsilon,
     CharNode,
     Star,
     Concat,
-    Union
+    Union,
+    Variable
 }

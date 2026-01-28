@@ -1,168 +1,95 @@
-import { display } from "tslab";
-import { readFileSync } from "fs";
-
-const css = readFileSync("../style.css", "utf8");
-display.html(`<style>${css}</style>`);
-
-import { RecursiveSet, Tuple } from "recursive-set";
-import {
-    RegExp,
-    UnaryOp,
-    BinaryOp,
-    EmptySet,
-    Epsilon,
+import { 
+    RegExp, Variable, EmptySet, Epsilon, CharNode, Star, Concat, Union, RegExpNode 
 } from "./03-RegExp-2-NFA";
 
-export type PatternRegExp =
-    | RegExp
-    | string
-    | Tuple<[PatternRegExp, UnaryOp]>
-    | Tuple<[PatternRegExp, BinaryOp, PatternRegExp]>;
+// A substitution maps variable names to complete RegExp trees
+type Subst = Map<string, RegExp>;
+type Rule = [RegExp, RegExp];
 
-export type Subst = Map<string, PatternRegExp>;
-export type Rule = [PatternRegExp, PatternRegExp];
-
-type PatternView =
-    | { kind: "EmptySet" }
-    | { kind: "Epsilon" }
-    | { kind: "Char"; value: string }
-    | { kind: "Variable"; name: string }
-    | { kind: "Star"; inner: PatternRegExp }
-    | { kind: "Concat"; left: PatternRegExp; right: PatternRegExp }
-    | { kind: "Union"; left: PatternRegExp; right: PatternRegExp };
-
-function getPatternView(r: PatternRegExp): PatternView {
-    // 1. Primitives & Variables
-    if (r === 0) return { kind: "EmptySet" };
-    if (r === "ε") return { kind: "Epsilon" };
-
-    if (typeof r === "string") {
-        // Convention: Uppercase single letter = Variable
-        if (r.length === 1 && r >= "A" && r <= "Z") {
-            return { kind: "Variable", name: r };
-        }
-        return { kind: "Char", value: r };
-    }
-
-    // 2. Tuples
-    if (r instanceof Tuple) {
-        const raw = r.raw;
-
-        if (raw.length === 2 && raw[1] === "*") {
-            return { kind: "Star", inner: raw[0] as PatternRegExp };
-        }
-
-        if (raw.length === 3) {
-            const left = raw[0] as PatternRegExp;
-            const op = raw[1];
-            const right = raw[2] as PatternRegExp;
-
-            if (op === "⋅") return { kind: "Concat", left, right };
-            if (op === "+") return { kind: "Union", left, right };
-        }
-    }
-
-    throw new Error(`Unknown Pattern Structure: ${r}`);
-}
-
-// Helper to build tuples easily
-function T(...args: any[]): PatternRegExp {
-    return new Tuple(...args) as unknown as PatternRegExp;
-}
-
-function deepEquals(a: PatternRegExp, b: PatternRegExp): boolean {
+function deepEquals(a: RegExp, b: RegExp): boolean {
     if (a === b) return true;
+    if (a.constructor !== b.constructor) return false;
 
-    const vA = getPatternView(a);
-    const vB = getPatternView(b);
-
-    if (vA.kind !== vB.kind) return false;
-
-    switch (vA.kind) {
-        case "Char":
-            return vA.value === (vB as any).value;
-        case "Variable":
-            return vA.name === (vB as any).name;
-        case "Star":
-            return deepEquals(vA.inner, (vB as any).inner);
-        case "Concat":
-        case "Union":
-            return (
-                deepEquals(vA.left, (vB as any).left) &&
-                deepEquals(vA.right, (vB as any).right)
-            );
-        default:
-            return true;
+    if (a instanceof CharNode && b instanceof CharNode) return a.value === b.value;
+    if (a instanceof Variable && b instanceof Variable) return a.name === b.name;
+    
+    // Recursive Checks
+    if (a instanceof Star && b instanceof Star) {
+        return deepEquals(a.inner, b.inner);
     }
+    if ((a instanceof Concat && b instanceof Concat) || 
+        (a instanceof Union && b instanceof Union)) {
+        return deepEquals(a.left, b.left) && deepEquals(a.right, b.right);
+    }
+    
+    // Singletons (EmptySet, Epsilon) match if constructors match
+    return true; 
 }
 
-function match(
-    pattern: PatternRegExp,
-    term: PatternRegExp,
-    substitution: Subst,
-): boolean {
-    const vPat = getPatternView(pattern);
-
-    // 1. Variable Match (The core of rewriting)
-    if (vPat.kind === "Variable") {
-        const varName = vPat.name;
-        if (substitution.has(varName)) {
-            return deepEquals(substitution.get(varName)!, term);
+function match(pattern: RegExp, term: RegExp, substitution: Subst): boolean {
+    // A. Variable Match (The logic hook)
+    if (pattern instanceof Variable) {
+        const name = pattern.name;
+        if (substitution.has(name)) {
+            // Variable already bound: must match the existing binding exactly
+            return deepEquals(substitution.get(name)!, term);
         } else {
-            substitution.set(varName, term);
+            // Bind variable
+            substitution.set(name, term);
             return true;
         }
     }
 
-    const vTerm = getPatternView(term);
+    // B. Structure Match (Must be same class)
+    if (pattern.constructor !== term.constructor) return false;
 
-    // 2. Structure Match
-    if (vPat.kind !== vTerm.kind) return false;
-
-    switch (vPat.kind) {
-        case "Char":
-            return vPat.value === (vTerm as any).value;
-        case "Star":
-            return match(vPat.inner, (vTerm as any).inner, substitution);
-        case "Concat":
-        case "Union":
-            return (
-                match(vPat.left, (vTerm as any).left, substitution) &&
-                match(vPat.right, (vTerm as any).right, substitution)
-            );
-        default:
-            return true;
+    // C. Recursive Descent
+    if (pattern instanceof Star && term instanceof Star) {
+        return match(pattern.inner, term.inner, substitution);
     }
+    
+    if ((pattern instanceof Concat && term instanceof Concat) || 
+        (pattern instanceof Union && term instanceof Union)) {
+        return match(pattern.left, term.left, substitution) &&
+               match(pattern.right, term.right, substitution);
+    }
+
+    if (pattern instanceof CharNode && term instanceof CharNode) {
+        return pattern.value === term.value;
+    }
+
+    return true; // EmptySet, Epsilon
 }
 
-function apply(term: PatternRegExp, substitution: Subst): PatternRegExp {
-    const v = getPatternView(term);
-
-    if (v.kind === "Variable") {
-        return substitution.has(v.name) ? substitution.get(v.name)! : term;
+function apply(term: RegExp, substitution: Subst): RegExp {
+    if (term instanceof Variable) {
+        return substitution.has(term.name) ? substitution.get(term.name)! : term;
     }
 
-    if (v.kind === "Star") {
-        return new Tuple(
-            apply(v.inner, substitution),
-            "*",
-        ) as unknown as PatternRegExp;
+    // Reconstruct with simplified children
+    // NO CASTING NEEDED because Star accepts RegExp!
+    if (term instanceof Star) {
+        return new Star(apply(term.inner, substitution));
     }
 
-    if (v.kind === "Concat" || v.kind === "Union") {
-        const left = apply(v.left, substitution);
-        const right = apply(v.right, substitution);
-        const op = v.kind === "Concat" ? "⋅" : "+";
-        return new Tuple(left, op, right) as unknown as PatternRegExp;
+    if (term instanceof Concat) {
+        return new Concat(
+            apply(term.left, substitution),
+            apply(term.right, substitution)
+        );
     }
 
-    return term; // Atoms
+    if (term instanceof Union) {
+        return new Union(
+            apply(term.left, substitution),
+            apply(term.right, substitution)
+        );
+    }
+
+    return term; // Primitives unchanged
 }
 
-function rewrite(
-    term: PatternRegExp,
-    rule: Rule,
-): { simplified: boolean; result: PatternRegExp } {
+function rewrite(term: RegExp, rule: Rule): { simplified: boolean, result: RegExp } {
     const [lhs, rhs] = rule;
     const substitution: Subst = new Map();
 
@@ -172,16 +99,61 @@ function rewrite(
     return { simplified: false, result: term };
 }
 
+// Ein "Input" für unser DSL kann ein fertiges RegExp-Objekt, 
+// die Zahl 0, das Epsilon-Symbol oder ein String (Char/Variable) sein.
+type DSLInput = RegExp | 0 | string;
+
+// 1. Overloads: Definieren die erlaubten Signaturen
+function T(arg: DSLInput): RegExp;
+function T(inner: DSLInput, op: '*'): RegExp;
+function T(left: DSLInput, op: '+' | '⋅', right: DSLInput): RegExp;
+
+// 2. Implementation: Die Logik, die alle Fälle abdeckt
+function T(arg0: DSLInput, arg1?: string, arg2?: DSLInput): RegExp {
+    
+    // Case 1: Atom (nur arg0 ist gesetzt)
+    if (arg1 === undefined) {
+        if (arg0 instanceof RegExpNode) return arg0 as RegExp; // Pass-through
+        if (arg0 === 0) return new EmptySet();
+        if (arg0 === "ε") return new Epsilon();
+        
+        if (typeof arg0 === "string") {
+            // Convention: Uppercase = Variable, Lowercase = Char
+            // (einfache Prüfung auf Großbuchstaben A-Z)
+            return (arg0.length === 1 && arg0 >= "A" && arg0 <= "Z")
+                ? new Variable(arg0)
+                : new CharNode(arg0);
+        }
+        
+        throw new Error(`Invalid Atom: ${arg0}`);
+    }
+
+    // Case 2: Kleene Star (arg1 ist '*')
+    if (arg1 === '*') {
+        // Wir rufen T rekursiv auf, um sicherzustellen, dass arg0 ein RegExp wird
+        return new Star(T(arg0));
+    }
+
+    // Case 3: Binary Operation (arg1 ist '+' oder '⋅', arg2 muss existieren)
+    if ((arg1 === '+' || arg1 === '⋅') && arg2 !== undefined) {
+        const left = T(arg0);
+        const right = T(arg2); // Hier meckert TS nicht mehr, weil arg2 undefined gecheckt ist
+        
+        if (arg1 === '+') return new Union(left, right);
+        if (arg1 === '⋅') return new Concat(left, right);
+    }
+
+    throw new Error(`Invalid Rule Template: ${arg0}, ${arg1}, ${arg2}`);
+}
+
 // === THE RULES ===
 
 function getRules(): Rule[] {
     const rules: Rule[] = [
-        // Addition (Identity & Idempotence)
-        [T("R", "+", 0), "R"],
-        [T(0, "+", "R"), "R"],
-        [T("R", "+", "R"), "R"],
+        [T("R", "+", 0), T("R")], 
+        [T(0, "+", "R"), T("R")],
+        [T("R", "+", "R"), T("R")],
 
-        // Kleene Star & Epsilon Simplifications
         [T("ε", "+", T("R", "*")), T("R", "*")],
         [T(T("R", "*"), "+", "ε"), T("R", "*")],
         [T("ε", "+", T("R", "⋅", T("R", "*"))), T("R", "*")],
@@ -189,35 +161,28 @@ function getRules(): Rule[] {
         [T(T("R", "⋅", T("R", "*")), "+", "ε"), T("R", "*")],
         [T(T(T("R", "*"), "⋅", "R"), "+", "ε"), T("R", "*")],
 
-        // Distributive Laws (Arden's Rule specifics)
         [T("S", "+", T("S", "⋅", "T")), T("S", "⋅", T("ε", "+", "T"))],
         [T("S", "+", T("T", "⋅", "S")), T(T("ε", "+", "T"), "⋅", "S")],
 
-        // Multiplication (Annihilator & Identity)
-        [T(0, "⋅", "R"), 0],
-        [T("R", "⋅", 0), 0],
-        [T("ε", "⋅", "R"), "R"],
-        [T("R", "⋅", "ε"), "R"],
+        [T(0, "⋅", "R"), T(0)],
+        [T("R", "⋅", 0), T(0)],
+        [T("ε", "⋅", "R"), T("R")],
+        [T("R", "⋅", "ε"), T("R")],
 
-        // Absorption
         [T(T("ε", "+", "R"), "⋅", T("R", "*")), T("R", "*")],
         [T(T("R", "+", "ε"), "⋅", T("R", "*")), T("R", "*")],
         [T(T("R", "*"), "⋅", T("R", "+", "ε")), T("R", "*")],
         [T(T("R", "*"), "⋅", T("ε", "+", "R")), T("R", "*")],
 
-        // Constant Kleene Stars
-        [T(0, "*"), "ε"],
-        [T("ε", "*"), "ε"],
+        [T(0, "*"), T("ε")],
+        [T("ε", "*"), T("ε")],
 
-        // Nested Kleene Stars
         [T(T("ε", "+", "R"), "*"), T("R", "*")],
         [T(T("R", "+", "ε"), "*"), T("R", "*")],
 
-        // Associativity (Rebalancing to the right)
         [T("R", "+", T("S", "+", "T")), T(T("R", "+", "S"), "+", "T")],
         [T("R", "⋅", T("S", "⋅", "T")), T(T("R", "⋅", "S"), "⋅", "T")],
 
-        // Complex Absorption
         [
             T(T("R", "⋅", T("S", "*")), "⋅", T("ε", "+", "S")),
             T("R", "⋅", T("S", "*")),
@@ -226,7 +191,43 @@ function getRules(): Rule[] {
     return rules;
 }
 
-export function simplify(t: PatternRegExp): PatternRegExp {
+// ============================================================================
+// 5. MAIN SIMPLIFICATION ALGORITHM
+// ============================================================================
+
+function simplifyOnce(term: RegExp, rules: Rule[]): RegExp {
+    // 1. Try top-level rewrite
+    for (const rule of rules) {
+        const { simplified, result } = rewrite(term, rule);
+        if (simplified) return result;
+    }
+
+    // 2. Recurse into children (Inductive Step)
+    // No casting needed: The constructors accept 'RegExp', which includes all nodes.
+    
+    if (term instanceof Star) {
+        return new Star(simplifyOnce(term.inner, rules));
+    }
+
+    if (term instanceof Concat) {
+        return new Concat(
+            simplifyOnce(term.left, rules),
+            simplifyOnce(term.right, rules)
+        );
+    }
+
+    if (term instanceof Union) {
+        return new Union(
+            simplifyOnce(term.left, rules),
+            simplifyOnce(term.right, rules)
+        );
+    }
+
+    // 3. Base cases (EmptySet, Epsilon, CharNode, Variable) are leaves
+    return term;
+}
+
+function simplify(t: RegExp): RegExp {
     const rules = getRules();
     let current = t;
     let iterations = 0;
@@ -245,58 +246,38 @@ export function simplify(t: PatternRegExp): PatternRegExp {
     }
 }
 
-function simplifyOnce(term: PatternRegExp, rules: Rule[]): PatternRegExp {
-    // Try top-level rewrite
-    for (const rule of rules) {
-        const { simplified, result } = rewrite(term, rule);
-        if (simplified) return result;
+function regexpToString(r: RegExp): string {
+    // 1. Atomic Cases
+    if (r instanceof EmptySet) return "∅";
+    if (r instanceof Epsilon) return "ε";
+    if (r instanceof CharNode) return r.value;
+    if (r instanceof Variable) return r.name;
+
+    if (r instanceof Star) {
+        const inner = regexpToString(r.inner);
+        
+        const isAtomic = 
+            r.inner instanceof CharNode || 
+            r.inner instanceof Variable || 
+            r.inner instanceof EmptySet ||
+            r.inner instanceof Epsilon;
+            
+        return isAtomic ? `${inner}*` : `(${inner})*`;
     }
 
-    // Recurse
-    const v = getPatternView(term);
-    if (v.kind === "Star") {
-        return new Tuple(
-            simplifyOnce(v.inner, rules),
-            "*",
-        ) as unknown as PatternRegExp;
+    if (r instanceof Concat) {
+        return regexpToString(r.left) + regexpToString(r.right);
     }
-    if (v.kind === "Concat" || v.kind === "Union") {
-        const op = v.kind === "Concat" ? "⋅" : "+";
-        return new Tuple(
-            simplifyOnce(v.left, rules),
-            op,
-            simplifyOnce(v.right, rules),
-        ) as unknown as PatternRegExp;
+
+    if (r instanceof Union) {
+        return `(${regexpToString(r.left)}+${regexpToString(r.right)})`;
     }
-    return term;
+
+    return "?";
 }
 
-export function regexpToString(r: PatternRegExp): string {
-    const v = getPatternView(r);
 
-    switch (v.kind) {
-        case "EmptySet":
-            return "∅";
-        case "Epsilon":
-            return "ε";
-        case "Char":
-            return v.value;
-        case "Variable":
-            return v.name;
-        case "Star": {
-            const inner = regexpToString(v.inner);
-            const vInner = getPatternView(v.inner);
-            const needsParens = !(
-                vInner.kind === "Char" ||
-                vInner.kind === "Variable" ||
-                vInner.kind === "EmptySet"
-            );
-            return needsParens ? `(${inner})*` : `${inner}*`;
-        }
-        case "Concat":
-            return regexpToString(v.left) + regexpToString(v.right);
-        case "Union":
-            return `(${regexpToString(v.left)}+${regexpToString(v.right)})`;
-    }
-    return "?";
+export {
+    simplify,
+    regexpToString
 }
