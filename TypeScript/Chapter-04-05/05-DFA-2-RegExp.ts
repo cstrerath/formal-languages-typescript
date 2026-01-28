@@ -1,9 +1,3 @@
-import { display } from "tslab";
-import { readFileSync } from "fs";
-
-const css = readFileSync("../style.css", "utf8");
-display.html(`<style>${css}</style>`);
-
 import { RecursiveSet, RecursiveMap, Tuple } from "recursive-set";
 import { DFA, DFAState, State, Char, TransRelDet } from "./01-NFA-2-DFA";
 import {

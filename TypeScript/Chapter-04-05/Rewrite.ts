@@ -113,7 +113,7 @@ function T(arg0: DSLInput, arg1?: string, arg2?: DSLInput): RegExp {
     
     // Case 1: Atom (nur arg0 ist gesetzt)
     if (arg1 === undefined) {
-        if (arg0 instanceof RegExpNode) return arg0 as RegExp; // Pass-through
+        if (arg0 instanceof RegExpNode) return arg0; // Pass-through
         if (arg0 === 0) return new EmptySet();
         if (arg0 === "ε") return new Epsilon();
         

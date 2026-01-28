@@ -1,30 +1,25 @@
-import { RecursiveSet, Tuple, Value } from "recursive-set";
-import {
-    DFA,
-    DFAState,
-    State,
-    Char,
-    TransRelDet,
-    key,
-    TransitionKey,
-} from "./01-NFA-2-DFA";
+import { RecursiveSet, RecursiveMap, Tuple, Value } from "recursive-set";
+import { DFA, DFAState, Char, TransRelDet } from "./01-NFA-2-DFA";
 
-export type MinState = RecursiveSet<DFAState>;
+type MinState = RecursiveSet<DFAState>; 
 
-export type MinTransRel = Map<TransitionKey, MinState>;
-export type Pair = Tuple<[DFAState, DFAState]>;
+// Minimized Transition Relation uses MinState as Key/Value
+// Key is Tuple<[MinState, Char]>
+type MinTransRel = RecursiveMap<Tuple<[MinState, Char]>, MinState>;
 
-export type MinDFA = {
+type Pair = Tuple<[DFAState, DFAState]>;
+
+type MinDFA = {
     Q: RecursiveSet<MinState>;
-    Sigma: RecursiveSet<Char>;
-    delta: MinTransRel;
+    Σ: RecursiveSet<Char>;
+    δ: MinTransRel;
     q0: MinState;
     A: RecursiveSet<MinState>;
-};
+}
 
 function arb<T extends Value>(M: RecursiveSet<T>): T {
-    if (M.isEmpty()) throw new Error("Error: arb called with empty set!");
-    return M.raw[0];
+    for (const e of M) return e;
+    throw new Error("Unreachable");
 }
 
 function cartProd<S extends Value, T extends Value>(
@@ -37,28 +32,28 @@ function cartProd<S extends Value, T extends Value>(
 function separate(
     Pairs: RecursiveSet<Pair>,
     States: RecursiveSet<DFAState>,
-    Sigma: RecursiveSet<Char>,
-    delta: TransRelDet,
+    Σ: RecursiveSet<Char>,
+    δ: TransRelDet,
 ): RecursiveSet<Pair> {
-    const newPairs: Pair[] = [];
-    const statesArr = States.raw;
-
-    for (const q1 of statesArr) {
-        for (const q2 of statesArr) {
-            for (const c of Sigma) {
-                const p1 = delta.get(key(q1, c));
-                const p2 = delta.get(key(q2, c));
+    const newPairs = new RecursiveSet<Pair>();
+        
+    for (const q1 of States) {
+        for (const q2 of States) {
+            for (const c of Σ) {
+                const p1 = δ.get(new Tuple(q1, c));
+                const p2 = δ.get(new Tuple(q2, c));
+                
                 if (p1 && p2) {
-                    const targetPair = new Tuple<[DFAState, DFAState]>(p1, p2);
+                    const targetPair = new Tuple(p1, p2);
                     if (Pairs.has(targetPair)) {
-                        newPairs.push(new Tuple<[DFAState, DFAState]>(q1, q2));
+                        newPairs.add(new Tuple(q1, q2));
                         break;
                     }
                 }
             }
         }
     }
-    return RecursiveSet.fromArray(newPairs);
+    return newPairs;
 }
 
 function findEquivalenceClass(
@@ -74,8 +69,8 @@ function findEquivalenceClass(
 function allSeparable(
     Q: RecursiveSet<DFAState>,
     A: RecursiveSet<DFAState>,
-    Sigma: RecursiveSet<Char>,
-    delta: TransRelDet,
+    Σ: RecursiveSet<Char>,
+    δ: TransRelDet,
 ): RecursiveSet<Pair> {
     const NonAccepting = Q.difference(A);
     const set1 = cartProd(NonAccepting, A);
@@ -83,7 +78,7 @@ function allSeparable(
     let Separable = set1.union(set2);
 
     while (true) {
-        const NewPairs = separate(Separable, Q, Sigma, delta);
+        const NewPairs = separate(Separable, Q, Σ, δ);
         if (NewPairs.isSubset(Separable)) return Separable;
         Separable = Separable.union(NewPairs);
     }
@@ -91,15 +86,15 @@ function allSeparable(
 
 function reachable(
     q0: DFAState,
-    Sigma: RecursiveSet<Char>,
-    delta: TransRelDet,
+    Σ: RecursiveSet<Char>,
+    δ: TransRelDet,
 ): RecursiveSet<DFAState> {
     let Result = new RecursiveSet<DFAState>(q0);
     while (true) {
         const NewStates = new RecursiveSet<DFAState>();
         for (const p of Result) {
-            for (const c of Sigma) {
-                const target = delta.get(key(p, c));
+            for (const c of Σ) {
+                const target = δ.get(new Tuple(p, c));
                 if (target) NewStates.add(target);
             }
         }
@@ -108,18 +103,20 @@ function reachable(
     }
 }
 
-export function minimize(F: DFA): MinDFA {
-    let { Q, Sigma, delta, q0, A } = F;
+function minimize(F: DFA): MinDFA {
+    let { Q, Σ, δ, q0, A } = F;
 
     // 1. Reachability
-    Q = reachable(q0, Sigma, delta);
+    Q = reachable(q0, Σ, δ);
+    
+    // Filter Accepting states to only include reachable ones
     const reachableA = new RecursiveSet<DFAState>();
     for (const q of Q) {
         if (A.has(q)) reachableA.add(q);
     }
 
     // 2. Distinguishability
-    const Separable = allSeparable(Q, reachableA, Sigma, delta);
+    const Separable = allSeparable(Q, reachableA, Σ, δ);
 
     // 3. Equivalence Classes
     const AllPairs = cartProd(Q, Q);
@@ -129,7 +126,8 @@ export function minimize(F: DFA): MinDFA {
     for (const q of Q) {
         const classForQ = new RecursiveSet<DFAState>();
         for (const p of Q) {
-            const pair = new Tuple<[DFAState, DFAState]>(p, q);
+            // Check equivalence (p ~ q)
+            const pair = new Tuple(p, q);
             if (Equivalent.has(pair)) {
                 classForQ.add(p);
             }
@@ -148,33 +146,35 @@ export function minimize(F: DFA): MinDFA {
     if (!newQ0) throw new Error("Start state vanished!");
 
     // 5. Accepting States
-    const newAcceptArr: MinState[] = [];
+    const newAcceptSet = new RecursiveSet<MinState>();
     for (const M of EquivClasses) {
         const rep = arb(M);
-        if (reachableA.has(rep)) newAcceptArr.push(M);
+        if (reachableA.has(rep)) newAcceptSet.add(M);
     }
 
-    // 6. Transitions (Reusing generic 'key')
-    const newDelta = new Map<TransitionKey, MinState>();
+    // 6. Transitions (Using Tuple keys for RecursiveMap)
+    const newDelta = new RecursiveMap<Tuple<[MinState, Char]>, MinState>();
 
     for (const q of Q) {
         const classOfQ = findEquivalenceClass(q, EquivClasses);
 
-        for (const c of Sigma) {
-            const p = delta.get(key(q, c));
+        for (const c of Σ) {
+            const p = δ.get(new Tuple(q, c));
 
             if (p) {
                 const classOfP = findEquivalenceClass(p, EquivClasses);
-                newDelta.set(key(classOfQ, c), classOfP);
+                newDelta.set(new Tuple(classOfQ, c), classOfP);
             }
         }
     }
 
     return {
         Q: EquivClasses,
-        Sigma,
-        delta: newDelta,
+        Σ: Σ,
+        δ: newDelta,
         q0: newQ0,
-        A: RecursiveSet.fromArray(newAcceptArr),
+        A: newAcceptSet,
     };
 }
+
+export{minimize}
