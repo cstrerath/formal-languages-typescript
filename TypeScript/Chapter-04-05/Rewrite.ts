@@ -29,42 +29,25 @@ function deepEquals(a: RegExp, b: RegExp): boolean {
 function match(pattern: RegExp, term: RegExp, substitution: Subst): boolean {
     // A. Variable Match (The logic hook)
     if (pattern instanceof Variable) {
-        const name = pattern.name;
-        if (substitution.has(name)) {
-            // Variable already bound: must match the existing binding exactly
-            return deepEquals(substitution.get(name)!, term);
-        } else {
-            // Bind variable
+        const name = pattern.name, bound = substitution.get(name);
+        if (bound !== undefined)
+            return deepEquals(bound, term);
+        else {
             substitution.set(name, term);
             return true;
         }
     }
-
-    // B. Structure Match (Must be same class)
     if (pattern.constructor !== term.constructor) return false;
-
-    // C. Recursive Descent
-    if (pattern instanceof Star && term instanceof Star) {
-        return match(pattern.inner, term.inner, substitution);
-    }
-    
-    if ((pattern instanceof Concat && term instanceof Concat) || 
-        (pattern instanceof Union && term instanceof Union)) {
-        return match(pattern.left, term.left, substitution) &&
-               match(pattern.right, term.right, substitution);
-    }
-
-    if (pattern instanceof CharNode && term instanceof CharNode) {
-        return pattern.value === term.value;
-    }
-
-    return true; // EmptySet, Epsilon
+    if (pattern instanceof Star && term instanceof Star) return match(pattern.inner, term.inner, substitution);    
+    if ((pattern instanceof Concat && term instanceof Concat) || (pattern instanceof Union && term instanceof Union))
+        return match(pattern.left, term.left, substitution) && match(pattern.right, term.right, substitution);
+    if (pattern instanceof CharNode && term instanceof CharNode) return pattern.value === term.value;
+    return true;
 }
 
 function apply(term: RegExp, substitution: Subst): RegExp {
-    if (term instanceof Variable) {
-        return substitution.has(term.name) ? substitution.get(term.name)! : term;
-    }
+    if (term instanceof Variable)
+        return substitution.get(term.name) ?? term;
 
     // Reconstruct with simplified children
     // NO CASTING NEEDED because Star accepts RegExp!
