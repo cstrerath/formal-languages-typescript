@@ -1,276 +1,259 @@
-// Define the allowed operators
-export type Operator =
-    | "+"
-    | "-"
-    | "*"
-    | "/"
-    | "%"
-    | "=="
-    | "!="
-    | "<="
-    | ">="
-    | "<"
-    | ">";
-
-// Base Interface for all complex nodes
-interface BaseNode {
-    kind: string;
-}
-
-// Specific Node Types
-export interface ProgramNode extends BaseNode {
-    kind: "Program" | "Block";
-    statements: AST[];
-}
-
-export interface AssignNode extends BaseNode {
-    kind: "Assignment";
-    id: string;
-    expr: AST;
-}
-
-export interface ControlNode extends BaseNode {
-    kind: "If" | "While";
-    condition: AST;
-    body: AST;
-}
-
-export interface ExprStmtNode extends BaseNode {
-    kind: "ExprStmt";
-    expr: AST;
-}
-
-export interface BinaryNode extends BaseNode {
-    kind: "BinaryExpr";
-    op: Operator;
-    left: AST;
-    right: AST;
-}
-
-export interface CallNode extends BaseNode {
-    kind: "Call";
-    funcName: string;
-    args: AST[];
-}
-
-// The recursive AST Union Type
-export type AST =
-    | number
-    | string
-    | ProgramNode
-    | AssignNode
-    | ControlNode
-    | ExprStmtNode
-    | BinaryNode
-    | CallNode;
-
+import { Structural, Tuple } from "recursive-set";
 import { TreeCursor } from "@lezer/common";
 
-// --- Helper Types for the Mapper ---
+// --- 1. Base Logic & Types ---
 
-// Intermediate result: Can be a single AST node OR a list of nodes
-export type Mapped =
-    | { kind: "one"; value: AST }
-    | { kind: "many"; value: AST[] };
+export type Operator = "+" | "-" | "*" | "**" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=";
 
-// Helper Constructors with explicit return types
-export const one = (value: AST): Mapped => ({ kind: "one", value });
-export const many = (value: AST[]): Mapped => ({ kind: "many", value });
+/**
+ * Base class for all AST nodes.
+ * Uses Tuple internally to guarantee structural equality and hashability.
+ */
+export abstract class ASTNode<T extends Structural> implements Structural {
+    constructor(protected readonly data: T) {}
 
-// Runtime Assertions (to safely unwrap Mapped values)
-export function asOne(x: Mapped, ctx: string): AST {
-    if (x.kind !== "one") throw new Error(`[${ctx}] Expected single node.`);
-    return x.value;
+    get hashCode(): number { return this.data.hashCode; }
+
+    equals(other: unknown): boolean {
+        // Type narrowing via instanceof (no 'as' needed)
+        if (!(other instanceof ASTNode)) return false;
+        if (this.constructor !== other.constructor) return false;
+        return this.data.equals(other.data);
+    }
+
+    abstract toString(): string;
 }
 
-export function asMany(x: Mapped, ctx: string): AST[] {
-    if (x.kind !== "many") throw new Error(`[${ctx}] Expected list.`);
-    return x.value;
+// --- 2. Leaf Nodes ---
+
+export class NumNode extends ASTNode<Tuple<[number]>> {
+    constructor(val: number) { super(new Tuple(val)); }
+    get value(): number { return this.data.get(0); }
+    toString() { return this.value.toString(); }
 }
 
-export function asString(x: Mapped, ctx: string): string {
-    const val: AST = asOne(x, ctx);
-    if (typeof val !== "string") throw new Error(`[${ctx}] Expected string.`);
-    return val;
+export class VarNode extends ASTNode<Tuple<[string]>> {
+    constructor(name: string) { super(new Tuple(name)); }
+    get name(): string { return this.data.get(0); }
+    toString() { return this.name; }
 }
 
-// --- The Transformation Logic ---
+/** Represents a missing branch, e.g., an omitted 'else' block */
+export class NilNode extends ASTNode<Tuple<[]>> {
+    constructor() { super(new Tuple()); }
+    toString() { return "∅"; }
+}
 
-// A Rule transforms children and text into a Mapped result
-export type NodeTransform = (ctx: {
-    children: Mapped[];
-    text: string;
-}) => Mapped;
+// --- 3. Composite Nodes ---
 
-export interface ASTConfig {
+export class BinaryExpr extends ASTNode<Tuple<[AST, string, AST]>> {
+    constructor(left: AST, op: string, right: AST) { 
+        super(new Tuple(left, op, right)); 
+    }
+    get left(): AST { return this.data.get(0); }
+    get op(): string { return this.data.get(1); }
+    get right(): AST { return this.data.get(2); }
+    toString() { return `(${this.left} ${this.op} ${this.right})`; }
+}
+
+export class AssignNode extends ASTNode<Tuple<[string, AST]>> {
+    constructor(id: string, expr: AST) { super(new Tuple(id, expr)); }
+    get id(): string { return this.data.get(0); }
+    get expr(): AST { return this.data.get(1); }
+    toString() { return `${this.id} := ${this.expr}`; }
+}
+
+export class IfNode extends ASTNode<Tuple<[AST, AST, AST]>> {
+    constructor(cond: AST, thenB: AST, elseB?: AST) {
+        super(new Tuple(cond, thenB, elseB ?? new NilNode())); 
+    }
+    get cond(): AST { return this.data.get(0); }
+    get thenB(): AST { return this.data.get(1); }
+    get elseB(): AST { return this.data.get(2); }
+    toString() { return "if"; }
+}
+
+export class WhileNode extends ASTNode<Tuple<[AST, AST]>> {
+    constructor(cond: AST, body: AST) { super(new Tuple(cond, body)); }
+    get cond(): AST { return this.data.get(0); }
+    get body(): AST { return this.data.get(1); }
+    toString() { return "while"; }
+}
+
+export class CallNode extends ASTNode<Tuple<[string, Tuple<AST[]>]>> {
+    // Nested Tuple für korrekte Structural Implementierung bei Arrays
+    constructor(fn: string, args: AST[]) { super(new Tuple(fn, new Tuple(...args))); }
+    get fn(): string { return this.data.get(0); }
+    get args(): AST[] { return [...this.data.get(1)]; } // Spread zurück zu Array
+    toString() : string { 
+        const argsStr = this.args.map(a => a.toString()).join(", ");
+        return `${this.fn}(${argsStr})`; 
+    }
+}
+
+export class ExprStmtNode extends ASTNode<Tuple<[AST]>> {
+    constructor(expr: AST) { super(new Tuple(expr)); }
+    get expr(): AST { return this.data.get(0); }
+    toString() { return "stmt"; }
+}
+
+export class BlockNode extends ASTNode<Tuple<AST[]>> {
+    constructor(stmts: AST[]) { super(new Tuple(...stmts)); }
+    get statements(): AST[] { return [...this.data]; }
+    toString() { return "{...}"; }
+}
+
+// Recursive Union Type
+export type AST = 
+    | NumNode | VarNode | NilNode 
+    | BinaryExpr | AssignNode | IfNode | WhileNode 
+    | CallNode | ExprStmtNode | BlockNode;
+
+
+// --- 3.5 Safe Access Helpers (Type Guards) ---
+// Diese ersetzen "as VarNode" und "as BlockNode" im Parser
+
+export function getVarName(node: AST): string {
+    if (node instanceof VarNode) return node.name;
+    throw new Error(`AST Error: Expected VarNode, got ${node.constructor.name}`);
+}
+
+export function getBlockStmts(node: AST): AST[] {
+    if (node instanceof BlockNode) return node.statements;
+    throw new Error(`AST Error: Expected BlockNode, got ${node.constructor.name}`);
+}
+
+
+// --- 4. Visualization (AST -> DOT) ---
+
+function escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Generates a GraphViz DOT string from the AST. */
+export function ast2dot(root: AST): string {
+    const lines: string[] = [
+        'digraph AST {',
+        '  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];',
+        '  edge [fontname="Helvetica", fontsize=9];'
+    ];
+    let idCounter = 0;
+
+    function traverse(node: AST): number {
+        const id = idCounter++;
+        const myName = `n${id}`;
+        
+        let label = "";
+        let color = "#f0f0f0";
+        const edges: { target: number, label?: string }[] = [];
+
+        if (node instanceof NumNode) {
+            label = node.value.toString();
+            color = "#fff3cd"; 
+        } 
+        else if (node instanceof VarNode) {
+            label = node.name;
+            color = "#e2e3e5"; 
+        }
+        else if (node instanceof NilNode) {
+            label = "∅";
+            color = "#ffffff";
+        }
+        else if (node instanceof BinaryExpr) {
+            label = escapeHtml(node.op);
+            color = "#d1e7dd"; 
+            edges.push({ target: traverse(node.left), label: "L" });
+            edges.push({ target: traverse(node.right), label: "R" });
+        }
+        else if (node instanceof AssignNode) {
+            label = ":=";
+            color = "#cfe2ff"; 
+            const idLeaf = idCounter++;
+            lines.push(`  n${idLeaf} [label="${node.id}", shape=ellipse, fillcolor="white"];`);
+            edges.push({ target: idLeaf, label: "id" });
+            edges.push({ target: traverse(node.expr), label: "val" });
+        }
+        else if (node instanceof IfNode) {
+            label = "IF";
+            color = "#f8d7da"; 
+            edges.push({ target: traverse(node.cond), label: "cond" });
+            edges.push({ target: traverse(node.thenB), label: "then" });
+            if (!(node.elseB instanceof NilNode)) {
+                edges.push({ target: traverse(node.elseB), label: "else" });
+            }
+        }
+        else if (node instanceof WhileNode) {
+            label = "WHILE";
+            color = "#f8d7da";
+            edges.push({ target: traverse(node.cond), label: "cond" });
+            edges.push({ target: traverse(node.body), label: "do" });
+        }
+        else if (node instanceof CallNode) {
+            label = `${node.fn}()`;
+            color = "#e0cffc"; 
+            node.args.forEach((arg, i) => {
+                edges.push({ target: traverse(arg), label: `arg${i}` });
+            });
+        }
+        else if (node instanceof ExprStmtNode) {
+            label = "expr";
+            color = "#fdfdfe";
+            edges.push({ target: traverse(node.expr) });
+        }
+        else if (node instanceof BlockNode) {
+            label = "{...}";
+            color = "#ffffff";
+            node.statements.forEach((stmt, i) => {
+                edges.push({ target: traverse(stmt), label: `${i}` });
+            });
+        }
+
+        lines.push(`  ${myName} [label=<<b>${label}</b>>, fillcolor="${color}"];`);
+        for (const e of edges) {
+            const attr = e.label ? ` [label="${e.label}"]` : "";
+            lines.push(`  ${myName} -> n${e.target}${attr};`);
+        }
+        return id;
+    }
+
+    traverse(root);
+    lines.push('}');
+    return lines.join('\n');
+}
+
+
+// --- 5. CST to AST Generic Mapper ---
+
+export type TransformRule = (children: AST[], text: string) => AST;
+
+export interface ParserConfig {
     ignore: Set<string>;
-    rules: Record<string, NodeTransform>;
-    treatAsLiteral?: RegExp;
+    rules: Record<string, TransformRule>;
 }
 
-export function genericLezerToAST(
+export function cstToAST(
     cursor: TreeCursor,
     source: string,
-    config: ASTConfig,
-): Mapped {
-    const name: string = cursor.name;
-    const text: string = source.slice(cursor.from, cursor.to);
+    config: ParserConfig
+): AST {
+    const kind = cursor.name;
+    const text = source.slice(cursor.from, cursor.to);
 
-    // 1. Collect Children (Recursion)
-    const children: Mapped[] = [];
+    const children: AST[] = [];
     if (cursor.firstChild()) {
         do {
-            const childName: string = cursor.name;
-            if (!config.ignore.has(childName)) {
-                children.push(genericLezerToAST(cursor, source, config));
+            if (!config.ignore.has(cursor.name)) {
+                children.push(cstToAST(cursor, source, config));
             }
         } while (cursor.nextSibling());
         cursor.parent();
     }
 
-    // 2. Apply Specific Rule
-    const rule: NodeTransform | undefined = config.rules[name];
-    if (rule) {
-        return rule({ children, text });
-    }
+    const rule = config.rules[kind];
+    if (rule) return rule(children, text);
 
-    // 3. Literal Extraction (Regex)
-    if (config.treatAsLiteral && config.treatAsLiteral.test(name)) {
-        return one(text);
-    }
-
-    // 4. Default Fallback (Unwrap)
+    // Auto-unwrap for non-rule intermediate nodes
     if (children.length === 1) return children[0];
-    if (children.length > 1) return children[0]; // Ambiguous fallback
 
-    return one(text); // Leaf fallback
-}
-
-// Helper to escape characters for GraphViz HTML-Labels
-function escapeHtml(unsafe: string): string {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-export function ast2dot(tree: AST): string {
-    const lines: string[] = [
-        "digraph AST {",
-        '  node [shape=box, fontname=Helvetica, fontsize=10, style=filled, fillcolor="#f0f0f0"];',
-        "  edge [fontname=Helvetica, fontsize=9];",
-    ];
-    let idCounter: number = 0;
-
-    // Helper to draw a leaf node immediately
-    function drawLeaf(val: string | number, color: string = "white"): number {
-        const id: number = idCounter++;
-        lines.push(
-            `  node${id} [label="${val}", shape=ellipse, fillcolor="${color}"];`,
-        );
-        return id;
-    }
-
-    // Recursive Traversal Function
-    function traverse(node: AST): number {
-        // 1. Primitive Leaves
-        if (typeof node === "number") return drawLeaf(node);
-        if (typeof node === "string") return drawLeaf(node);
-
-        // 2. Complex Nodes
-        const myId: number = idCounter++;
-        const name: string = `node${myId}`;
-
-        let label: string = "";
-        let color: string = "#f0f0f0";
-
-        // Structure to hold edges to be drawn
-        const children: { edgeLabel?: string; id: number }[] = [];
-
-        // Determine Layout based on Node Kind
-        switch (node.kind) {
-            case "Program":
-            case "Block":
-                label = ".";
-                color = "#ffeeba";
-                node.statements.forEach((stmt: AST, i: number) => {
-                    children.push({ edgeLabel: `${i}`, id: traverse(stmt) });
-                });
-                break;
-
-            case "Assignment":
-                label = ":=";
-                color = "#b8daff";
-                children.push({ edgeLabel: "id", id: drawLeaf(node.id) });
-                children.push({ edgeLabel: "expr", id: traverse(node.expr) });
-                break;
-
-            case "BinaryExpr":
-                label = escapeHtml(node.op);
-                color = "#b8daff";
-                children.push({ edgeLabel: "left", id: traverse(node.left) });
-                children.push({ edgeLabel: "right", id: traverse(node.right) });
-                break;
-
-            case "If":
-                label = "if";
-                color = "#d4edda";
-                children.push({
-                    edgeLabel: "cond",
-                    id: traverse(node.condition),
-                });
-                children.push({ edgeLabel: "body", id: traverse(node.body) });
-                break;
-
-            case "While":
-                label = "while";
-                color = "#d4edda";
-                children.push({
-                    edgeLabel: "cond",
-                    id: traverse(node.condition),
-                });
-                children.push({ edgeLabel: "body", id: traverse(node.body) });
-                break;
-
-            case "Call":
-                label = "call";
-                color = "#f5c6cb";
-                children.push({ edgeLabel: "fn", id: drawLeaf(node.funcName) });
-                node.args.forEach((arg: AST, i: number) => {
-                    children.push({ edgeLabel: `arg${i}`, id: traverse(arg) });
-                });
-                break;
-
-            case "ExprStmt":
-                label = "expr";
-                children.push({ edgeLabel: "", id: traverse(node.expr) });
-                break;
-
-            default:
-                // Fallback for unexpected nodes
-                label = (node as any).kind;
-        }
-
-        // Draw the Node Definition
-        lines.push(
-            `  ${name} [label=<<b>${label}</b>>, fillcolor="${color}"];`,
-        );
-
-        // Draw the Edges
-        children.forEach((child) => {
-            const edgeAttr: string = child.edgeLabel
-                ? ` [label="${child.edgeLabel}"]`
-                : "";
-            lines.push(`  ${name} -> node${child.id}${edgeAttr};`);
-        });
-
-        return myId;
-    }
-
-    // Start Traversal
-    traverse(tree);
-    lines.push("}");
-    return lines.join("\n");
+    throw new Error(`Parsing failed: No rule or unwrap path for CST node '${kind}' ("${text}")`);
 }
