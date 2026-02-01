@@ -3,7 +3,7 @@ import { TreeCursor } from "@lezer/common";
 
 // --- 1. Base Logic & Types ---
 
-export type Operator = "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=";
+export type Operator = "+" | "-" | "*" | "**" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=";
 
 /**
  * Base class for all AST nodes.
@@ -85,7 +85,10 @@ export class CallNode extends ASTNode<Tuple<[string, Tuple<AST[]>]>> {
     constructor(fn: string, args: AST[]) { super(new Tuple(fn, new Tuple(...args))); }
     get fn(): string { return this.data.get(0); }
     get args(): AST[] { return [...this.data.get(1)]; } // Spread zurück zu Array
-    toString() { return `${this.fn}(...)`; }
+    toString() : string { 
+        const argsStr = this.args.map(a => a.toString()).join(", ");
+        return `${this.fn}(${argsStr})`; 
+    }
 }
 
 export class ExprStmtNode extends ASTNode<Tuple<[AST]>> {
