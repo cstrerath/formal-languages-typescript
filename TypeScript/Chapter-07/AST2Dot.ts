@@ -3,7 +3,7 @@ import { TreeCursor } from "@lezer/common";
 
 // --- 1. Base Logic & Types ---
 
-export type Operator = "+" | "-" | "*" | "**" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=";
+export type Operator = "+" | "-" | "*" | "**" | "^" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=";
 
 /**
  * Base class for all AST nodes.
@@ -100,11 +100,17 @@ export class BlockNode extends ASTNode<Tuple<AST[]>> {
     toString() { return "{...}"; }
 }
 
+export class ListNode extends ASTNode<Tuple<AST[]>> {
+    constructor(items: AST[]) { super(new Tuple(...items)); }
+    get items(): AST[] { return [...this.data]; }
+    toString() { return `List(${this.items.length})`; }
+}
+
 // Recursive Union Type
 export type AST = 
     | NumNode | VarNode | NilNode 
     | BinaryExpr | AssignNode | IfNode | WhileNode 
-    | CallNode | ExprStmtNode | BlockNode;
+    | CallNode | ExprStmtNode | BlockNode | ListNode;
 
 
 // --- 3.5 Safe Access Helpers (Type Guards) ---
@@ -186,11 +192,7 @@ export function ast2dot(root: AST): string {
         else if (node instanceof AssignNode) {
             label = ":=";
             color = "#cfe2ff"; 
-            
-            // Special handling: Identifier Leaf
-            // Wir nutzen hier exakt dieselben Attribute wie oben bei VarNode
             const idLeaf = idCounter++;
-            // WICHTIG: label=<${node.id}> ohne <b>, damit es konsistent dünn ist
             lines.push(`  n${idLeaf} [label=<${node.id}>, shape=circle, fillcolor="white", width=0.5, fixedsize=true];`);
             
             edges.push({ target: idLeaf, label: "id" });
