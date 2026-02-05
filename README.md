@@ -63,13 +63,27 @@ Handling complex grammar scenarios.
 
 You need a Conda distribution to manage the Jupyter environment, and Node.js for the TypeScript kernel.
 
-### 1. Setup Environment (Conda)
+### 1. Install Conda (Choose one)
 
-We recommend creating a dedicated environment named `fl-ts`. Open your terminal and run:
+**Option A: Anaconda**
+Standard distribution, includes a GUI.
+- Download: [https://www.anaconda.com/download](https://www.anaconda.com/download)
+
+**Option B: Miniforge**
+Lightweight, faster, and uses `conda-forge` by default.
+- Download: [https://github.com/conda-forge/miniforge](https://github.com/conda-forge/miniforge)
+
+---
+
+### 2. Setup Environment
+
+We recommend creating a dedicated environment named `fl-ts`. The `-c conda-forge` flag ensures that packages are compatible, regardless of which Conda distribution you use.
+
+Open your terminal (or Anaconda Prompt on Windows) and run:
 
 ```bash
 # 1. Create a clean environment with Python and Node.js
-conda create -n fl-ts python=3.12 nodejs -y
+conda create -n fl-ts -c conda-forge python=3.12 nodejs -y
 
 # 2. Activate the environment
 conda activate fl-ts
@@ -84,7 +98,7 @@ npm install -g tslab
 tslab install
 ```
 
-### 2. Install Dependencies & Configure Kernel
+### 3. Install Dependencies & Configure Kernel
 
 Navigate to the root of this repository and install the required packages. Afterward, execute the patch script to enforce strict typing rules (`noImplicitAny`, `strictNullChecks`, etc.) in the Jupyter kernel.
 
