@@ -3,7 +3,7 @@ import { TreeCursor } from "@lezer/common";
 
 // --- 1. Base Logic & Types ---
 
-export type Operator = "+" | "-" | "*" | "**" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=";
+export type Operator = "+" | "-" | "*" | "**" | "^" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=";
 
 /**
  * Base class for all AST nodes.
@@ -100,11 +100,17 @@ export class BlockNode extends ASTNode<Tuple<AST[]>> {
     toString() { return "{...}"; }
 }
 
+export class ListNode extends ASTNode<Tuple<AST[]>> {
+    constructor(items: AST[]) { super(new Tuple(...items)); }
+    get items(): AST[] { return [...this.data]; }
+    toString() { return `List(${this.items.length})`; }
+}
+
 // Recursive Union Type
 export type AST = 
     | NumNode | VarNode | NilNode 
     | BinaryExpr | AssignNode | IfNode | WhileNode 
-    | CallNode | ExprStmtNode | BlockNode;
+    | CallNode | ExprStmtNode | BlockNode | ListNode;
 
 
 // --- 3.5 Safe Access Helpers (Type Guards) ---
@@ -131,9 +137,12 @@ function escapeHtml(s: string): string {
 export function ast2dot(root: AST): string {
     const lines: string[] = [
         'digraph AST {',
-        '  node [shape=box, style=filled, fontname="Helvetica", fontsize=10];',
-        '  edge [fontname="Helvetica", fontsize=9];'
+        '  node [fontname="Helvetica", fontsize=10, style="filled"];',
+        '  edge [fontname="Helvetica", fontsize=9];',
+        '  splines=false;',
+        ''
     ];
+
     let idCounter = 0;
 
     function traverse(node: AST): number {
@@ -141,21 +150,39 @@ export function ast2dot(root: AST): string {
         const myName = `n${id}`;
         
         let label = "";
-        let color = "#f0f0f0";
+        let color = "#ffffff";
+        let shape = "box"; 
+        let extraAttrs = ""; 
+        let isBold = true; // Standard: Operationen sind fett
+        
         const edges: { target: number, label?: string }[] = [];
+
+        // --- LEAVES (Daten) -> Kreise, fixe Größe, NICHT fett ---
 
         if (node instanceof NumNode) {
             label = node.value.toString();
-            color = "#fff3cd"; 
+            color = "#ffffff"; 
+            shape = "circle";
+            extraAttrs = ', width=0.5, fixedsize=true';
+            isBold = false;
         } 
         else if (node instanceof VarNode) {
             label = node.name;
-            color = "#e2e3e5"; 
+            color = "#ffffff";
+            shape = "circle";
+            extraAttrs = ', width=0.5, fixedsize=true';
+            isBold = false;
         }
         else if (node instanceof NilNode) {
             label = "∅";
             color = "#ffffff";
+            shape = "circle";
+            extraAttrs = ', width=0.5, fixedsize=true';
+            isBold = false;
         }
+
+        // --- INNER NODES (Operationen) -> Boxen, fett ---
+
         else if (node instanceof BinaryExpr) {
             label = escapeHtml(node.op);
             color = "#d1e7dd"; 
@@ -166,7 +193,8 @@ export function ast2dot(root: AST): string {
             label = ":=";
             color = "#cfe2ff"; 
             const idLeaf = idCounter++;
-            lines.push(`  n${idLeaf} [label="${node.id}", shape=ellipse, fillcolor="white"];`);
+            lines.push(`  n${idLeaf} [label=<${node.id}>, shape=circle, fillcolor="white", width=0.5, fixedsize=true];`);
+            
             edges.push({ target: idLeaf, label: "id" });
             edges.push({ target: traverse(node.expr), label: "val" });
         }
@@ -181,7 +209,7 @@ export function ast2dot(root: AST): string {
         }
         else if (node instanceof WhileNode) {
             label = "WHILE";
-            color = "#f8d7da";
+            color = "#f8d7da"; 
             edges.push({ target: traverse(node.cond), label: "cond" });
             edges.push({ target: traverse(node.body), label: "do" });
         }
@@ -189,27 +217,32 @@ export function ast2dot(root: AST): string {
             label = `${node.fn}()`;
             color = "#e0cffc"; 
             node.args.forEach((arg, i) => {
-                edges.push({ target: traverse(arg), label: `arg${i}` });
+                edges.push({ target: traverse(arg), label: `${i}` });
             });
         }
         else if (node instanceof ExprStmtNode) {
             label = "expr";
-            color = "#fdfdfe";
+            color = "#fdfdfe"; 
             edges.push({ target: traverse(node.expr) });
         }
         else if (node instanceof BlockNode) {
             label = "{...}";
-            color = "#ffffff";
+            color = "#f8f9fa"; 
             node.statements.forEach((stmt, i) => {
                 edges.push({ target: traverse(stmt), label: `${i}` });
             });
         }
 
-        lines.push(`  ${myName} [label=<<b>${label}</b>>, fillcolor="${color}"];`);
+        // Finales Label bauen: Nur Boxen bekommen <b>Tags</b>
+        const finalLabel = isBold ? `<b>${label}</b>` : label;
+        
+        lines.push(`  ${myName} [label=<${finalLabel}>, fillcolor="${color}", shape="${shape}"${extraAttrs}];`);
+
         for (const e of edges) {
             const attr = e.label ? ` [label="${e.label}"]` : "";
             lines.push(`  ${myName} -> n${e.target}${attr};`);
         }
+
         return id;
     }
 
