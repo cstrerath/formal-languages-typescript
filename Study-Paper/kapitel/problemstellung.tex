@@ -3,19 +3,74 @@
 \section{Problemstellung, Ziel und Vorgehensweise der Arbeit}
 \label{sec:problemstellung}
 
-In der Lehrveranstaltung \emph{Formale Sprachen} liegen zentrale Inhalte und Übungsbeispiele in Form ausführbarer Python-Programme vor, die Konzepte wie Tokenisierung, Syntaxanalyse (Parsing), Konfliktbehandlung in Grammatiken sowie die Ableitung und Verarbeitung abstrakter Syntaxbäume (AST) praktisch demonstrieren. Ziel dieser Studienarbeit ist es, diese Vorlesungsunterlagen systematisch nach TypeScript zu übertragen und dabei die fachlichen Inhalte unverändert zu erhalten, jedoch die Implementierung an die Eigenschaften einer statisch typisierten Sprache anzupassen.
+\subsection{Problemstellung}
+In der Lehrveranstaltung \emph{Formale Sprachen} werden zentrale Inhalte und Übungsaufgaben durch ausführbare Programme in Python vermittelt. Die Beispiele illustrieren u.\,a.\ Tokenisierung, Syntaxanalyse (Parsing), den Umgang mit Konflikten in Grammatiken sowie die Konstruktion und Weiterverarbeitung abstrakter Syntaxbäume (AST). Dabei ist Python \emph{dynamisch typisiert}, d.\,h.\ Typinformationen werden erst zur Laufzeit festgelegt und können sich während der Ausführung ändern. Entsprechend werden viele Fehler (z.\,B.\ falsche Operanden-Typen, inkonsistente AST-Knoten oder fehlerhafte Umgebungsabbildungen) häufig erst dann sichtbar, wenn ein konkreter Ausführungspfad diese Stelle erreicht.
 
 \medskip
 
-Python ist \emph{dynamisch typisiert}: Typinformationen werden zur Laufzeit bestimmt und können sich während der Programmausführung ändern. Dadurch werden zahlreiche Fehler (z.\,B.\ falsche Datentypen in Ausdrücken, inkonsistente AST-Knoten oder fehlerhafte Umgebungsabbildungen) typischerweise erst beim Ausführen relevanter Codepfade sichtbar. Für Lehrbeispiele aus dem Bereich formaler Sprachen ist dies problematisch, da viele Fehler erst in späteren Phasen der Verarbeitungskette (Scanner $\rightarrow$ Parser $\rightarrow$ AST-Transformation $\rightarrow$ Semantik) auftreten und dann schwerer zu lokalisieren sind. TypeScript hingegen ergänzt JavaScript um ein statisches Typsystem, das Konsistenzprüfungen bereits zur Übersetzungszeit ermöglicht und damit Fehler früher erkennbar macht. 
+Für Lehrbeispiele aus dem Bereich formaler Sprachen ist dies besonders nachteilig, weil Fehler oft erst in späteren Phasen der Verarbeitungskette (Scanner $\rightarrow$ Parser $\rightarrow$ AST-Transformation $\rightarrow$ Semantik) auftreten und dann schwieriger zu lokalisieren sind. In \emph{compiler-nahen} Strukturen sind die Daten zudem stark verschachtelt und müssen klare Invarianten erfüllen (z.\,B.\ hat ein binärer Ausdruck genau zwei Operanden; Tokens besitzen wohldefinierte Formen; Umgebungen ordnen Namen konsistent Werte zu). In dynamisch typisiertem Code werden solche Invarianten typischerweise über Laufzeitprüfungen, Konventionen oder Tests abgesichert.
 
 \medskip
 
-Diese frühe Fehlererkennung ist insbesondere bei den von uns portierten \emph{compiler-nahen} Datenstrukturen wichtig: In den Notebooks werden Tokens, Parse-Bäume und AST-Knoten verarbeitet, die stark verschachtelt sind und klare Strukturinvarianten besitzen. Konkret modellieren wir beispielsweise den AST nicht als untypisierte Dictionaries, sondern als rekursiven Union-Typ
-\mintinline{typescript}{export type AST = NumNode | VarNode | ... | BinaryExpr | ...;}
-und erzwingen die Form einzelner Knoten über typsichere Tupel-Layouts, etwa
-\mintinline{typescript}{class BinaryExpr extends ASTNode<Tuple<[AST, string, AST]>>}
-wodurch ein Binäroperator \emph{zwingend} genau zwei Operanden (links/rechts) besitzt und in dieser Form konsistent verwendet wird. Ebenso wird die Ausführungsumgebung explizit als
-\mintinline{typescript}{type Environment = Map<string, number>}
-repräsentiert, sodass Variablennamen stets wohldefinierten (numerischen) Werten zugeordnet sind. In dynamisch typisiertem Python müssten solche Eigenschaften überwiegend über Laufzeitprüfungen, Konventionen oder Tests abgesichert werden; mit TypeScript werden viele dieser Fehlerklassen bereits beim Übersetzen erkannt, weil bestimmte fehlerhafte Zustände gar nicht erst typisierbar (und damit nicht repräsentierbar) sind. \autocite[S.~3]{pierce2002tapl}%
-Zudem passt dieses Vorgehen zur klassischen Compiler-Pipeline, in der aus einem Tokenstrom strukturierte Baumrepräsentationen (Syntaxbäume/ASTs) aufgebaut und anschließend weiterverarbeitet werden. \autocite[S.~5, S.~8]{aho2006compilers}
+TypeScript ergänzt JavaScript dagegen um ein statisches Typsystem, das Konsistenzprüfungen bereits zur Übersetzungszeit ermöglicht. Dadurch können viele Fehlerklassen früher erkannt werden, weil bestimmte fehlerhafte Zustände gar nicht erst typisierbar (und damit nicht repräsentierbar) sind. \autocite[S.~3]{pierce2002tapl}
+Diese Idee passt zur klassischen Compiler-Pipeline, in der aus einem Tokenstrom strukturierte Baumrepräsentationen (Syntaxbäume/ASTs) aufgebaut und anschließend weiterverarbeitet werden. \autocite[S.~5, S.~8]{aho2006compilers}
+
+\medskip
+
+In der Portierung zeigt sich die Problemstellung damit in drei Dimensionen:
+(1) \emph{Didaktik und Verständlichkeit}: Die übersetzten Programme sollen weiterhin als Lehrmaterial dienen und dürfen nicht durch übermäßige Komplexität an Nachvollziehbarkeit verlieren.
+(2) \emph{Korrektheit und Wartbarkeit}: Zentrale Invarianten sollen möglichst statisch abgesichert werden, um Fehlersuche und Weiterentwicklung zu erleichtern.
+(3) \emph{Vergleichbarkeit}: Die Übersetzung soll zudem eine Basis schaffen, um Python- und TypeScript-Implementierungen in Bezug auf Entwicklungs- und Ausführungsaspekte sinnvoll zu vergleichen.
+
+\subsection{Zielsetzung}
+Aus dieser Problemstellung ergeben sich folgende Ziele der Studienarbeit:
+\begin{itemize}
+  \item \textbf{Systematische Portierung der Vorlesungsunterlagen:} Überführung der Python-basierten Programme in idiomatisches, \texttt{strict} typisiertes TypeScript, wobei die fachliche Semantik der Beispiele erhalten bleibt.
+  \item \textbf{Statische Absicherung zentraler Invarianten:} Explizite Modellierung von Token-, CST/AST- und Umgebungsstrukturen mittels TypeScript-Typen (z.\,B.\ rekursive Union-Typen und typisierte Container), um fehlerhafte Zustände möglichst auszuschließen. \autocite[S.~3]{pierce2002tapl}
+  \item \textbf{Didaktische Qualität:} Untersuchung, ob die resultierenden TypeScript-Programme mindestens so gut verständlich sind wie die ursprünglichen Python-Programme, obwohl mehr Struktur und Typinformation explizit gemacht werden muss.
+  \item \textbf{Grundlage für Performanzmessungen:} Bereitstellung äquivalenter Implementierungen, um Laufzeitmessungen und weitere Vergleiche methodisch nachvollziehbar durchführen zu können. \autocite[S.~8--11]{aho2006compilers}
+\end{itemize}
+
+\subsection{Vorgehensweise der Arbeit}
+Die Umsetzung folgt einem wiederholbaren Vorgehen pro Kapitel/Notebook, das sich an der in der Compilertechnik etablierten Pipeline orientiert. \autocite[S.~5, S.~8]{aho2006compilers}
+Dabei werden die Beispiele schrittweise portiert, typisiert und validiert:
+
+\begin{enumerate}
+  \item \textbf{Analyse des Python-Ausgangsprogramms:}
+  Identifikation der verwendeten Datenstrukturen, Invarianten und typischen Python-Idiome (z.\,B.\ dynamische Container, implizite Konvertierungen). Dabei wird festgehalten, welche semantischen Eigenschaften zwingend erhalten bleiben müssen.
+
+  \item \textbf{Typsystem-Entwurf für die Domäne:}
+  Entwurf passender TypeScript-Typen für zentrale Artefakte (Token, AST-Knoten, Umgebungen). Beispielsweise wird der AST als rekursiver Union-Typ modelliert:
+
+\begin{minted}{typescript}
+export type AST = NumNode | VarNode | /* ... */ | BinaryExpr | /* ... */;
+\end{minted}
+
+  Für binäre Ausdrücke wird eine streng strukturierte Repräsentation erzwungen:
+
+\begin{minted}{typescript}
+class BinaryExpr extends ASTNode<Tuple<[AST, string, AST]>> { /* ... */ }
+\end{minted}
+
+  und Umgebungen werden explizit typisiert:
+
+\begin{minted}{typescript}
+type Environment = Map<string, number>;
+\end{minted}
+
+  \item \textbf{Implementierung der Verarbeitungskette:}
+  Umsetzung bzw.\ Übernahme der Phasen Scanner $\rightarrow$ Parser $\rightarrow$ AST-Verarbeitung $\rightarrow$ Semantik in TypeScript. Dabei wird darauf geachtet, dass Fehler möglichst einer Phase zuordenbar bleiben und nicht erst ``spät'' in nachgelagerten Schritten auftreten.
+
+  \item \textbf{Validierung der Semantik:}
+  Vergleich der Ergebnisse zwischen Python- und TypeScript-Version anhand identischer Eingaben (z.\,B.\ gleiche Tokenfolgen oder Testausdrücke). Ziel ist funktionale Äquivalenz der Lehrbeispiele.
+
+  \item \textbf{Bewertung von Verständlichkeit und Wartbarkeit:}
+  Dokumentation typischer Übersetzungssituationen, in denen TypeScript durch Typen und Tooling Fehler früh erkennt oder Refactorings erleichtert, sowie Gegenüberstellung von Stellen, an denen Typisierung zusätzlichen Aufwand erzeugt.
+
+  \item \textbf{Messkonzept für Performanz:}
+  Definition klarer Messpunkte (z.\,B.\ reine Ausführungszeit ausgewählter Algorithmen/Beispiele; getrennte Betrachtung von Type-Checking/Transpilation versus Laufzeit), um die Ergebnisse interpretierbar zu machen. \autocite[S.~8--11]{aho2006compilers}
+\end{enumerate}
+
+\medskip
+
+Durch diese Struktur wird die Portierung als kontrollierter Prozess durchgeführt: Die fachliche Aussage der Vorlesungsbeispiele bleibt erhalten, während TypeScript zur statischen Absicherung der in den Beispielen implizit vorhandenen Invarianten genutzt wird. \autocite[S.~3]{pierce2002tapl}
