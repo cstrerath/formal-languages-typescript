@@ -4,73 +4,31 @@
 \label{sec:problemstellung}
 
 \subsection{Problemstellung}
-In der Lehrveranstaltung \emph{Formale Sprachen} werden zentrale Inhalte und Übungsaufgaben durch ausführbare Programme in Python vermittelt. Die Beispiele illustrieren u.\,a.\ Tokenisierung, Syntaxanalyse (Parsing), den Umgang mit Konflikten in Grammatiken sowie die Konstruktion und Weiterverarbeitung abstrakter Syntaxbäume (AST). Dabei ist Python \emph{dynamisch typisiert}, d.\,h.\ Typinformationen werden erst zur Laufzeit festgelegt und können sich während der Ausführung ändern. Entsprechend werden viele Fehler (z.\,B.\ falsche Operanden-Typen, inkonsistente AST-Knoten oder fehlerhafte Umgebungsabbildungen) häufig erst dann sichtbar, wenn ein konkreter Ausführungspfad diese Stelle erreicht.
+In der Lehrveranstaltung \emph{Formale Sprachen} an der Dualen Hochschule Baden-Württemberg werden zentrale Inhalte und Übungsaufgaben durch ausführbare Programme in Python vermittelt. Die Beispiele illustrieren u.\,a.\ Tokenisierung (Scanner), Syntaxanalyse (Parsing), 
+den Umgang mit Konflikten in Grammatiken sowie die Konstruktion und Weiterverarbeitung abstrakter Syntaxbäume (AST). Dabei ist Python \emph{dynamisch typisiert}, d.\,h.\ die Typinformationen werden erst zur Laufzeit festgelegt und können sich während der Ausführung ändern. Dies hat zur Folge, dass viele Fehler (wie z.\,B.\ falsche Operanden-Typen, inkonsistente AST-Knoten oder fehlerhafte Umgebungsabbildungen) häufig erst dann sichtbar werden, wenn ein konkreter Ausführungspfad diese Stelle erreicht.
 
 \medskip
 
-Für Lehrbeispiele aus dem Bereich formaler Sprachen ist dies besonders nachteilig, weil Fehler oft erst in späteren Phasen der Verarbeitungskette (Scanner $\rightarrow$ Parser $\rightarrow$ AST-Transformation $\rightarrow$ Semantik) auftreten und dann schwieriger zu lokalisieren sind. In \emph{compiler-nahen} Strukturen sind die Daten zudem stark verschachtelt und müssen klare Invarianten erfüllen (z.\,B.\ hat ein binärer Ausdruck genau zwei Operanden; Tokens besitzen wohldefinierte Formen; Umgebungen ordnen Namen konsistent Werte zu). In dynamisch typisiertem Code werden solche Invarianten typischerweise über Laufzeitprüfungen, Konventionen oder Tests abgesichert.
+Für Lehrbeispiele aus dem Bereich formaler Sprachen ist dies besonders nachteilig, weil die Fehler oft erst in späteren Phasen der Verarbeitungskette \\(Scanner $\rightarrow$ Parser $\rightarrow$ AST-Transformation $\rightarrow$ Semantik) auftreten und somit schwieriger zu lokalisieren sind. In \emph{compiler-nahen} Strukturen sind die Daten zudem stark verschachtelt und müssen klare Invarianten erfüllen (z.\,B.\ hat ein binärer Ausdruck genau zwei Operanden; Tokens besitzen wohldefinierte Formen; Umgebungen ordnen Namen konsistent Werte zu). In dynamisch typisiertem Code werden solche Invarianten typischerweise über Laufzeitprüfungen, Konventionen oder Tests abgesichert.
 
-\medskip
+Im Vorlesungsskript ergeben sich weitere praktisch relevante Nachteile von Python. Insbesondere in dem Fall wo \emph{mathematische Objekte} (Mengen, Relationen, Zustandsmengen von Automaten) in Programmstrukturen abgebildet werden sollen. In den ausführbare Programmen wird beispielsweise \texttt{frozenset} mit Ply eingesetzt, um Mengen \emph{unveränderbar} zu machen und sie dadurch zuverlässig als Elemente anderer Mengen bzw.\ als Schlüssel in Dictionaries verwenden zu können. \autocite{stroetmann_formal_languages_repo}
+Daraus lassen sich mehrere konkrete Problemfelder ableiten:
 
-TypeScript ergänzt JavaScript dagegen um ein statisches Typsystem, das Konsistenzprüfungen bereits zur Übersetzungszeit ermöglicht. Dadurch können viele Fehlerklassen früher erkannt werden, weil bestimmte fehlerhafte Zustände gar nicht erst typisierbar (und damit nicht repräsentierbar) sind. \autocite[S.~3]{pierce2002tapl}
-Diese Idee passt zur klassischen Compiler-Pipeline, in der aus einem Tokenstrom strukturierte Baumrepräsentationen (Syntaxbäume/ASTs) aufgebaut und anschließend weiterverarbeitet werden. \autocite[S.~5, S.~8]{aho2006compilers}
-
-\medskip
-
-In der Portierung zeigt sich die Problemstellung damit in drei Dimensionen:
-(1) \emph{Didaktik und Verständlichkeit}: Die übersetzten Programme sollen weiterhin als Lehrmaterial dienen und dürfen nicht durch übermäßige Komplexität an Nachvollziehbarkeit verlieren.
-(2) \emph{Korrektheit und Wartbarkeit}: Zentrale Invarianten sollen möglichst statisch abgesichert werden, um Fehlersuche und Weiterentwicklung zu erleichtern.
-(3) \emph{Vergleichbarkeit}: Die Übersetzung soll zudem eine Basis schaffen, um Python- und TypeScript-Implementierungen in Bezug auf Entwicklungs- und Ausführungsaspekte sinnvoll zu vergleichen.
-
-\subsection{Zielsetzung}
-Aus dieser Problemstellung ergeben sich folgende Ziele der Studienarbeit:
 \begin{itemize}
-  \item \textbf{Systematische Portierung der Vorlesungsunterlagen:} Überführung der Python-basierten Programme in idiomatisches, \texttt{strict} typisiertes TypeScript, wobei die fachliche Semantik der Beispiele erhalten bleibt.
-  \item \textbf{Statische Absicherung zentraler Invarianten:} Explizite Modellierung von Token-, CST/AST- und Umgebungsstrukturen mittels TypeScript-Typen (z.\,B.\ rekursive Union-Typen und typisierte Container), um fehlerhafte Zustände möglichst auszuschließen. \autocite[S.~3]{pierce2002tapl}
-  \item \textbf{Didaktische Qualität:} Untersuchung, ob die resultierenden TypeScript-Programme mindestens so gut verständlich sind wie die ursprünglichen Python-Programme, obwohl mehr Struktur und Typinformation explizit gemacht werden muss.
-  \item \textbf{Grundlage für Performanzmessungen:} Bereitstellung äquivalenter Implementierungen, um Laufzeitmessungen und weitere Vergleiche methodisch nachvollziehbar durchführen zu können. \autocite[S.~8--11]{aho2006compilers}
+  \item \textbf{Immutabilität muss erzwungen werden:}
+  In Python sind \texttt{set}s veränderbar. Wird eine Menge nachträglich mutiert, können sich Invarianten unbemerkt ändern (z.\,B.\ Zustandsmengen, berechnete Abschlussmengen, First/Follow-Mengen). Um diesen Fehlerklassen vorzubeugen, muss im Skript explizit auf \texttt{frozenset} ausgewichen werden. \autocite{stroetmann_formal_languages_repo}
+
+  \item \textbf{Fehlende Hashbarkeit veränderbarer Mengen:}
+  Da \texttt{set} nicht hashbar ist, kann es nicht als Element einer Menge und nicht als Dictionary-Key auftreten. Für typische Konstruktionen in der formalen Sprachenwelt (z.\,B.\ Zustandsmengen als DFA-Zustände bei der Potenzmengenkonstruktion) ist das aber zentral. Der Umweg über \texttt{frozenset} und \texttt{Tupel} ist funktional, macht die Modelle jedoch indirekter und erfordert zusätzliche Konvertierungen. \autocite{stroetmann_formal_languages_repo}
+
+  \item \textbf{Mehr Konvertierungen und Kopier-Overhead:}
+  Wenn zwischen \texttt{set} (für Aufbau/Operationen wie Vereinigung) und \texttt{frozenset} (für stabile Repräsentation) gewechselt werden muss, entstehen zusätzliche Konstruktionen und Speicherallokationen, die den Code aufblähen und die Ausführung in iterativen Algorithmen (z.\,B.\ Fixpunktberechnungen) messbar belasten können. \autocite{stroetmann_formal_languages_repo}
+
+  \item \textbf{Implizite Strukturverträge statt Typsignaturen:}
+  Ob ein Objekt in einem bestimmten Kontext \texttt{set} oder \texttt{frozenset} sein muss, bleibt in Python oft eine \glqq stillschweigende\grqq{} Konvention, die erst bei einem Laufzeitfehler auffällt (z.\,B.\ \texttt{TypeError: unhashable type: 'set'}). In einer statisch typisierten Implementierung kann diese Unterscheidung als Typ modelliert und damit früh geprüft werden. \autocite[S.~3]{pierce2002tapl}
+
+  \item \textbf{Schwierigeres Refactoring bei wachsenden Notebooks:}
+  Sobald sich die verwendeten Mengen-/Relationstypen in mehreren Kapiteln wiederholen, führt jede Änderung (z.\,B.\ Wechsel von \texttt{set} zu \texttt{frozenset} an Schnittstellen) leicht zu inkonsistenten Stellen, weil Python solche Brüche nicht \emph{kompilierzeitlich} meldet. Das erschwert die Weiterentwicklung einer kapitelübergreifenden Codebasis.
 \end{itemize}
 
-\subsection{Vorgehensweise der Arbeit}
-Die Umsetzung folgt einem wiederholbaren Vorgehen pro Kapitel/Notebook, das sich an der in der Compilertechnik etablierten Pipeline orientiert. \autocite[S.~5, S.~8]{aho2006compilers}
-Dabei werden die Beispiele schrittweise portiert, typisiert und validiert:
-
-\begin{enumerate}
-  \item \textbf{Analyse des Python-Ausgangsprogramms:}
-  Identifikation der verwendeten Datenstrukturen, Invarianten und typischen Python-Idiome (z.\,B.\ dynamische Container, implizite Konvertierungen). Dabei wird festgehalten, welche semantischen Eigenschaften zwingend erhalten bleiben müssen.
-
-  \item \textbf{Typsystem-Entwurf für die Domäne:}
-  Entwurf passender TypeScript-Typen für zentrale Artefakte (Token, AST-Knoten, Umgebungen). Beispielsweise wird der AST als rekursiver Union-Typ modelliert:
-
-\begin{minted}{typescript}
-export type AST = NumNode | VarNode | /* ... */ | BinaryExpr | /* ... */;
-\end{minted}
-
-  Für binäre Ausdrücke wird eine streng strukturierte Repräsentation erzwungen:
-
-\begin{minted}{typescript}
-class BinaryExpr extends ASTNode<Tuple<[AST, string, AST]>> { /* ... */ }
-\end{minted}
-
-  und Umgebungen werden explizit typisiert:
-
-\begin{minted}{typescript}
-type Environment = Map<string, number>;
-\end{minted}
-
-  \item \textbf{Implementierung der Verarbeitungskette:}
-  Umsetzung bzw.\ Übernahme der Phasen Scanner $\rightarrow$ Parser $\rightarrow$ AST-Verarbeitung $\rightarrow$ Semantik in TypeScript. Dabei wird darauf geachtet, dass Fehler möglichst einer Phase zuordenbar bleiben und nicht erst ``spät'' in nachgelagerten Schritten auftreten.
-
-  \item \textbf{Validierung der Semantik:}
-  Vergleich der Ergebnisse zwischen Python- und TypeScript-Version anhand identischer Eingaben (z.\,B.\ gleiche Tokenfolgen oder Testausdrücke). Ziel ist funktionale Äquivalenz der Lehrbeispiele.
-
-  \item \textbf{Bewertung von Verständlichkeit und Wartbarkeit:}
-  Dokumentation typischer Übersetzungssituationen, in denen TypeScript durch Typen und Tooling Fehler früh erkennt oder Refactorings erleichtert, sowie Gegenüberstellung von Stellen, an denen Typisierung zusätzlichen Aufwand erzeugt.
-
-  \item \textbf{Messkonzept für Performanz:}
-  Definition klarer Messpunkte (z.\,B.\ reine Ausführungszeit ausgewählter Algorithmen/Beispiele; getrennte Betrachtung von Type-Checking/Transpilation versus Laufzeit), um die Ergebnisse interpretierbar zu machen. \autocite[S.~8--11]{aho2006compilers}
-\end{enumerate}
-
-\medskip
-
-Durch diese Struktur wird die Portierung als kontrollierter Prozess durchgeführt: Die fachliche Aussage der Vorlesungsbeispiele bleibt erhalten, während TypeScript zur statischen Absicherung der in den Beispielen implizit vorhandenen Invarianten genutzt wird. \autocite[S.~3]{pierce2002tapl}
+\subsection{Zielsetzung}
