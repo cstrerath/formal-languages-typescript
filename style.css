@@ -1,18 +1,21 @@
-<link href='http://fonts.googleapis.com/css?family=Alegreya+Sans:100,300,400,500,700,800,900,100italic,300italic,400italic,500italic,700italic,800italic,900italic' rel='stylesheet' type='text/css'>
-<link href='http://fonts.googleapis.com/css?family=Arvo:400,700,400italic' rel='stylesheet' type='text/css'>
-<link href='http://fonts.googleapis.com/css?family=PT+Mono' rel='stylesheet' type='text/css'>
-<link href='http://fonts.googleapis.com/css?family=Shadows+Into+Light' rel='stylesheet' type='text/css'>
-<link href='http://fonts.googleapis.com/css?family=Philosopher:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
-<link href="http://fonts.googleapis.com/css?family=Sacramento" rel="stylesheet" type="text/css">
+/* --- 1. Externe Schriften laden (als CSS Import statt HTML Link) --- */
+@import url('https://fonts.googleapis.com/css?family=Alegreya+Sans:100,300,400,500,700,800,900,100italic,300italic,400italic,500italic,700italic,800italic,900italic');
+@import url('https://fonts.googleapis.com/css?family=Arvo:400,700,400italic');
+@import url('https://fonts.googleapis.com/css?family=PT+Mono');
+@import url('https://fonts.googleapis.com/css?family=Shadows+Into+Light');
+@import url('https://fonts.googleapis.com/css?family=Philosopher:400,700,400italic,700italic');
+@import url("https://fonts.googleapis.com/css?family=Sacramento");
 
-<style>
-
+/* --- 2. Custom Font Faces --- */
 @font-face {
     font-family: "Computer Modern";
-    src: url('http://mirrors.ctan.org/fonts/cm-unicode/fonts/otf/cmunss.otf');
+    /* Ich habe hier mal auf https gewechselt, sicher ist sicher */
+    src: url('https://mirrors.ctan.org/fonts/cm-unicode/fonts/otf/cmunss.otf');
 }
 
-.container { width: 100% }
+/* --- 3. Das eigentliche Styling (OHNE <style> Tags) --- */
+
+.container { width: 100%; }
 
 /* Formatting for header cells */
 .text_cell_render h1 {
@@ -24,7 +27,7 @@
     margin-bottom: 0.1em;
     margin-top: 0.1em;
     display: block;
-}	
+}
 .text_cell_render h2 {
     font-family: 'Philosopher', serif;
     font-weight: 400;
@@ -34,7 +37,7 @@
     margin-bottom: 0.1em;
     margin-top: 0.1em;
     display: block;
-}	
+}
 
 .text_cell_render h3 {
     font-family: 'Philosopher', serif;
@@ -108,19 +111,16 @@
 }
 
 #fancy {
-    font-family:      Georgia;
-    position:         relative;
-    float:            left;
-    border:           2px solid red;
-    width:            600px;
-    padding-left:     20px;
-    padding-right:    20px;
-    padding-top:      10px;
-    font-family:      'Sacramento', cursive;
-    font-size:        26px;
-    background-color: #F4EBF3;
-    border-radius:    15px;
+font-family:      Georgia;
+position:         relative;
+float:            left;
+border:           2px solid red;
+width:            600px;
+padding-left:     20px;
+padding-right:    20px;
+padding-top:      10px;
+font-family:      'Sacramento', cursive;
+font-size:        26px;
+background-color: #F4EBF3;
+border-radius:    15px;
 }
-
-</Style>
-
