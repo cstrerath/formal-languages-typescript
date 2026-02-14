@@ -4,31 +4,49 @@
 \label{sec:problemstellung}
 
 \subsection{Problemstellung}
-In der Lehrveranstaltung \emph{Formale Sprachen} an der Dualen Hochschule Baden-Württemberg werden zentrale Inhalte und Übungsaufgaben durch ausführbare Programme in Python vermittelt. Die Beispiele illustrieren u.\,a.\ Tokenisierung (Scanner), Syntaxanalyse (Parsing), 
-den Umgang mit Konflikten in Grammatiken sowie die Konstruktion und Weiterverarbeitung abstrakter Syntaxbäume (AST). Dabei ist Python \emph{dynamisch typisiert}, d.\,h.\ die Typinformationen werden erst zur Laufzeit festgelegt und können sich während der Ausführung ändern. Dies hat zur Folge, dass viele Fehler (wie z.\,B.\ falsche Operanden-Typen, inkonsistente AST-Knoten oder fehlerhafte Umgebungsabbildungen) häufig erst dann sichtbar werden, wenn ein konkreter Ausführungspfad diese Stelle erreicht.
+In der Lehrveranstaltung \emph{Formale Sprachen} an der Dualen Hochschule Baden-Württemberg werden zentrale Inhalte durch ausführbare Programme in Python vermittelt. Die Beispiele behandeln unter anderem Tokenisierung (Scanner), Syntaxanalyse (Parsing), den Umgang mit Konflikten in Grammatiken sowie die Konstruktion und Weiterverarbeitung abstrakter Syntaxbäume (AST). Damit bewegen sich die Programme in einem typischen \emph{compiler-nahen} Kontext, in dem strukturierte Datenmodelle und klar definierte Verarbeitungsphasen eine zentrale Rolle spielen.
 
-\medskip
+Python ist jedoch eine \emph{dynamisch typisierte} Sprache. Typinformationen werden erst zur Laufzeit überprüft und können sich während der Programmausführung verändern. Fehler wie inkonsistente AST-Strukturen, falsche Operanden-Typen oder fehlerhafte Umgebungsabbildungen werden daher häufig erst dann sichtbar, wenn ein konkreter Ausführungspfad die betreffende Stelle erreicht. Insbesondere in mehrstufigen Verarbeitungsketten
+\[
+\text{Scanner} \rightarrow \text{Parser} \rightarrow \text{AST-Transformation} \rightarrow \text{Semantik}
+\]
+erschwert dies die Lokalisierung von Fehlerursachen erheblich.
 
-Für Lehrbeispiele aus dem Bereich formaler Sprachen ist dies besonders nachteilig, weil die Fehler oft erst in späteren Phasen der Verarbeitungskette \\(Scanner $\rightarrow$ Parser $\rightarrow$ AST-Transformation $\rightarrow$ Semantik) auftreten und somit schwieriger zu lokalisieren sind. In \emph{compiler-nahen} Strukturen sind die Daten zudem stark verschachtelt und müssen klare Invarianten erfüllen (z.\,B.\ hat ein binärer Ausdruck genau zwei Operanden; Tokens besitzen wohldefinierte Formen; Umgebungen ordnen Namen konsistent Werte zu). In dynamisch typisiertem Code werden solche Invarianten typischerweise über Laufzeitprüfungen, Konventionen oder Tests abgesichert.
+Zur Verbesserung der Typdisziplin wird im Rahmen der Lehrveranstaltung \texttt{mypy} eingesetzt. Dabei handelt es sich um einen statischen Typchecker für Python, der auf Grundlage von Typannotationen eine Überprüfung der Typkonsistenz bereits vor der Programmausführung ermöglicht. Fehlerklassen wie inkonsistente Rückgabetypen oder fehlerhafte Verwendungen parametrischer Datentypen (z.\,B.\ \texttt{Set[str]} oder \texttt{Dict[str, Set[str]]}) können so frühzeitig erkannt werden. Python nähert sich dadurch partiell einer statisch typisierten Disziplin an, ohne jedoch seine dynamische Semantik grundsätzlich zu verändern.
 
-Im Vorlesungsskript ergeben sich weitere praktisch relevante Nachteile von Python. Insbesondere in dem Fall wo \emph{mathematische Objekte} (Mengen, Relationen, Zustandsmengen von Automaten) in Programmstrukturen abgebildet werden sollen. In den ausführbare Programmen wird beispielsweise \texttt{frozenset} mit Ply eingesetzt, um Mengen \emph{unveränderbar} zu machen und sie dadurch zuverlässig als Elemente anderer Mengen bzw.\ als Schlüssel in Dictionaries verwenden zu können. \autocite{stroetmann_formal_languages_repo}
-Daraus lassen sich mehrere konkrete Problemfelder ableiten:
+Die Typprüfung bleibt optional und erzwingt keine vollständige strukturelle Absicherung der verwendeten Datenmodelle. Gerade im Kontext formaler Sprachen arbeiten die Programme mit stark verschachtelten und semantisch sensiblen Strukturen. Diese müssen wohldefinierte Invarianten erfüllen, etwa: Ein binärer Ausdruck besitzt genau zwei Operanden; Tokens gehören exakt zu einer definierten Kategorie; Umgebungen ordnen Bezeichner eindeutig Werte zu. In einer dynamisch typisierten Sprache werden solche Strukturbedingungen typischerweise durch Laufzeitprüfungen, Konventionen oder Tests abgesichert, nicht jedoch durch das Typsystem selbst.
 
-\begin{itemize}
-  \item \textbf{Immutabilität muss erzwungen werden:}
-  In Python sind \texttt{set}s veränderbar. Wird eine Menge nachträglich mutiert, können sich Invarianten unbemerkt ändern (z.\,B.\ Zustandsmengen, berechnete Abschlussmengen, First/Follow-Mengen). Um diesen Fehlerklassen vorzubeugen, muss im Skript explizit auf \texttt{frozenset} ausgewichen werden. \autocite{stroetmann_formal_languages_repo}
+Ein weiterer praktisch relevanter Aspekt ergibt sich bei der Modellierung \emph{mathematischer Objekte} wie Mengen, Relationen oder Zustandsmengen von Automaten. In den Programmen des Vorlesungsskripts wird beispielsweise \texttt{frozenset} in Kombination mit PLY eingesetzt, um Mengen unveränderbar zu machen und sie dadurch zuverlässig als Elemente anderer Mengen oder als Schlüssel in Dictionaries verwenden zu können \autocite{stroetmann_formal_languages_repo}. Die Notwendigkeit solcher Konstruktionen verdeutlicht, dass zentrale semantische Eigenschaften, hier die Unveränderlichkeit von Mengen, nicht auf Sprachebene garantiert, sondern explizit programmiert werden müssen.
 
-  \item \textbf{Fehlende Hashbarkeit veränderbarer Mengen:}
-  Da \texttt{set} nicht hashbar ist, kann es nicht als Element einer Menge und nicht als Dictionary-Key auftreten. Für typische Konstruktionen in der formalen Sprachenwelt (z.\,B.\ Zustandsmengen als DFA-Zustände bei der Potenzmengenkonstruktion) ist das aber zentral. Der Umweg über \texttt{frozenset} und \texttt{Tupel} ist funktional, macht die Modelle jedoch indirekter und erfordert zusätzliche Konvertierungen. \autocite{stroetmann_formal_languages_repo}
+Aus der vorangegangenen Analyse lassen sich folgende strukturelle Problemfelder identifizieren:
 
-  \item \textbf{Mehr Konvertierungen und Kopier-Overhead:}
-  Wenn zwischen \texttt{set} (für Aufbau/Operationen wie Vereinigung) und \texttt{frozenset} (für stabile Repräsentation) gewechselt werden muss, entstehen zusätzliche Konstruktionen und Speicherallokationen, die den Code aufblähen und die Ausführung in iterativen Algorithmen (z.\,B.\ Fixpunktberechnungen) messbar belasten können. \autocite{stroetmann_formal_languages_repo}
+\begin{enumerate}
+    \item \textbf{Fehlende verpflichtende statische Typprüfung.}  
+    Die Typüberprüfung durch \texttt{mypy} ist optional und nicht integraler Bestandteil der Sprache. Programme bleiben auch ohne Typannotationen lauffähig, wodurch Typfehler weiterhin erst zur Laufzeit auftreten können.
 
-  \item \textbf{Implizite Strukturverträge statt Typsignaturen:}
-  Ob ein Objekt in einem bestimmten Kontext \texttt{set} oder \texttt{frozenset} sein muss, bleibt in Python oft eine \glqq stillschweigende\grqq{} Konvention, die erst bei einem Laufzeitfehler auffällt (z.\,B.\ \texttt{TypeError: unhashable type: 'set'}). In einer statisch typisierten Implementierung kann diese Unterscheidung als Typ modelliert und damit früh geprüft werden. \autocite[S.~3]{pierce2002tapl}
+    \item \textbf{Unzureichende formale Absicherung struktureller Invarianten.}  
+    Zentrale Datenstrukturen wie Syntaxbäume oder Zustandsmengen müssen bestimmte Eigenschaften erfüllen (z.\,B.\ Anzahl von Operanden, eindeutige Zuordnung von Symbolen). Diese Strukturbedingungen werden jedoch nicht durch das Typsystem garantiert, sondern lediglich durch Konventionen oder Laufzeitprüfungen abgesichert.
 
-  \item \textbf{Schwierigeres Refactoring bei wachsenden Notebooks:}
-  Sobald sich die verwendeten Mengen-/Relationstypen in mehreren Kapiteln wiederholen, führt jede Änderung (z.\,B.\ Wechsel von \texttt{set} zu \texttt{frozenset} an Schnittstellen) leicht zu inkonsistenten Stellen, weil Python solche Brüche nicht \emph{kompilierzeitlich} meldet. Das erschwert die Weiterentwicklung einer kapitelübergreifenden Codebasis.
-\end{itemize}
+    \item \textbf{Erschwerte Modellierung mathematischer Strukturen.}  
+    Mathematische Objekte wie Mengen oder Relationen müssen explizit so implementiert werden, dass ihre semantischen Eigenschaften (z.\,B.\ Unveränderlichkeit) erhalten bleiben. Die Verwendung von \texttt{frozenset} ist hierfür ein Beispiel. Solche Eigenschaften werden nicht automatisch durch das Sprachdesign erzwungen.
+
+    \item \textbf{Veränderbarkeit von Daten als Standardverhalten.}  
+    Viele Datenstrukturen in Python sind standardmäßig veränderbar. Dadurch können Objekte unbeabsichtigt modifiziert werden, was insbesondere bei verschachtelten oder gemeinsam genutzten Datenstrukturen zu schwer nachvollziehbaren Fehlern führen kann.
+
+    \item \textbf{Fehlende sprachliche Unterstützung für klar strukturierte Datentypen.}  
+    Für die Modellierung unterschiedlich geformter AST-Knoten oder Zustände existieren keine strikt getrennten Datentypen mit automatischer Vollständigkeitsprüfung. Fehlerhafte oder unvollständige Fallunterscheidungen werden daher häufig nicht bereits beim Übersetzen des Programms erkannt.
+\end{enumerate}
 
 \subsection{Zielsetzung}
+Aus den identifizierten Problemfeldern ergibt sich die zentrale Fragestellung dieser Arbeit: 
+Inwieweit kann eine systematische Übersetzung der Python-Programme in die statisch typisierte Sprache TypeScript die strukturellen und typbezogenen Schwächen der bestehenden Implementierungen reduzieren?
+
+Ziel der Arbeit ist es, die im Vorlesungsskript verwendeten Python-Programme formal zu analysieren und in TypeScript zu übertragen. Dabei soll untersucht werden,
+
+\begin{itemize}
+    \item in welchem Maße sich strukturelle Invarianten durch das Typsystem explizit modellieren lassen,
+    \item ob mathematische Objekte wie Mengen und Zustandsmengen präziser typisiert werden können,
+    \item und welche Unterschiede sich hinsichtlich Fehlererkennung, Wartbarkeit und Modellklarheit ergeben.
+\end{itemize}
+
+Die Arbeit verfolgt dabei keinen rein technischen Portierungsansatz, sondern eine formale Gegenüberstellung beider Typdisziplinen im Kontext compiler-naher Strukturen.
