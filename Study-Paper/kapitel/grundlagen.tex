@@ -3,4 +3,39 @@
 \section{Grundlagen}
 \label{sec:grundlagen}
 
-Dann die Grundlagen
+Dieses Kapitel legt die theoretischen Grundlagen für die spätere Analyse und Gegenüberstellung der beiden Programmiersprachen. Zunächst werden zentrale Begriffe der Typentheorie eingeführt und dynamische sowie statische Typisierung voneinander abgegrenzt. Anschließend werden die für diese Arbeit relevanten Eigenschaften des Typsystems von TypeScript dargestellt.
+
+Ziel dieses Kapitels ist es, ein formales Verständnis von Typdisziplin und Typsicherheit zu entwickeln, das als Bewertungsmaßstab für die in Kapitel~4 vorgenommene Übersetzung dient.
+
+\subsection{Typen und Typsicherheit}
+
+Ein Typsystem ist ein formales Mittel zur Klassifikation von Ausdrücken und Programmkonstrukten mit dem Ziel, bestimmte Klassen von Laufzeitfehlern auszuschließen. Ein Programm gilt als typsicher, wenn wohlgetypte Programme nicht „stecken bleiben“ und keine Typfehler während der Ausführung auftreten.
+
+In der Typentheorie wird Typsicherheit häufig durch die beiden Eigenschaften \emph{Progress} und \emph{Preservation} charakterisiert \autocite[vgl.\ S.~95\,ff.]{pierce2002tapl}. 
+Progress besagt, dass ein wohlgetypter Ausdruck entweder bereits ein Wert ist oder einen weiteren Auswertungsschritt durchführen kann. Preservation garantiert, dass sich der Typ eines Ausdrucks während der Auswertung nicht ändert.
+
+Ein statisches Typsystem überprüft diese Eigenschaften vor der Programmausführung, während ein dynamisches Typsystem Typkonsistenz erst zur Laufzeit kontrolliert.
+
+\subsection{Dynamische und statische Typisierung}
+
+Bei dynamisch typisierten Sprachen werden Typinformationen zur Laufzeit überprüft. Variablen sind nicht fest an einen bestimmten Typ gebunden, und Typfehler treten erst während der Ausführung auf. Python ist ein typisches Beispiel für dieses Paradigma.
+
+Statisch typisierte Sprachen hingegen prüfen Typkonsistenz bereits während der Übersetzung des Programms. Dadurch können viele Fehler frühzeitig erkannt werden, bevor das Programm ausgeführt wird. TypeScript erweitert JavaScript um ein statisches Typsystem, das diese Vorabprüfung ermöglicht \autocite{typescript_handbook_overview}.
+
+Für compiler-nahe Strukturen ist insbesondere relevant, in welchem Maße ein Typsystem strukturelle Invarianten explizit modellieren und absichern kann.
+
+\subsection{Zentrale Eigenschaften des Typsystems von TypeScript}
+
+TypeScript ergänzt JavaScript um ein optionales, strukturelles Typsystem. Typannotationen werden beim Übersetzen des Programms überprüft, jedoch nicht zur Laufzeit erzwungen. Der TypeScript-Compiler dient somit als statisches Analysewerkzeug.
+
+Für die Modellierung compiler-naher Strukturen sind insbesondere folgende Konzepte relevant:
+
+\begin{itemize}
+    \item Generische Typen zur Modellierung parametrischer Datenstrukturen,
+    \item Vereinigungs- und Schnittmengen-Typen zur Darstellung alternativer Strukturen,
+    \item diskriminierte Vereinigungen zur sicheren Modellierung unterschiedlich geformter AST-Knoten,
+    \item das Schlüsselwort \texttt{readonly} zur Einschränkung von Veränderungen an Daten,
+    \item Exhaustiveness Checking zur vollständigen Fallunterscheidung.
+\end{itemize}
+
+Diese Mechanismen erlauben eine explizitere und formalisiertere Modellierung strukturierter Daten als dies in dynamisch typisierten Sprachen üblich ist \autocite{typescript_handbook_narrowing}.

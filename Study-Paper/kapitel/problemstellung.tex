@@ -41,12 +41,29 @@ Aus der vorangegangenen Analyse lassen sich folgende strukturelle Problemfelder 
 Aus den identifizierten Problemfeldern ergibt sich die zentrale Fragestellung dieser Arbeit: 
 Inwieweit kann eine systematische Übersetzung der Python-Programme in die statisch typisierte Sprache TypeScript die strukturellen und typbezogenen Schwächen der bestehenden Implementierungen reduzieren?
 
-Ziel der Arbeit ist es, die im Vorlesungsskript verwendeten Python-Programme formal zu analysieren und in TypeScript zu übertragen. Dabei soll untersucht werden,
+Ziel der Arbeit ist es, die im Vorlesungsskript verwendeten Python-Programme formal zu analysieren und in TypeScript zu übertragen. Dabei sollen folgende Faktoren beim Code untersucht werden: 
 
 \begin{itemize}
-    \item in welchem Maße sich strukturelle Invarianten durch das Typsystem explizit modellieren lassen,
-    \item ob mathematische Objekte wie Mengen und Zustandsmengen präziser typisiert werden können,
-    \item und welche Unterschiede sich hinsichtlich Fehlererkennung, Wartbarkeit und Modellklarheit ergeben.
+    \item Lesbarkeit und strukturelle Klarheit des Codes
+    \item Durchsetzung struktureller Invarianten durch das Typsystem
+    \item Typsicherheit und Zeitpunkt der Fehlererkennung
+    \item Modellierung mathematischer Strukturen (Mengen, Relationen, Automaten)
+    \item Wartbarkeit und Erweiterbarkeit der Implementierungen
+    \item Laufzeitverhalten und Performance
 \end{itemize}
 
-Die Arbeit verfolgt dabei keinen rein technischen Portierungsansatz, sondern eine formale Gegenüberstellung beider Typdisziplinen im Kontext compiler-naher Strukturen.
+Die Arbeit verfolgt somit nicht die bloße Übersetzung des Codes, sondern untersucht zusätzlich die strukturellen und sicherheitsrelevanten Unterschiede beider Typmodelle.
+
+\subsection{Aufbau der Arbeit}
+
+Die Arbeit gliedert sich in mehrere aufeinander aufbauende Kapitel.
+
+Kapitel~2 führt in die theoretischen Grundlagen statischer Typisierung ein. Dabei werden zentrale Konzepte moderner Typsysteme erläutert und die für diese Arbeit relevanten Eigenschaften von TypeScript dargestellt. Besonderes Augenmerk liegt auf der Modellierung strukturierter Datentypen sowie der Durchsetzung von Typinvarianten.
+
+Kapitel~3 analysiert die im Vorlesungsskript verwendeten Python-Programme im Hinblick auf ihre strukturellen Eigenschaften. Dabei werden typische Muster der Implementierung compiler-naher Strukturen identifiziert und hinsichtlich ihrer typbezogenen Schwächen systematisch untersucht.
+
+Kapitel~4 beschreibt die systematische Übersetzung ausgewählter Module nach TypeScript. Hierbei werden zentrale Entwurfsentscheidungen dokumentiert und die Unterschiede in der Modellierung von Syntaxbäumen, Zustandsmengen und weiteren mathematischen Objekten herausgearbeitet.
+
+Kapitel~5 stellt die Ergebnisse vergleichend gegenüber. Untersucht werden insbesondere Typsicherheit, Durchsetzung struktureller Invarianten, Wartbarkeit sowie Auswirkungen auf Lesbarkeit und Performance.
+
+Abschließend fasst Kapitel~6 die gewonnenen Erkenntnisse zusammen, bewertet die Ergebnisse im Hinblick auf die eingangs formulierte Fragestellung und gibt einen Ausblick auf mögliche weiterführende Untersuchungen.
