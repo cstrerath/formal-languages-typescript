@@ -3,4 +3,152 @@
 \section{Hauptteil}
 \label{sec:hauptteil}
 
-Der Hauptteil
+Dieses Kapitel behandelt die theoretischen Grundlagen und die praktische
+Einbindung von \emph{Lezer} als Parser-Generator im Kontext der
+Übersetzung von Python-Programmen nach TypeScript. Während in Kapitel~1
+die typentheoretischen Grundlagen von TypeScript analysiert wurden und
+Kapitel~2 geeignete Datenstrukturen diskutierte, wird nun die syntaktische
+Ebene betrachtet: die formale Beschreibung, Analyse und Transformation
+von Programmen mittels Grammatiken und Parsern.
+
+\subsection{Einordnung in die Theorie formaler Sprachen}
+
+Die syntaktische Analyse basiert auf dem Modell kontextfreier Grammatiken
+(Chomsky-Typ~2). Eine kontextfreie Grammatik ist ein vierfach Tupel
+$G = (V, \Sigma, P, S)$ bestehend aus einer Menge von syntaktische Variablen oder Nichtterminalen
+$V$, Terminalen oder Token $\Sigma$, Grammatikregeln $P$ und einem Startsymbol $S$
+\autocite[S.~171]{hopcroft2006automata}.
+
+Die zentrale Aufgabe eines Parsers besteht darin, für eine Eingabesequenz
+ein Ableitungs- bzw.\ Parsebaum-Konstrukt zu bestimmen. Ein Parsebaum
+repräsentiert die hierarchische Struktur der Ableitung und ist Grundlage
+für weitere semantische Transformationen
+\autocite[S.~61f.]{grune2008parsing}.
+
+Für die vorliegende Projektarbeit ist insbesondere die Unterscheidung
+zwischen Top-Down- und Bottom-Up-Verfahren relevant.
+LR-Verfahren (Left-to-right, Rightmost derivation in reverse)
+gehören zur Klasse der deterministischen Bottom-Up-Parser und besitzen
+für kontextfreie Grammatiken eine hohe Ausdrucksstärke
+\autocite[S.~82f.]{grune2008parsing}.
+
+\subsection{Lezer: Konzept und Architektur}
+
+Lezer ist ein moderner Parser-Generator, der im Umfeld des
+CodeMirror-Editors entwickelt wurde. Er erzeugt effiziente
+LR-basierte Parser in JavaScript bzw.\ TypeScript
+\autocite{lezer_docs}.
+
+Im Unterschied zu klassischen Parsergeneratoren wie Yacc oder Bison
+\autocite[S.~287f.]{aho2006compilers} verfolgt Lezer einen stark
+inkrementellen Ansatz. Das bedeutet, dass bei Änderungen am Quelltext
+nicht der gesamte Parsebaum neu konstruiert wird, sondern nur die
+betroffenen Teilbereiche aktualisiert werden.
+
+Formal entspricht die von Lezer verarbeitete Grammatik einer
+kontextfreien Grammatik mit expliziten Präzedenz- und
+Assoziativitätsangaben. Diese Technik dient der Auflösung
+klassischer Mehrdeutigkeiten, etwa bei arithmetischen Ausdrücken
+\autocite[S.~210]{hopcroft2006automata}.
+
+\subsection{Grammatikdefinition in Lezer}
+
+Eine Lezer-Grammatik wird deklarativ beschrieben. Beispielhaft sei
+eine stark vereinfachte Ausdrucksgrammatik angegeben:
+
+\begin{minted}{typescript}
+@top Program { Expression }
+
+Expression {
+  Expression "+" Term |
+  Term
+}
+
+Term {
+  Number |
+  "(" Expression ")"
+}
+
+Number { $[0-9]+ }
+\end{minted}
+
+Formal entspricht dies der kontextfreien Grammatik:
+
+\[
+\begin{aligned}
+Program &\rightarrow Expression \\
+Expression &\rightarrow Expression + Term \mid Term \\
+Term &\rightarrow Number \mid (Expression)
+\end{aligned}
+\]
+
+Die linke Rekursion wird von LR-basierten Verfahren direkt unterstützt,
+im Gegensatz zu LL-Verfahren, bei denen sie zuvor eliminiert werden
+müsste \autocite[S.~212]{aho2006compilers}.
+
+\subsection{Parsebäume und abstrakte Syntaxbäume}
+
+Ein wesentlicher Schritt bei der Übersetzung von Python nach TypeScript
+besteht in der Konstruktion eines abstrakten Syntaxbaums (AST).
+Der konkrete Parsebaum enthält syntaktische Details, während der AST
+auf die semantisch relevanten Knoten reduziert wird
+\autocite[S.~358f.]{aho2006compilers}.
+
+Lezer erzeugt intern eine kompakte Baumrepräsentation, die
+inkrementell aktualisierbar ist. Für Transformationszwecke wird
+dieser Baum traversiert und in eine eigene AST-Struktur überführt,
+welche anschließend zur Codegenerierung genutzt wird.
+
+Die formale Korrektheit dieses Vorgehens lässt sich als
+Homomorphismus zwischen zwei Baumstrukturen interpretieren:
+\[
+h : T_{\text{Python}} \rightarrow T_{\text{TypeScript}}
+\]
+wobei $T_{\text{Python}}$ der durch die Python-Grammatik erzeugte
+Baum ist und $T_{\text{TypeScript}}$ die Zielstruktur repräsentiert.
+
+\subsection{Inkrementelles Parsing und Komplexität}
+
+Klassische LR-Parser besitzen im deterministischen Fall lineare
+Laufzeit in der Länge der Eingabe
+\autocite[S.~73]{hopcroft2006automata}.
+Lezer erweitert dieses Modell um inkrementelle Aktualisierung.
+
+Sei $n$ die Länge des Quelltexts und $k$ die Länge einer lokalen
+Änderung, so wird im Idealfall nur ein Teilbaum der Größe
+$\mathcal{O}(k)$ neu berechnet.
+Dies ist insbesondere für editorintegrierte Anwendungen
+relevant.
+
+\subsection{Bedeutung für die Python--TypeScript-Übersetzung}
+
+Im Rahmen der Projektarbeit übernimmt Lezer folgende Aufgaben:
+
+\begin{itemize}
+    \item Formale Spezifikation der Python-Teilgrammatik
+    \item Konstruktion eines syntaktisch korrekten Parsebaums
+    \item Bereitstellung einer strukturierten Baumrepräsentation
+          für die Transformation
+\end{itemize}
+
+Die syntaktische Korrektheit ist Voraussetzung für die spätere
+Typtransformation und Codegenerierung. Fehlerhafte oder
+mehrdeutige Grammatiken würden direkt zu fehlerhaften
+Übersetzungen führen.
+
+\subsection{Zusammenfassung}
+
+Lezer stellt einen modernen, LR-basierten Parser-Generator dar,
+der sich aufgrund seiner inkrementellen Architektur besonders
+für editornahe Anwendungen eignet. Formal basiert er auf
+kontextfreien Grammatiken und deterministischen
+Bottom-Up-Verfahren.
+
+Für die vorliegende Studienarbeit bildet Lezer die Brücke
+zwischen der formalen Beschreibung der Python-Syntax
+und der strukturierten Transformation in typisierte
+TypeScript-Programme.
+
+Im folgenden Kapitel wird die konkrete Modellierung der
+Python-Grammatik und deren Anpassung an die Anforderungen
+der Übersetzung detailliert analysiert.
