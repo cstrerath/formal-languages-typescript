@@ -11,31 +11,69 @@ Ziel dieses Kapitels ist es, ein formales Verständnis von Typdisziplin und Typs
 
 Ein Typsystem ist ein formales Mittel zur Klassifikation von Ausdrücken und Programmkonstrukten mit dem Ziel, bestimmte Klassen von Laufzeitfehlern auszuschließen. Ein Programm gilt als typsicher, wenn wohlgetypte Programme nicht „stecken bleiben“ und keine Typfehler während der Ausführung auftreten.
 
-In der Typentheorie wird Typsicherheit häufig durch die beiden Eigenschaften \emph{Progress} und \emph{Preservation} charakterisiert \autocite[vgl.\ S.~95\,ff.]{pierce2002tapl}. 
+In der Typentheorie wird Typsicherheit häufig durch die beiden Eigenschaften \emph{Progress} und \emph{Preservation} charakterisiert \autocite[S.95ff]{pierce2002tapl}. 
 Progress besagt, dass ein wohlgetypter Ausdruck entweder bereits ein Wert ist oder einen weiteren Auswertungsschritt durchführen kann. Preservation garantiert, dass sich der Typ eines Ausdrucks während der Auswertung nicht ändert.
 
 Ein statisches Typsystem überprüft diese Eigenschaften vor der Programmausführung, während ein dynamisches Typsystem Typkonsistenz erst zur Laufzeit kontrolliert.
 
 \subsection{Dynamische und statische Typisierung}
 
-Bei dynamisch typisierten Sprachen werden Typinformationen zur Laufzeit überprüft. Variablen sind nicht fest an einen bestimmten Typ gebunden, und Typfehler treten erst während der Ausführung auf. Python ist ein typisches Beispiel für dieses Paradigma.
+Bei dynamisch typisierten Sprachen werden Typinformationen erst zur Laufzeit überprüft. Variablen sind nicht fest an einen bestimmten statischen Typ gebunden, sondern referenzieren Werte, deren Typ während der Ausführung bestimmt wird. Typfehler treten folglich erst dann auf, wenn ein konkreter Ausführungspfad eine inkonsistente Operation ausführt. Python ist ein typisches Beispiel für dieses Paradigma.
 
-Statisch typisierte Sprachen hingegen prüfen Typkonsistenz bereits während der Übersetzung des Programms. Dadurch können viele Fehler frühzeitig erkannt werden, bevor das Programm ausgeführt wird. TypeScript erweitert JavaScript um ein statisches Typsystem, das diese Vorabprüfung ermöglicht \autocite{typescript_handbook_overview}.
+Statisch typisierte Sprachen hingegen prüfen Typkonsistenz bereits während der Übersetzung des Programms und können dadurch bestimmte Klassen von Laufzeitfehlern ausschließen. 
+Die Typprüfung erfolgt somit vor der Programmausführung als Teil der semantischen Analysephase \autocite[S.2ff]{pierce2002tapl}. 
+Ein wohlgetyptes Programm erfüllt dabei die Eigenschaft der Typsicherheit, die in der Typentheorie häufig durch die beiden Prinzipien \emph{Progress} und \emph{Preservation} charakterisiert wird \autocite[S.95ff]{pierce2002tapl}. 
 
-Für compiler-nahe Strukturen ist insbesondere relevant, in welchem Maße ein Typsystem strukturelle Invarianten explizit modellieren und absichern kann.
+Der Unterschied zwischen beiden Paradigmen betrifft nicht lediglich den Zeitpunkt der Fehlererkennung, sondern die strukturelle Rolle des Typsystems im Programmentwurf. Während dynamische Typisierung primär Flexibilität bietet, dient ein statisches Typsystem als formales Mittel zur Spezifikation und Absicherung struktureller Eigenschaften eines Programms.
+
+TypeScript erweitert JavaScript um ein solches statisches Typsystem und ermöglicht dadurch eine frühzeitige Fehlererkennung sowie eine explizitere Modellierung von Datenstrukturen \autocite[S.3ff]{vanderkam2019effective}. Typannotationen werden bereits während der Übersetzung überprüft, wodurch Inkonsistenzen in Funktionssignaturen, Datenstrukturen oder Fallunterscheidungen erkannt werden können, bevor das Programm ausgeführt wird.
+
+Für compiler-nahe Strukturen ist insbesondere relevant, in welchem Maße ein Typsystem strukturelle Invarianten explizit modellieren und absichern kann. Syntaxbäume, Zustandsmengen oder Umgebungsabbildungen besitzen wohldefinierte Formeigenschaften, die sich in einem statischen Typsystem formal ausdrücken lassen. Die Fähigkeit eines Typsystems, solche Invarianten bereits zur Übersetzungszeit zu garantieren, beeinflusst maßgeblich die Sicherheit, Wartbarkeit und strukturelle Klarheit der Implementierung.
 
 \subsection{Zentrale Eigenschaften des Typsystems von TypeScript}
 
-TypeScript ergänzt JavaScript um ein optionales, strukturelles Typsystem. Typannotationen werden beim Übersetzen des Programms überprüft, jedoch nicht zur Laufzeit erzwungen. Der TypeScript-Compiler dient somit als statisches Analysewerkzeug.
+TypeScript verfügt über ein statisches, strukturelles Typsystem, das Typkonsistenz bereits während der Übersetzung überprüft. Die Typprüfung erfolgt somit vor der Programmausführung und dient der Vermeidung bestimmter Klassen von Laufzeitfehlern \autocite[S.2ff]{pierce2002tapl}. 
+Wie in der Compiler-Theorie beschrieben, ist die Typprüfung Teil der semantischen Analysephase \autocite[S.370ff]{aho2006compilers}. 
 
-Für die Modellierung compiler-naher Strukturen sind insbesondere folgende Konzepte relevant:
+Typannotationen werden in TypeScript nicht zur Laufzeit erzwungen, sondern ausschließlich für die statische Analyse verwendet. Der TypeScript-Compiler fungiert damit als Analyse- und Prüfwerkzeug, das Typbeziehungen auswertet und Inkonsistenzen frühzeitig meldet \autocite[S.3ff]{vanderkam2019effective}.
+
+Ein zentrales Merkmal des Typsystems ist seine \emph{strukturelle Typisierung}. Zwei Typen gelten als kompatibel, wenn ihre Struktur übereinstimmt, unabhängig von expliziten Typnamen \autocite{typescript_handbook_everyday-types}. 
+Im Gegensatz zu nominal typisierten Sprachen wird die Typkompatibilität also durch die Form eines Typs bestimmt. Für die Modellierung abstrakter Syntaxbäume oder Zustandsstrukturen ist dies besonders relevant, da sich Typbeziehungen an der tatsächlichen Datenstruktur orientieren.
+
+Für compiler-nahe Implementierungen sind insbesondere folgende Konzepte von Bedeutung:
 
 \begin{itemize}
-    \item Generische Typen zur Modellierung parametrischer Datenstrukturen,
-    \item Vereinigungs- und Schnittmengen-Typen zur Darstellung alternativer Strukturen,
-    \item diskriminierte Vereinigungen zur sicheren Modellierung unterschiedlich geformter AST-Knoten,
-    \item das Schlüsselwort \texttt{readonly} zur Einschränkung von Veränderungen an Daten,
-    \item Exhaustiveness Checking zur vollständigen Fallunterscheidung.
+    \item \textbf{Generische Typen (Generics):}  
+    Generische Typen erlauben eine parametrische Typisierung von Datenstrukturen (z.\,B.\ \texttt{Set<T>} oder \texttt{Map<K,V>}). 
+    Sie entsprechen dem Konzept der parametrischen Polymorphie \autocite[S.337ff]{pierce2002tapl} und ermöglichen die formale Modellierung mathematischer Objekte ohne Typduplikation.
+
+    \item \textbf{Vereinigungs- und Schnittmengen-Typen (Union \& Intersection Types):}  
+    Union-Typen (\texttt{A | B}) erlauben die Darstellung alternativer Strukturen, während Intersection-Typen (\texttt{A \& B}) kombinierte Eigenschaften modellieren \autocite{typescript_handbook_everyday-types}. 
+    Diese Konstrukte sind insbesondere geeignet zur Abbildung unterschiedlich geformter AST-Knoten.
+
+    \item \textbf{Tupel als Produkttypen:}  
+    Tupeltypen stellen feste, positionsabhängige Produkttypen dar (z.\,B.\ \texttt{[State, Symbol]}). 
+    Typentheoretisch entsprechen sie dem kartesischen Produkt \( s \times t \) \autocite[S.370ff]{aho2006compilers}. 
+    Sie eignen sich insbesondere zur Modellierung von Zustandsübergängen oder grammatikalischen Relationen.
+
+    \item \textbf{Kontrollflussbasierte Typverengung (Type Narrowing):}  
+    TypeScript analysiert den Kontrollfluss eines Programms und verfeinert Typinformationen abhängig von Bedingungen \autocite{typescript_handbook_narrowing}. 
+    Dadurch können Varianten eines Union-Typs innerhalb von Fallunterscheidungen typsicher behandelt werden.
+
+    \item \textbf{Unveränderlichkeit durch \texttt{readonly}:}  
+    Eigenschaften können als unveränderlich deklariert werden. 
+    Dies erlaubt die explizite Absicherung struktureller Invarianten, etwa bei Zustandsmengen oder AST-Knoten.
+
+    \item \textbf{Exhaustiveness Checking und der Typ \texttt{never}:}  
+    Bei vollständigen Fallunterscheidungen über Union-Typen kann der Compiler prüfen, ob alle Varianten behandelt wurden. 
+    Nicht behandelte Fälle führen zu einem Typfehler \autocite{typescript_handbook_narrowing}. 
+    Dies stärkt die formale Vollständigkeit von Fallanalysen.
+
+    \item \textbf{Der Typ \texttt{any} und Type Assertions (\texttt{as}):}  
+    Mit \texttt{any} stellt TypeScript einen universellen Typ bereit, der jede Operation zulässt und damit die statische Typprüfung faktisch außer Kraft setzt \autocite{typescript_handbook_everyday-types}. 
+    Type Assertions mittels \texttt{as} erlauben zudem die explizite Überschreibung inferierter Typinformationen. 
+    Beide Mechanismen reduzieren die Strenge des Typsystems erheblich und sollten in strukturell sensiblen Kontexten insbesondere bei compiler-nahen Implementierungen vermieden werden.
 \end{itemize}
 
-Diese Mechanismen erlauben eine explizitere und formalisiertere Modellierung strukturierter Daten als dies in dynamisch typisierten Sprachen üblich ist \autocite{typescript_handbook_narrowing}.
+Zusammenfassend ermöglichen diese Mechanismen eine explizite Modellierung strukturierter Daten sowie die formale Absicherung von Invarianten bereits zur Übersetzungszeit. 
+Strukturbedingungen von Syntaxbäumen, Zustandsmengen oder Übergangsrelationen können dadurch nicht nur implizit durch Konventionen, sondern explizit durch das Typsystem ausgedrückt und überprüft werden.
