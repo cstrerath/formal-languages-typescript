@@ -478,3 +478,54 @@ Python-Datenmodelle in statisch typisierte TypeScript-Strukturen überführt und
 TypeScript-Quelltext generiert. Ein Schwerpunkt liegt dabei auf der typ- und strukturgetreuen
 Abbildung von Python-typischen Schlüsselstrukturen (Tupel/Mengen als Keys), um die Semantik
 der Lehralgorithmen in TypeScript ohne Semantikverlust zu erhalten.
+
+\section{Validierung, Tests und Grenzen der Portierung}
+Nachdem in Kapitel~4 die Transformation und Codegenerierung beschrieben wurde, behandelt dieses Kapitel die praktische Absicherung der Übersetzung: Wie wird überprüft, dass die TypeScript-Implementierungen (i) dieselbe Semantik wie die Python-Versionen besitzen und (ii) die neu eingeführten Typinvarianten tatsächlich eingehalten werden. Ergänzend werden typische Grenzen diskutiert, die sich aus Sprach- und Laufzeitunterschieden ergeben.
+
+\subsection{Statische Absicherung durch den TypeScript-Compiler}
+Ein zentraler Qualitätsgewinn der Portierung ist die frühzeitige Fehlererkennung durch den TypeScript-Compiler. Durch explizite Typen (insbesondere Union-Typen, Tupel-Varianten und generische Container) werden viele Fehlerklassen, die in Python erst zur Laufzeit sichtbar würden, bereits beim Übersetzen ausgeschlossen. In der Praxis betrifft dies vor allem:
+
+\begin{itemize}
+  \item \textbf{Arity-/Formfehler in AST-ähnlichen Strukturen:} Operator-Knoten mit falscher Operandenanzahl werden durch Tupeltypen verhindert.
+  \item \textbf{Inkonsistente Rückgabewerte:} Parser-Funktionen, die in Python Paare (Wert, Restliste) liefern, werden als Tupeltyp \texttt{[Value, TokenList]} modelliert; fehlende oder vertauschte Komponenten sind dadurch statisch auffindbar.
+  \item \textbf{Fehlende Null-/Optional-Behandlung:} Optionale Werte werden explizit als \texttt{T | undefined} bzw.\ \texttt{T | null} modelliert, sodass Zugriff ohne Guard nicht möglich ist. \autocite[S.~73--74]{vanderkam2019effective}
+\end{itemize}
+
+Damit fungiert der TypeScript-Compiler als formales Prüfwerkzeug, das strukturelle Konsistenz über das gesamte Projekt hinweg erzwingt, ohne dass Laufzeitprüfungen notwendig werden. \autocite[S.~44--50]{vanderkam2019effective}
+
+\subsection{Dynamische Validierung durch Tests}
+Die in Kapitel~4 formulierte semantische Äquivalenz
+\[
+\llbracket P \rrbracket_{\text{Python}} = \llbracket f(P) \rrbracket_{\text{TypeScript}}
+\]
+ist im Projektkontext nicht vollständig formal bewiesen, sondern wird durch Tests und Vergleichsausführungen empirisch abgesichert. \autocite[S.~15]{aho2006compilers}
+Dabei werden drei Testebenen unterschieden:
+
+\subsubsection{Unit-Tests für lokale Funktionen}
+Für einzelne Komponenten (z.\,B.\ Tokenisierung, Hilfsfunktionen auf Mengen/Maps, einzelne Transformationsschritte) werden Eingabe-Ausgabe-Tests eingesetzt. Ziel ist, Grenzfälle (leere Eingaben, Sonderzeichen, ungewöhnliche Tokenfolgen) explizit abzudecken.
+
+\subsubsection{Integrations-Tests entlang der Pipeline}
+Integrations-Tests prüfen ganze Verarbeitungsketten, z.\,B.:
+\[
+\text{Source} \rightarrow \text{Scanner} \rightarrow \text{Parser} \rightarrow \text{Transformation} \rightarrow \text{Codegen}
+\]
+Hier steht weniger die isolierte Funktion, sondern die \emph{Kompatibilität der Schnittstellen} im Vordergrund. Gerade die Portierung von ``locker'' typisierten Python-Schnittstellen auf strikt typisierte TypeScript-Schnittstellen deckt an dieser Stelle häufig Integrationsprobleme auf (z.\,B.\ falsche Tokenformen oder uneinheitliche AST-Knotenrepräsentationen).
+
+\subsubsection{Differentialtests: Python vs.\ TypeScript}
+Wo möglich, wird die TypeScript-Ausgabe direkt gegen das Verhalten der Python-Referenz implementiert (``gleiches Input-Set, gleiche Output-Relation''). Besonders geeignet sind hierfür deterministische Funktionen (z.\,B.\ Determinisierung/Minimierung von Automaten, Regex-ParseTree-Erzeugung, Parser-Auswertung arithmetischer Ausdrücke). Diese Vorgehensweise nähert die in Kapitel~4 genannte Korrektheitsforderung praktisch an, ohne vollständige Formalisierung.
+
+\subsection{Typinvarianten als Test}
+Ein Teil der Validierung wird bereits durch das Typmodell selbst übernommen: Viele Zustände sind \emph{nicht konstruierbar}, wenn sie inkonsistent wären (z.\,B.\ falsche Schlüsseltypen in Transitionstabellen, unzulässige AST-Knotenform). Der Compiler wird damit zu einem Hilfsmittel, das ganze Fehlerklassen ausschließt.
+Dieses Prinzip entspricht der Idee, dass gut-typisierte Terme nicht ``schiefgehen'' (``do not go wrong''), da bestimmte fehlerhafte Zustände syntaktisch/typologisch nicht erreichbar sind. \autocite[S.~1]{pierce2002tapl}
+
+\subsection{Grenzen und typische Stolperstellen}
+Trotz der strukturerhaltenden Übersetzung ergeben sich Grenzen aus den Unterschieden zwischen Python und TypeScript:
+
+\begin{itemize}
+  \item \textbf{Gleichheit und Hashing komplexer Schlüssel:} Python erlaubt \texttt{tuple}/\texttt{frozenset} als \texttt{dict}-Keys mit inhaltlicher Gleichheit. In TypeScript erfordert dies projektspezifische Container (\texttt{RecursiveSet}/\texttt{RecursiveMap} bzw.\ \texttt{Tuple}-Wrapper), da \texttt{Map}/\texttt{Set} referenzbasiert arbeiten.
+  \item \textbf{Zahlenmodell:} Python unterscheidet \texttt{int} und \texttt{float}, während TypeScript beide in \texttt{number} abbildet. Dadurch können sehr große Integer oder exakte Ganzzahlarithmetik nicht 1:1 garantiert werden.
+  \item \textbf{Truthiness und implizite Konversionen:} Python erlaubt Bedingungen über beliebige Objekte; TypeScript verlangt typisch explizitere Konversionen bzw.\ Guards, um Narrowing zuverlässig zu erhalten. \autocite[S.~73--74]{vanderkam2019effective}
+\end{itemize}
+
+\subsection{Zusammenfassung Kapitel 5}
+Die Portierung wird durch eine Kombination aus statischer Typprüfung und dynamischen Tests abgesichert. Der TypeScript-Compiler schließt große Teile typischer Python-Fehlerklassen bereits vor der Ausführung aus, während Unit-/Integrations- und Differentialtests die semantische Äquivalenz der übersetzten Beispiele praktisch validieren. Grenzen ergeben sich vor allem aus Laufzeitunterschieden (Equality/Hashing, Zahlenmodell, Konversionen), die im Projekt durch spezifische Datenstrukturen und explizite Guards adressiert werden.
