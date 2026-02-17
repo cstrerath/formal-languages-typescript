@@ -1,6 +1,6 @@
 % !TEX root = ../master.tex
 
-\section{Hauptteil}
+\section{Lezer als Parser-Generator}
 \label{sec:hauptteil}
 
 Dieses Kapitel behandelt die theoretischen Grundlagen und die praktische
@@ -17,20 +17,20 @@ Die syntaktische Analyse basiert auf dem Modell kontextfreier Grammatiken
 (Chomsky-Typ~2). Eine kontextfreie Grammatik ist ein vierfach Tupel
 $G = (V, \Sigma, P, S)$ bestehend aus einer Menge von syntaktische Variablen oder Nichtterminalen
 $V$, Terminalen oder Token $\Sigma$, Grammatikregeln $P$ und einem Startsymbol $S$
-\autocite[S.~171]{hopcroft2006automata}.
+\autocite[S.171ff]{hopcroft2006automata}.
 
 Die zentrale Aufgabe eines Parsers besteht darin, für eine Eingabesequenz
 ein Ableitungs- bzw.\ Parsebaum-Konstrukt zu bestimmen. Ein Parsebaum
 repräsentiert die hierarchische Struktur der Ableitung und ist Grundlage
 für weitere semantische Transformationen
-\autocite[S.~61f.]{grune2008parsing}.
+\autocite[S.61f]{grune2008parsing}.
 
 Für die vorliegende Projektarbeit ist insbesondere die Unterscheidung
 zwischen Top-Down- und Bottom-Up-Verfahren relevant.
 LR-Verfahren (Left-to-right, Rightmost derivation in reverse)
 gehören zur Klasse der deterministischen Bottom-Up-Parser und besitzen
 für kontextfreie Grammatiken eine hohe Ausdrucksstärke
-\autocite[S.~82f.]{grune2008parsing}.
+\autocite[S.82f]{grune2008parsing}.
 
 \subsection{Lezer: Konzept und Architektur}
 
@@ -39,8 +39,8 @@ CodeMirror-Editors entwickelt wurde. Er erzeugt effiziente
 LR-basierte Parser in JavaScript bzw.\ TypeScript
 \autocite{lezer_docs}.
 
-Im Unterschied zu klassischen Parsergeneratoren wie Yacc oder Bison
-\autocite[S.~287f.]{aho2006compilers} verfolgt Lezer einen stark
+Im Unterschied zu klassischen Parsergeneratoren wie Yacc
+\autocite[S.287f]{aho2006compilers} verfolgt Lezer einen stark
 inkrementellen Ansatz. Das bedeutet, dass bei Änderungen am Quelltext
 nicht der gesamte Parsebaum neu konstruiert wird, sondern nur die
 betroffenen Teilbereiche aktualisiert werden.
@@ -49,7 +49,7 @@ Formal entspricht die von Lezer verarbeitete Grammatik einer
 kontextfreien Grammatik mit expliziten Präzedenz- und
 Assoziativitätsangaben. Diese Technik dient der Auflösung
 klassischer Mehrdeutigkeiten, etwa bei arithmetischen Ausdrücken
-\autocite[S.~210]{hopcroft2006automata}.
+\autocite[S.210]{hopcroft2006automata}.
 
 \subsection{Grammatikdefinition in Lezer}
 
@@ -57,34 +57,67 @@ Eine Lezer-Grammatik wird deklarativ beschrieben. Beispielhaft sei
 eine stark vereinfachte Ausdrucksgrammatik angegeben:
 
 \begin{minted}{typescript}
-@top Program { Expression }
+const grammarDefinition = `
+    @top Program { Statement+ }
 
-Expression {
-  Expression "+" Term |
-  Term
-}
+    @tokens {
+        "+" "-" "*" "/" ":="
+        Number      { $[0-9]+ ("." $[0-9]*)?   }
+        Identifier  { $[a-zA-Z] $[a-zA-Z0-9_]* }
+        space       { $[ \t\r\n]+ }
+    }
 
-Term {
-  Number |
-  "(" Expression ")"
-}
+    Statement {
+        Identifier ":=" Expr ";" |
+        Expr ";"
+    }
 
-Number { $[0-9]+ }
+    Expr {
+        Expr "+" Product |
+        Expr "-" Product |
+        Product
+    }
+
+    Product {
+        Product "*" Factor |
+        Product "/" Factor |
+        Factor
+    }
+
+    Factor {
+        "(" Expr ")" |
+        Number       |
+        Identifier
+    }
+
+    @skip { space }
+`;
 \end{minted}
 
 Formal entspricht dies der kontextfreien Grammatik:
 
 \[
-\begin{aligned}
-Program &\rightarrow Expression \\
-Expression &\rightarrow Expression + Term \mid Term \\
-Term &\rightarrow Number \mid (Expression)
-\end{aligned}
+\begin{array}{rcl}
+\mathit{stmt} & \rightarrow & \mathit{IDENTIFIER} ':=' \mathit{expr}\; ';' \\
+              & \mid        & \mathit{expr}\; ';' \\[0.5em]
+
+\mathit{expr} & \rightarrow & \mathit{expr} '+' \mathit{product} \\
+              & \mid        & \mathit{expr} '-' \mathit{product} \\
+              & \mid        & \mathit{product} \\[0.5em]
+
+\mathit{product} & \rightarrow & \mathit{product} '*' \mathit{factor} \\
+                 & \mid        & \mathit{product} '/' \mathit{factor} \\
+                 & \mid        & \mathit{factor} \\[0.5em]
+
+\mathit{factor} & \rightarrow & '(' \mathit{expr} ')' \\
+                & \mid        & \mathit{NUMBER} \\
+                & \mid        & \mathit{IDENTIFIER}
+\end{array}
 \]
 
 Die linke Rekursion wird von LR-basierten Verfahren direkt unterstützt,
 im Gegensatz zu LL-Verfahren, bei denen sie zuvor eliminiert werden
-müsste \autocite[S.~212]{aho2006compilers}.
+müsste \autocite[S.212ff]{aho2006compilers}.
 
 \subsection{Parsebäume und abstrakte Syntaxbäume}
 
@@ -92,7 +125,7 @@ Ein wesentlicher Schritt bei der Übersetzung von Python nach TypeScript
 besteht in der Konstruktion eines abstrakten Syntaxbaums (AST).
 Der konkrete Parsebaum enthält syntaktische Details, während der AST
 auf die semantisch relevanten Knoten reduziert wird
-\autocite[S.~358f.]{aho2006compilers}.
+\autocite[S.358f.]{aho2006compilers}.
 
 Lezer erzeugt intern eine kompakte Baumrepräsentation, die
 inkrementell aktualisierbar ist. Für Transformationszwecke wird
@@ -122,7 +155,7 @@ relevant.
 
 \subsection{Bedeutung für die Python--TypeScript-Übersetzung}
 
-Im Rahmen der Projektarbeit übernimmt Lezer folgende Aufgaben:
+Im Rahmen der Studienarbeit übernimmt Lezer folgende Aufgaben:
 
 \begin{itemize}
     \item Formale Spezifikation der Python-Teilgrammatik
@@ -136,7 +169,7 @@ Typtransformation und Codegenerierung. Fehlerhafte oder
 mehrdeutige Grammatiken würden direkt zu fehlerhaften
 Übersetzungen führen.
 
-\subsection{Zusammenfassung}
+\subsection{Zusammenfassung Kapitel 3}
 
 Lezer stellt einen modernen, LR-basierten Parser-Generator dar,
 der sich aufgrund seiner inkrementellen Architektur besonders
@@ -152,3 +185,148 @@ TypeScript-Programme.
 Im folgenden Kapitel wird die konkrete Modellierung der
 Python-Grammatik und deren Anpassung an die Anforderungen
 der Übersetzung detailliert analysiert.
+
+\section{Transformation und Codegenerierung}
+
+Nachdem in Kapitel~3 die syntaktische Analyse mittels Lezer
+behandelt wurde, erfolgt nun die semantische Transformation
+des erzeugten abstrakten Syntaxbaums. Ziel ist die Abbildung
+eines Python-Programms auf ein strukturell und typologisch
+äquivalentes TypeScript-Programm.
+
+\subsection{Syntaxgerichtete Übersetzung}
+
+Die Transformation basiert auf dem Konzept der
+syntaxgerichteten Übersetzung. Dabei werden jedem
+Grammatiksymbol Attribute zugeordnet, deren Werte
+während der Baumtraversierung berechnet werden
+\autocite[S.~304]{aho2006compilers}.
+
+Eine syntaxgerichtete Definition besteht aus:
+
+\begin{itemize}
+    \item einer kontextfreien Grammatik
+    \item einer Menge von Attributen
+    \item semantischen Regeln zur Attributberechnung
+\end{itemize}
+
+Formal kann eine solche Definition als Tupel
+$(G, A, R)$ modelliert werden, wobei
+$G$ die Grammatik, $A$ die Attributmenge
+und $R$ die Berechnungsregeln bezeichnet.
+
+\subsection{Abbildung von Python- auf TypeScript-Typen}
+
+Ein wesentlicher Unterschied zwischen Python und TypeScript
+liegt in der Typisierung. Python ist dynamisch typisiert,
+während TypeScript eine statische Typprüfung durchführt
+\autocite[S.~1]{pierce2002tapl}.
+
+Die Transformation erfordert daher eine explizite
+Typableitung für Python-Ausdrücke. Diese kann durch
+Typinferenz oder durch explizite Annotation erfolgen.
+
+Beispielsweise wird in Python:
+
+\begin{minted}{python}
+x = 5
+\end{minted}
+
+in TypeScript transformiert zu:
+
+\begin{minted}{typescript}
+let x: number = 5;
+\end{minted}
+
+Die Typzuordnung basiert auf einer Abbildungsfunktion:
+
+\[
+\tau : T_{\text{Python}} \rightarrow T_{\text{TypeScript}}
+\]
+
+\subsection{Transformation des abstrakten Syntaxbaums}
+
+Die AST-Transformation erfolgt durch rekursive Traversierung.
+Jeder Knotentyp wird auf einen korrespondierenden
+TypeScript-Knoten abgebildet.
+
+Sei $t \in T_{\text{Python}}$ ein Syntaxbaum.
+Die Transformation ist eine Funktion
+
+\[
+f(t) = t'
+\]
+
+mit $t' \in T_{\text{TypeScript}}$.
+
+Diese Transformation ist strukturerhaltend,
+d.\,h.\ die Hierarchie der Ausdrücke bleibt erhalten,
+während nur Typannotationen und syntaktische Unterschiede
+angepasst werden.
+
+\subsection{Behandlung semantischer Unterschiede}
+
+Python erlaubt beispielsweise implizite Wahrheitswerte
+für beliebige Objekte, während TypeScript strengere
+Typbedingungen besitzt.
+
+Ein Beispiel:
+
+\begin{minted}{python}
+if x:
+    print(x)
+\end{minted}
+
+muss transformiert werden zu:
+
+\begin{minted}{typescript}
+if (Boolean(x)) {
+    console.log(x);
+}
+\end{minted}
+
+Hier wird eine explizite Typkonversion eingeführt.
+
+\subsection{Erzeugung von TypeScript-Code}
+
+Die Codegenerierung erfolgt nach der Baumtransformation
+durch Serialisierung des Ziel-Abstract-Syntaxbaums.
+Dabei werden:
+
+\begin{itemize}
+    \item Typannotationen eingefügt
+    \item Blockstrukturen angepasst
+    \item Semikolons ergänzt
+\end{itemize}
+
+Die Generierung entspricht formal einer
+linearen Projektion des Baums:
+
+\[
+g : T_{\text{TypeScript}} \rightarrow \Sigma^*
+\]
+
+\subsection{Korrektheit der Transformation}
+
+Die Übersetzung ist korrekt, wenn für jedes
+zulässige Python-Programm $P$ gilt:
+
+\[
+\llbracket P \rrbracket_{\text{Python}}
+=
+\llbracket f(P) \rrbracket_{\text{TypeScript}}
+\]
+
+unter Berücksichtigung der Typrestriktionen.
+
+Dies entspricht dem Begriff der
+semantischen Äquivalenz
+\autocite[S.~15]{aho2006compilers}.
+
+\subsection{Zusammenfassung Kapitel 4}
+
+In diesem Kapitel wurde die semantische Transformation
+zwischen Python und TypeScript formal modelliert.
+Die Übersetzung basiert auf syntaxgerichteter
+Transformation, Typabbildung und strukturerhaltender
+Baumtransformation.
