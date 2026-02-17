@@ -144,7 +144,7 @@ Baum ist und $T_{\text{TypeScript}}$ die Zielstruktur repräsentiert.
 
 Klassische LR-Parser besitzen im deterministischen Fall lineare
 Laufzeit in der Länge der Eingabe
-\autocite[S.~73]{hopcroft2006automata}.
+\autocite[S.73]{hopcroft2006automata}.
 Lezer erweitert dieses Modell um inkrementelle Aktualisierung.
 
 Sei $n$ die Länge des Quelltexts und $k$ die Länge einer lokalen
@@ -187,146 +187,294 @@ Python-Grammatik und deren Anpassung an die Anforderungen
 der Übersetzung detailliert analysiert.
 
 \section{Transformation und Codegenerierung}
+\label{sec:transformation-codegen}
 
-Nachdem in Kapitel~3 die syntaktische Analyse mittels Lezer
-behandelt wurde, erfolgt nun die semantische Transformation
-des erzeugten abstrakten Syntaxbaums. Ziel ist die Abbildung
-eines Python-Programms auf ein strukturell und typologisch
-äquivalentes TypeScript-Programm.
+Nachdem in Kapitel~3 die syntaktische Analyse mittels \emph{Lezer} behandelt wurde,
+steht nun die semantische Verarbeitung des erzeugten Syntaxbaums im Fokus.
+Ziel ist eine Abbildung eines Python-Programms bzw.\ der Python-Lehrbeispiele auf ein
+strukturell und typologisch äquivalentes TypeScript-Programm.
+Dabei umfasst ``Transformation'' sowohl (i) die Zuordnung/Explizierung von Typinformationen
+als auch (ii) die Anpassung an syntaktische und semantische Unterschiede zwischen beiden Sprachen,
+bevor abschließend (iii) TypeScript-Quelltext generiert wird.
 
-\subsection{Syntaxgerichtete Übersetzung}
+\subsection{Einordnung als syntaxgerichtete Übersetzung}
 
-Die Transformation basiert auf dem Konzept der
-syntaxgerichteten Übersetzung. Dabei werden jedem
-Grammatiksymbol Attribute zugeordnet, deren Werte
-während der Baumtraversierung berechnet werden
-\autocite[S.~304]{aho2006compilers}.
+Die Umsetzung folgt dem Prinzip der \emph{syntaxgerichteten Übersetzung}:
+Grammatiksymbolen werden Attribute zugeordnet, deren Werte während der Traversierung
+berechnet werden \autocite[S.~304]{aho2006compilers}.
+In der Praxis werden diese Attribute im Projekt insbesondere genutzt, um
+\emph{(a)} typologische Informationen zu propagieren (z.\,B.\ ``Zahl'', ``Tokenliste'',
+``Automatenzustand''), und \emph{(b)} passende Zielkonstrukte in TypeScript zu wählen
+(z.\,B.\ Tupeltypen, Union-Typen oder projektinterne Container mit struktureller Gleichheit).
 
-Eine syntaxgerichtete Definition besteht aus:
+Eine syntaxgerichtete Definition kann als Tupel $(G, A, R)$ modelliert werden, wobei
+$G$ eine kontextfreie Grammatik bezeichnet, $A$ eine Attributmenge, und $R$
+die Menge semantischer Regeln zur Attributberechnung.
 
-\begin{itemize}
-    \item einer kontextfreien Grammatik
-    \item einer Menge von Attributen
-    \item semantischen Regeln zur Attributberechnung
-\end{itemize}
+\subsection{Abbildung von Python- auf TypeScript-Typen (erweitert)}
+\label{sec:type-mapping}
 
-Formal kann eine solche Definition als Tupel
-$(G, A, R)$ modelliert werden, wobei
-$G$ die Grammatik, $A$ die Attributmenge
-und $R$ die Berechnungsregeln bezeichnet.
-
-\subsection{Abbildung von Python- auf TypeScript-Typen}
-
-Ein wesentlicher Unterschied zwischen Python und TypeScript
-liegt in der Typisierung. Python ist dynamisch typisiert,
-während TypeScript eine statische Typprüfung durchführt
+Ein wesentlicher Unterschied zwischen Python und TypeScript liegt in der Typisierung.
+Python ist dynamisch typisiert, während TypeScript eine statische Typprüfung durchführt
 \autocite[S.~1]{pierce2002tapl}.
+Für die Portierung bedeutet dies: Datenformen, die in Python \emph{implizit} zur Laufzeit entstehen,
+müssen in TypeScript \emph{explizit} und konsistent modelliert werden.
 
-Die Transformation erfordert daher eine explizite
-Typableitung für Python-Ausdrücke. Diese kann durch
-Typinferenz oder durch explizite Annotation erfolgen.
+TypeScript ist zudem \emph{strukturell} typisiert: Typkompatibilität ergibt sich aus der Struktur,
+nicht aus nominalen Typnamen. Dadurch lassen sich viele Python-Datenmodelle direkt als
+Objekt-/Record-Strukturen oder als Union-Typen ausdrücken \autocite[S.~44--50]{vanderkam2019effective}.
 
-Beispielsweise wird in Python:
+\subsubsection{Grundabbildungen}
+Für Basis- und Standard-Container-Typen ergibt sich zunächst eine direkte Abbildung:
 
-\begin{minted}{python}
-x = 5
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Python} & \textbf{TypeScript} & \textbf{Bemerkung} \\
+\midrule
+\texttt{int}, \texttt{float} & \texttt{number} & gemeinsame Zahlendomäne \\
+\texttt{bool} & \texttt{boolean} & direkt \\
+\texttt{str} & \texttt{string} & direkt \\
+\texttt{list[T]} & \texttt{T[]} / \texttt{Array<T>} & sequenziell, indexierbar \\
+\texttt{tuple[T1,T2]} & \texttt{[T1,T2]} & feste Länge/Positionen \\
+\texttt{X | Y} & \texttt{X | Y} & Union-Typen (mit Narrowing) \\
+\texttt{Literal[\string"A\string",\string"B\string"]} & \texttt{\string"A\string"\ |\ \string"B\string"} & String-Literal-Union \\
+\texttt{None} / optional & \texttt{null} / \texttt{undefined} & je nach Modellierung \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Union-Typen werden im Projekt genutzt, um Python-typische Mehrdeutigkeiten (z.\,B.\
+``Zahl \emph{oder} AST-Knoten'') statisch auszudrücken. Durch Guards/Narrowing können gültige
+Fälle schrittweise eingegrenzt werden \autocite[S.~73--74]{vanderkam2019effective}.
+
+\subsubsection{Unions, Literale und Generics (Beispiele aus der Portierung)}
+Im Python-Notebook werden Unions (PEP~604), Literale und \texttt{TypeVar} genutzt;
+in TypeScript werden diese als Union-Typen, String-Literal-Unions und Generics umgesetzt:
+
+\begin{minted}[label={Beispielcode in Python}]{python}
+Name      = str | dict[str, str]
+Direction = Literal["North", "East", "South", "West"]
+
+a = TypeVar("a")
+b = TypeVar("b")
+def swap(x: a, y: b) -> tuple[b, a]:
+    return (y, x)
 \end{minted}
 
-in TypeScript transformiert zu:
+\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
+type Name = string | Record<string, string>;
+type Direction = "North" | "East" | "South" | "West";
 
-\begin{minted}{typescript}
-let x: number = 5;
+function swap<a, b>(x: a, y: b): [b, a] {
+  return [y, x];
+}
 \end{minted}
 
-Die Typzuordnung basiert auf einer Abbildungsfunktion:
+\subsubsection{Schlüsselstrukturen: \texttt{tuple}/\texttt{frozenset} als Keys}
+Ein zentraler Unterschied betrifft Python-typische Muster wie
+\texttt{dict} mit \texttt{tuple}-Schlüsseln oder \texttt{frozenset} (hashbar, unveränderlich).
+In JavaScript/TypeScript verwenden \texttt{Map}/\texttt{Set} bei Objekt-/Array-Keys standardmäßig
+\emph{Referenzgleichheit}; in Python basieren \texttt{tuple}/\texttt{frozenset} hingegen auf
+\emph{Wertgleichheit} (Inhalt).
+Damit Algorithmen (z.\,B.\ Determinisierung, Minimierung, Äquivalenzprüfung) unverändert funktionieren,
+werden im Projekt strukturell vergleichbare Container eingesetzt:
+\texttt{Tuple<...>} (wertbasierte Tupel) sowie \texttt{RecursiveSet<T>} und \texttt{RecursiveMap<K,V>}
+(Containers mit struktureller Gleichheit und Hashbarkeit).
 
-\[
-\tau : T_{\text{Python}} \rightarrow T_{\text{TypeScript}}
-\]
+\subsubsection{Automaten: \texttt{set}/\texttt{frozenset}, Transitionen und Zustandsmengen}
+\paragraph{Python:} Zustandsmengen werden für Immutability und Hashbarkeit als \texttt{frozenset}
+modelliert; Transitionen sind \texttt{dict} mit \texttt{tuple}-Schlüsseln:
+
+\begin{minted}[label={Beispielcode in Python}]{python}
+State       = TypeVar("State", str, int)
+Char        = str
+TransRel    = dict[tuple[State, Char], set[State]]
+TransRelDet = dict[tuple[frozenset[State], Char], frozenset[State]]
+
+NFA = tuple[set[State], set[Char], TransRel, State, set[State]]
+DFA = tuple[
+    set[frozenset[State]], set[Char], TransRelDet,
+    frozenset[State], set[frozenset[State]]
+]
+\end{minted}
+
+\paragraph{TypeScript:} Für strukturelle Gleichheit (gleicher Inhalt statt gleicher Referenz)
+werden \texttt{RecursiveSet} und \texttt{RecursiveMap} verwendet; komplexe Schlüssel werden über
+\texttt{Tuple<...>} repräsentiert:
+
+\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
+type State = string | number;
+type Char = string;
+
+type DFAState = RecursiveSet<State>;
+
+type TransRel =
+  RecursiveMap<Tuple<[State, Char]>, RecursiveSet<State>>;
+
+type TransRelDet =
+  RecursiveMap<Tuple<[DFAState, Char]>, DFAState>;
+
+interface NFA {
+  Q: RecursiveSet<State>;
+  Sigma: RecursiveSet<Char>;
+  delta: TransRel;
+  q0: State;
+  A: RecursiveSet<State>;
+}
+
+interface DFA {
+  Q: RecursiveSet<DFAState>;
+  Sigma: RecursiveSet<Char>;
+  delta: TransRelDet;
+  q0: DFAState;
+  A: RecursiveSet<DFAState>;
+}
+\end{minted}
+
+Damit bleibt die in Python ``natürliche'' Nutzung von Mengen/Tupeln als Schlüssel
+(z.\,B.\ im Determinisierungsalgorithmus) in TypeScript semantisch erhalten, ohne auf \texttt{any}
+oder manuelle Serialisierung ausweichen zu müssen.
+
+\subsubsection{Rekursive Strukturen: ParseTree, RegExp und AST}
+Viele Lehrbeispiele modellieren Bäume rekursiv. Python nutzt hierfür häufig verschachtelte Tupel und Unions;
+TypeScript bildet dies entweder als rekursive Union-Typen oder als explizite \texttt{Tuple}-Formen ab.
+
+\paragraph{ParseTree (RegExp):}
+\begin{minted}[label={Beispielcode in Python}]{python}
+ParseTree     = tuple[str, list["ParseTree"]]
+ParseTreeList = list[ParseTree]
+\end{minted}
+
+\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
+type ParseTree = Tuple<[string, ParseTreeList]>;
+type ParseTreeList = ParseTree[];
+\end{minted}
+
+\paragraph{AST (Ausdrucksbäume):}
+In Python wird der AST häufig als ``Atom oder verschachteltes Tupel'' modelliert; eine Umgebung als \texttt{dict}:
+
+\begin{minted}[label={Beispielcode in Python}]{python}
+NestedTuple = TypeVar('NestedTuple')
+NestedTuple = int | str | tuple[NestedTuple, ...]
+Number      = int | float
+\end{minted}
+
+In TypeScript wird dies in ein rekursives AST-Union überführt, plus explizite Environment-Struktur:
+
+\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
+type Operator = string;
+type AST = string | number | 
+           [Operator, AST]                |
+           [Operator, AST, AST]           |
+           [Operator, AST, AST, AST]      |
+           [Operator, AST, AST, AST, AST];
+\end{minted}
+
+Die Fallunterscheidung erfolgt in TypeScript entsprechend über die Tupellänge und ggf.\ über Guards (z.\,B.\ \texttt{Array.isArray(x)} und \texttt{x.length}), wodurch die Auswertung/Transformation analog zum Python-Code umgesetzt werden kann.
+
+\subsubsection{Parser-Rückgabewerte: \texttt{tuple} → TS-Tupeltyp}
+Für rekursive Descent-Parser liefern Python-Funktionen häufig ein Paar aus ``Wert'' und ``Resttokenliste'' zurück.
+In TypeScript wird dies als Tupeltyp modelliert:
+
+\begin{minted}[label={Beispielcode in Python}]{python}
+def parseExpr(TL: list[str]) -> tuple[float, list[str]]:
+    ...
+def parseFactor(TL: list[str]) -> tuple[float, list[str]]:
+    ...
+\end{minted}
+
+\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
+type TokenList = string[];
+type ParseResult = [number, TokenList];
+type Parser = (TL: TokenList) => ParseResult;
+
+function parseExpr(TL: TokenList): ParseResult { /* ... */ }
+function parseFactor(TL: TokenList): ParseResult { /* ... */ }
+\end{minted}
+
+\paragraph{Zwischenfazit.}
+Die Portierung nutzt Standardabbildungen (z.\,B.\ \texttt{list[T]}→\texttt{T[]}) dort,
+wo TypeScript dieselbe Semantik bietet. Für Python-typische Schlüsselstrukturen
+(\texttt{tuple}/\texttt{frozenset} als Keys) sind jedoch eigene, strukturell vergleichbare Container notwendig,
+um die Algorithmen (Determinize/Minimize/Equivalence) ohne Semantikverlust in TypeScript ausdrücken zu können.
 
 \subsection{Transformation des abstrakten Syntaxbaums}
 
-Die AST-Transformation erfolgt durch rekursive Traversierung.
-Jeder Knotentyp wird auf einen korrespondierenden
-TypeScript-Knoten abgebildet.
-
-Sei $t \in T_{\text{Python}}$ ein Syntaxbaum.
-Die Transformation ist eine Funktion
-
+Die eigentliche Transformation erfolgt durch rekursive Traversierung des Syntaxbaums.
+Dabei wird jeder Python-Knoten (bzw.\ jede Python-Konstruktion) auf einen korrespondierenden
+TypeScript-Knoten abgebildet. Formal sei $t \in T_{\text{Python}}$ ein Syntaxbaum, dann ist die Transformation
+eine Funktion
 \[
 f(t) = t'
 \]
-
 mit $t' \in T_{\text{TypeScript}}$.
 
-Diese Transformation ist strukturerhaltend,
-d.\,h.\ die Hierarchie der Ausdrücke bleibt erhalten,
-während nur Typannotationen und syntaktische Unterschiede
-angepasst werden.
+Die Transformation ist \emph{strukturerhaltend}:
+Die Hierarchie der Ausdrücke bleibt erhalten, während (i) Typannotationen ergänzt,
+(ii) konkrete Syntaxformen angepasst und (iii) notwendige Hilfskonstrukte (z.\,B.\ Guards)
+eingeführt werden.
 
 \subsection{Behandlung semantischer Unterschiede}
 
-Python erlaubt beispielsweise implizite Wahrheitswerte
-für beliebige Objekte, während TypeScript strengere
-Typbedingungen besitzt.
+Python erlaubt z.\,B.\ implizite Wahrheitswerte für beliebige Objekte, während TypeScript
+eine strengere Typdisziplin verlangt. Ein Python-Konstrukt wie
 
-Ein Beispiel:
-
-\begin{minted}{python}
+\begin{minted}[label={Beispielcode in Python}]{python}
 if x:
     print(x)
 \end{minted}
 
-muss transformiert werden zu:
+wird daher in TypeScript explizit konvertiert bzw.\ durch Guards abgesichert:
 
-\begin{minted}{typescript}
+\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
 if (Boolean(x)) {
-    console.log(x);
+  console.log(x);
 }
 \end{minted}
 
-Hier wird eine explizite Typkonversion eingeführt.
+Je nach Datentyp kann statt \texttt{Boolean(x)} auch ein präziser Guard sinnvoll sein
+(z.\,B.\ \texttt{x !== undefined \&\& x !== null} oder \texttt{typeof x === "number"}).
+Solche Anpassungen sind Teil der semantischen Phase der Übersetzung, da sie
+nicht rein syntaktisch entschieden werden können.
 
 \subsection{Erzeugung von TypeScript-Code}
 
-Die Codegenerierung erfolgt nach der Baumtransformation
-durch Serialisierung des Ziel-Abstract-Syntaxbaums.
-Dabei werden:
+Die Codegenerierung erfolgt nach der Baumtransformation durch Serialisierung des Ziel-IR
+(bzw.\ Ziel-AST) in TypeScript-Quelltext. Dabei werden insbesondere
 
 \begin{itemize}
-    \item Typannotationen eingefügt
-    \item Blockstrukturen angepasst
-    \item Semikolons ergänzt
+  \item Typannotationen eingefügt (z.\,B.\ \texttt{: number}, \texttt{: ParseResult}),
+  \item Blockstrukturen an TypeScript angepasst,
+  \item optionale syntaktische Normalisierungen vorgenommen (z.\,B.\ Semikolons, Klammerung).
 \end{itemize}
 
-Die Generierung entspricht formal einer
-linearen Projektion des Baums:
-
+Formal entspricht die Generierung einer linearen Projektion des Baums:
 \[
 g : T_{\text{TypeScript}} \rightarrow \Sigma^*
 \]
+wobei $\Sigma^*$ die Menge aller möglichen Quelltextstrings bezeichnet.
 
 \subsection{Korrektheit der Transformation}
 
-Die Übersetzung ist korrekt, wenn für jedes
-zulässige Python-Programm $P$ gilt:
-
+Die Übersetzung ist korrekt, wenn für jedes zulässige Python-Programm $P$ gilt:
 \[
 \llbracket P \rrbracket_{\text{Python}}
 =
 \llbracket f(P) \rrbracket_{\text{TypeScript}}
 \]
+unter Berücksichtigung der eingeführten Typrestriktionen und ggf.\ notwendiger Guards.
+Dies entspricht dem Begriff der \emph{semantischen Äquivalenz} \autocite[S.~15]{aho2006compilers}.
 
-unter Berücksichtigung der Typrestriktionen.
-
-Dies entspricht dem Begriff der
-semantischen Äquivalenz
-\autocite[S.~15]{aho2006compilers}.
+In der praktischen Umsetzung wird diese Forderung typischerweise durch eine Kombination aus
+Testfällen (z.\,B.\ Referenz-Ausgaben) und Invarianten abgesichert (z.\,B.\ ``Übergangsfunktion bleibt total auf dem Alphabet'',
+``AST-Knotenformen sind vollständig abgedeckt'').
 
 \subsection{Zusammenfassung Kapitel 4}
 
-In diesem Kapitel wurde die semantische Transformation
-zwischen Python und TypeScript formal modelliert.
-Die Übersetzung basiert auf syntaxgerichteter
-Transformation, Typabbildung und strukturerhaltender
-Baumtransformation.
+Kapitel~4 hat die Transformation von Python nach TypeScript als semantische Phase der Übersetzung
+modelliert: auf Basis syntaxgerichteter Regeln werden Typinformationen expliziert,
+Python-Datenmodelle in statisch typisierte TypeScript-Strukturen überführt und anschließend
+TypeScript-Quelltext generiert. Ein Schwerpunkt liegt dabei auf der typ- und strukturgetreuen
+Abbildung von Python-typischen Schlüsselstrukturen (Tupel/Mengen als Keys), um die Semantik
+der Lehralgorithmen in TypeScript ohne Semantikverlust zu erhalten.
