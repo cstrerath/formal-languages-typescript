@@ -201,7 +201,7 @@ bevor abschließend (iii) TypeScript-Quelltext generiert wird.
 
 Die Umsetzung folgt dem Prinzip der \emph{syntaxgerichteten Übersetzung}:
 Grammatiksymbolen werden Attribute zugeordnet, deren Werte während der Traversierung
-berechnet werden \autocite[S.~304]{aho2006compilers}.
+berechnet werden \autocite[S.304ff]{aho2006compilers}.
 In der Praxis werden diese Attribute im Projekt insbesondere genutzt, um
 \emph{(a)} typologische Informationen zu propagieren (z.\,B.\ ``Zahl'', ``Tokenliste'',
 ``Automatenzustand''), und \emph{(b)} passende Zielkonstrukte in TypeScript zu wählen
@@ -216,13 +216,13 @@ die Menge semantischer Regeln zur Attributberechnung.
 
 Ein wesentlicher Unterschied zwischen Python und TypeScript liegt in der Typisierung.
 Python ist dynamisch typisiert, während TypeScript eine statische Typprüfung durchführt
-\autocite[S.~1]{pierce2002tapl}.
+\autocite[S.1ff]{pierce2002tapl}.
 Für die Portierung bedeutet dies: Datenformen, die in Python \emph{implizit} zur Laufzeit entstehen,
 müssen in TypeScript \emph{explizit} und konsistent modelliert werden.
 
 TypeScript ist zudem \emph{strukturell} typisiert: Typkompatibilität ergibt sich aus der Struktur,
 nicht aus nominalen Typnamen. Dadurch lassen sich viele Python-Datenmodelle direkt als
-Objekt-/Record-Strukturen oder als Union-Typen ausdrücken \autocite[S.~44--50]{vanderkam2019effective}.
+Objekt-/Record-Strukturen oder als Union-Typen ausdrücken \autocite[S.44ff]{vanderkam2019effective}.
 
 \subsubsection{Grundabbildungen}
 Für Basis- und Standard-Container-Typen ergibt sich zunächst eine direkte Abbildung:
@@ -246,7 +246,7 @@ Für Basis- und Standard-Container-Typen ergibt sich zunächst eine direkte Abbi
 
 Union-Typen werden im Projekt genutzt, um Python-typische Mehrdeutigkeiten (z.\,B.\
 ``Zahl \emph{oder} AST-Knoten'') statisch auszudrücken. Durch Guards/Narrowing können gültige
-Fälle schrittweise eingegrenzt werden \autocite[S.~73--74]{vanderkam2019effective}.
+Fälle schrittweise eingegrenzt werden \autocite[S.73ff]{vanderkam2019effective}.
 
 \subsubsection{Unions, Literale und Generics (Beispiele aus der Portierung)}
 Im Python-Notebook werden Unions (PEP~604), Literale und \texttt{TypeVar} genutzt;
@@ -464,7 +464,7 @@ Die Übersetzung ist korrekt, wenn für jedes zulässige Python-Programm $P$ gil
 \llbracket f(P) \rrbracket_{\text{TypeScript}}
 \]
 unter Berücksichtigung der eingeführten Typrestriktionen und ggf.\ notwendiger Guards.
-Dies entspricht dem Begriff der \emph{semantischen Äquivalenz} \autocite[S.~15]{aho2006compilers}.
+Dies entspricht dem Begriff der \emph{semantischen Äquivalenz} \autocite[S.15ff]{aho2006compilers}.
 
 In der praktischen Umsetzung wird diese Forderung typischerweise durch eine Kombination aus
 Testfällen (z.\,B.\ Referenz-Ausgaben) und Invarianten abgesichert (z.\,B.\ ``Übergangsfunktion bleibt total auf dem Alphabet'',
@@ -488,17 +488,17 @@ Ein zentraler Qualitätsgewinn der Portierung ist die frühzeitige Fehlererkennu
 \begin{itemize}
   \item \textbf{Arity-/Formfehler in AST-ähnlichen Strukturen:} Operator-Knoten mit falscher Operandenanzahl werden durch Tupeltypen verhindert.
   \item \textbf{Inkonsistente Rückgabewerte:} Parser-Funktionen, die in Python Paare (Wert, Restliste) liefern, werden als Tupeltyp \texttt{[Value, TokenList]} modelliert; fehlende oder vertauschte Komponenten sind dadurch statisch auffindbar.
-  \item \textbf{Fehlende Null-/Optional-Behandlung:} Optionale Werte werden explizit als \texttt{T | undefined} bzw.\ \texttt{T | null} modelliert, sodass Zugriff ohne Guard nicht möglich ist. \autocite[S.~73--74]{vanderkam2019effective}
+  \item \textbf{Fehlende Null-/Optional-Behandlung:} Optionale Werte werden explizit als \texttt{T | undefined} bzw.\ \texttt{T | null} modelliert, sodass Zugriff ohne Guard nicht möglich ist. \autocite[S.73ff]{vanderkam2019effective}
 \end{itemize}
 
-Damit fungiert der TypeScript-Compiler als formales Prüfwerkzeug, das strukturelle Konsistenz über das gesamte Projekt hinweg erzwingt, ohne dass Laufzeitprüfungen notwendig werden. \autocite[S.~44--50]{vanderkam2019effective}
+Damit fungiert der TypeScript-Compiler als formales Prüfwerkzeug, das strukturelle Konsistenz über das gesamte Projekt hinweg erzwingt, ohne dass Laufzeitprüfungen notwendig werden. \autocite[S.44ff]{vanderkam2019effective}
 
 \subsection{Dynamische Validierung durch Tests}
 Die in Kapitel~4 formulierte semantische Äquivalenz
 \[
 \llbracket P \rrbracket_{\text{Python}} = \llbracket f(P) \rrbracket_{\text{TypeScript}}
 \]
-ist im Projektkontext nicht vollständig formal bewiesen, sondern wird durch Tests und Vergleichsausführungen empirisch abgesichert. \autocite[S.~15]{aho2006compilers}
+ist im Projektkontext nicht vollständig formal bewiesen, sondern wird durch Tests und Vergleichsausführungen empirisch abgesichert. \autocite[S.15ff]{aho2006compilers}
 Dabei werden drei Testebenen unterschieden:
 
 \subsubsection{Unit-Tests für lokale Funktionen}
@@ -516,7 +516,7 @@ Wo möglich, wird die TypeScript-Ausgabe direkt gegen das Verhalten der Python-R
 
 \subsection{Typinvarianten als Test}
 Ein Teil der Validierung wird bereits durch das Typmodell selbst übernommen: Viele Zustände sind \emph{nicht konstruierbar}, wenn sie inkonsistent wären (z.\,B.\ falsche Schlüsseltypen in Transitionstabellen, unzulässige AST-Knotenform). Der Compiler wird damit zu einem Hilfsmittel, das ganze Fehlerklassen ausschließt.
-Dieses Prinzip entspricht der Idee, dass gut-typisierte Terme nicht ``schiefgehen'' (``do not go wrong''), da bestimmte fehlerhafte Zustände syntaktisch/typologisch nicht erreichbar sind. \autocite[S.~1]{pierce2002tapl}
+Dieses Prinzip entspricht der Idee, dass gut-typisierte Terme nicht ``schiefgehen'' (``do not go wrong''), da bestimmte fehlerhafte Zustände syntaktisch/typologisch nicht erreichbar sind. \autocite[S.1ff]{pierce2002tapl}
 
 \subsection{Grenzen und typische Stolperstellen}
 Trotz der strukturerhaltenden Übersetzung ergeben sich Grenzen aus den Unterschieden zwischen Python und TypeScript:
@@ -524,7 +524,8 @@ Trotz der strukturerhaltenden Übersetzung ergeben sich Grenzen aus den Untersch
 \begin{itemize}
   \item \textbf{Gleichheit und Hashing komplexer Schlüssel:} Python erlaubt \texttt{tuple}/\texttt{frozenset} als \texttt{dict}-Keys mit inhaltlicher Gleichheit. In TypeScript erfordert dies projektspezifische Container (\texttt{RecursiveSet}/\texttt{RecursiveMap} bzw.\ \texttt{Tuple}-Wrapper), da \texttt{Map}/\texttt{Set} referenzbasiert arbeiten.
   \item \textbf{Zahlenmodell:} Python unterscheidet \texttt{int} und \texttt{float}, während TypeScript beide in \texttt{number} abbildet. Dadurch können sehr große Integer oder exakte Ganzzahlarithmetik nicht 1:1 garantiert werden.
-  \item \textbf{Truthiness und implizite Konversionen:} Python erlaubt Bedingungen über beliebige Objekte; TypeScript verlangt typisch explizitere Konversionen bzw.\ Guards, um Narrowing zuverlässig zu erhalten. \autocite[S.~73--74]{vanderkam2019effective}
+  \item \textbf{Truthiness und implizite Konversionen:} Python erlaubt Bedingungen über beliebige Objekte; TypeScript verlangt typisch explizitere Konversionen bzw.\ Guards, um Narrowing zuverlässig zu erhalten. \autocite[S.73ff]{vanderkam2019effective}
+  \item \textbf{Lesbarkeit:} Im gegensatz zu Python lässt sich die Grammatik in TypScript leichter lesen. In gewissen Funktionen ist der Code in Python schlanker als in TypeScript, dafür lässt sich der Code in TypeScript besser wiederverwenden.
 \end{itemize}
 
 \subsection{Zusammenfassung Kapitel 5}
