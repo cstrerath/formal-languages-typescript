@@ -1,79 +1,343 @@
 % !TEX root = ../master.tex
 
-\section{Grundlagen}
+\section{Theoretische Grundlagen}
 \label{sec:grundlagen}
 
-Dieses Kapitel legt die theoretischen Grundlagen für die spätere Analyse und Gegenüberstellung der beiden Programmiersprachen. Zunächst werden zentrale Begriffe der Typentheorie eingeführt und dynamische sowie statische Typisierung voneinander abgegrenzt. Anschließend werden die für diese Arbeit relevanten Eigenschaften des Typsystems von TypeScript dargestellt.
+Dieses Kapitel legt das theoretische Fundament für die Transformationsstrategie. Ein besonderer Schwerpunkt liegt auf der Analyse der Typsysteme, da die Diskrepanz zwischen der dynamischen Natur von Python und der statischen Analyse von TypeScript die zentrale Motivation für die Portierung darstellt.
 
-Ziel dieses Kapitels ist es, ein formales Verständnis von Typdisziplin und Typsicherheit zu entwickeln, das als Bewertungsmaßstab für die in Kapitel~4 vorgenommene Übersetzung dient.
+\subsection{Typentheorie und Datenmodellierung}
+\label{subsec:type_theory}
 
-\subsection{Typen und Typsicherheit}
+Ein Typsystem ist ein formales logisches System, das Programmkonstrukten Eigenschaften (Typen) zuweist, um das Programmverhalten zu klassifizieren. Nach Pierce gilt ein Programm als typsicher, wenn wohlgetypte Programme nicht in einen undefinierten Zustand geraten (\enquote{well-typed programs do not go wrong}) \autocite[S.1ff]{pierce2002tapl}.
 
-Ein Typsystem ist ein formales Mittel zur Klassifikation von Ausdrücken und Programmkonstrukten mit dem Ziel, bestimmte Klassen von Laufzeitfehlern auszuschließen. Ein Programm gilt als typsicher, wenn wohlgetypte Programme nicht „stecken bleiben“ und keine Typfehler während der Ausführung auftreten.
-
-In der Typentheorie wird Typsicherheit häufig durch die beiden Eigenschaften \emph{Progress} und \emph{Preservation} charakterisiert \autocite[S.95ff]{pierce2002tapl}. 
-Progress besagt, dass ein wohlgetypter Ausdruck entweder bereits ein Wert ist oder einen weiteren Auswertungsschritt durchführen kann. Preservation garantiert, dass sich der Typ eines Ausdrucks während der Auswertung nicht ändert.
-
-Ein statisches Typsystem überprüft diese Eigenschaften vor der Programmausführung, während ein dynamisches Typsystem Typkonsistenz erst zur Laufzeit kontrolliert.
-
-\subsection{Dynamische und statische Typisierung}
-
-Bei dynamisch typisierten Sprachen werden Typinformationen erst zur Laufzeit überprüft. Variablen sind nicht fest an einen bestimmten statischen Typ gebunden, sondern referenzieren Werte, deren Typ während der Ausführung bestimmt wird. Typfehler treten folglich erst dann auf, wenn ein konkreter Ausführungspfad eine inkonsistente Operation ausführt. Python ist ein typisches Beispiel für dieses Paradigma.
-
-Statisch typisierte Sprachen hingegen prüfen Typkonsistenz bereits während der Übersetzung des Programms und können dadurch bestimmte Klassen von Laufzeitfehlern ausschließen. 
-Die Typprüfung erfolgt somit vor der Programmausführung als Teil der semantischen Analysephase \autocite[S.2ff]{pierce2002tapl}. 
-Ein wohlgetyptes Programm erfüllt dabei die Eigenschaft der Typsicherheit, die in der Typentheorie häufig durch die beiden Prinzipien \emph{Progress} und \emph{Preservation} charakterisiert wird \autocite[S.95ff]{pierce2002tapl}. 
-
-Der Unterschied zwischen beiden Paradigmen betrifft nicht lediglich den Zeitpunkt der Fehlererkennung, sondern die strukturelle Rolle des Typsystems im Programmentwurf. Während dynamische Typisierung primär Flexibilität bietet, dient ein statisches Typsystem als formales Mittel zur Spezifikation und Absicherung struktureller Eigenschaften eines Programms.
-
-TypeScript erweitert JavaScript um ein solches statisches Typsystem und ermöglicht dadurch eine frühzeitige Fehlererkennung sowie eine explizitere Modellierung von Datenstrukturen \autocite[S.3ff]{vanderkam2019effective}. Typannotationen werden bereits während der Übersetzung überprüft, wodurch Inkonsistenzen in Funktionssignaturen, Datenstrukturen oder Fallunterscheidungen erkannt werden können, bevor das Programm ausgeführt wird.
-
-Für compiler-nahe Strukturen ist insbesondere relevant, in welchem Maße ein Typsystem strukturelle Invarianten explizit modellieren und absichern kann. Syntaxbäume, Zustandsmengen oder Umgebungsabbildungen besitzen wohldefinierte Formeigenschaften, die sich in einem statischen Typsystem formal ausdrücken lassen. Die Fähigkeit eines Typsystems, solche Invarianten bereits zur Übersetzungszeit zu garantieren, beeinflusst maßgeblich die Sicherheit, Wartbarkeit und strukturelle Klarheit der Implementierung.
-
-\subsection{Zentrale Eigenschaften des Typsystems von TypeScript}
-
-TypeScript verfügt über ein statisches, strukturelles Typsystem, das Typkonsistenz bereits während der Übersetzung überprüft. Die Typprüfung erfolgt somit vor der Programmausführung und dient der Vermeidung bestimmter Klassen von Laufzeitfehlern \autocite[S.2ff]{pierce2002tapl}. 
-Wie in der Compiler-Theorie beschrieben, ist die Typprüfung Teil der semantischen Analysephase \autocite[S.370ff]{aho2006compilers}. 
-
-Typannotationen werden in TypeScript nicht zur Laufzeit erzwungen, sondern ausschließlich für die statische Analyse verwendet. Der TypeScript-Compiler fungiert damit als Analyse- und Prüfwerkzeug, das Typbeziehungen auswertet und Inkonsistenzen frühzeitig meldet \autocite[S.3ff]{vanderkam2019effective}.
-
-Ein zentrales Merkmal des Typsystems ist seine \emph{strukturelle Typisierung}. Zwei Typen gelten als kompatibel, wenn ihre Struktur übereinstimmt, unabhängig von expliziten Typnamen \autocite{typescript_handbook_everyday-types}. 
-Im Gegensatz zu nominal typisierten Sprachen wird die Typkompatibilität also durch die Form eines Typs bestimmt. Für die Modellierung abstrakter Syntaxbäume oder Zustandsstrukturen ist dies besonders relevant, da sich Typbeziehungen an der tatsächlichen Datenstruktur orientieren.
-
-Für compiler-nahe Implementierungen sind insbesondere folgende Konzepte von Bedeutung:
-
+In der Typentheorie wird Typsicherheit häufig durch zwei Eigenschaften charakterisiert \autocite[S.95ff]{pierce2002tapl}:
 \begin{itemize}
-    \item \textbf{Generische Typen (Generics):}  
-    Generische Typen erlauben eine parametrische Typisierung von Datenstrukturen (z.\,B.\ \texttt{Set<T>} oder \texttt{Map<K,V>}). 
-    Sie entsprechen dem Konzept der parametrischen Polymorphie \autocite[S.337ff]{pierce2002tapl} und ermöglichen die formale Modellierung mathematischer Objekte ohne Typduplikation.
-
-    \item \textbf{Vereinigungs- und Schnittmengen-Typen (Union \& Intersection Types):}  
-    Union-Typen (\texttt{A | B}) erlauben die Darstellung alternativer Strukturen, während Intersection-Typen (\texttt{A \& B}) kombinierte Eigenschaften modellieren \autocite{typescript_handbook_everyday-types}. 
-    Diese Konstrukte sind insbesondere geeignet zur Abbildung unterschiedlich geformter AST-Knoten.
-
-    \item \textbf{Tupel als Produkttypen:}  
-    Tupeltypen stellen feste, positionsabhängige Produkttypen dar (z.\,B.\ \texttt{[State, Symbol]}). 
-    Typentheoretisch entsprechen sie dem kartesischen Produkt \( s \times t \) \autocite[S.370ff]{aho2006compilers}. 
-    Sie eignen sich insbesondere zur Modellierung von Zustandsübergängen oder grammatikalischen Relationen.
-
-    \item \textbf{Kontrollflussbasierte Typverengung (Type Narrowing):}  
-    TypeScript analysiert den Kontrollfluss eines Programms und verfeinert Typinformationen abhängig von Bedingungen \autocite{typescript_handbook_narrowing}. 
-    Dadurch können Varianten eines Union-Typs innerhalb von Fallunterscheidungen typsicher behandelt werden.
-
-    \item \textbf{Unveränderlichkeit durch \texttt{readonly}:}  
-    Eigenschaften können als unveränderlich deklariert werden. 
-    Dies erlaubt die explizite Absicherung struktureller Invarianten, etwa bei Zustandsmengen oder AST-Knoten.
-
-    \item \textbf{Exhaustiveness Checking und der Typ \texttt{never}:}  
-    Bei vollständigen Fallunterscheidungen über Union-Typen kann der Compiler prüfen, ob alle Varianten behandelt wurden. 
-    Nicht behandelte Fälle führen zu einem Typfehler \autocite{typescript_handbook_narrowing}. 
-    Dies stärkt die formale Vollständigkeit von Fallanalysen.
-
-    \item \textbf{Der Typ \texttt{any} und Type Assertions (\texttt{as}):}  
-    Mit \texttt{any} stellt TypeScript einen universellen Typ bereit, der jede Operation zulässt und damit die statische Typprüfung faktisch außer Kraft setzt \autocite{typescript_handbook_everyday-types}. 
-    Type Assertions mittels \texttt{as} erlauben zudem die explizite Überschreibung inferierter Typinformationen. 
-    Beide Mechanismen reduzieren die Strenge des Typsystems erheblich und sollten in strukturell sensiblen Kontexten insbesondere bei compiler-nahen Implementierungen vermieden werden.
+	\item \textbf{Progress:} Ein wohlgetypter Ausdruck ist entweder bereits ein Wert oder kann einen weiteren Auswertungsschritt durchführen.
+	\item \textbf{Preservation:} Wenn ein wohlgetypter Ausdruck einen Auswertungsschritt macht, behält das Resultat diesen Typ bei.
 \end{itemize}
 
-Zusammenfassend ermöglichen diese Mechanismen eine explizite Modellierung strukturierter Daten sowie die formale Absicherung von Invarianten bereits zur Übersetzungszeit. 
-Strukturbedingungen von Syntaxbäumen, Zustandsmengen oder Übergangsrelationen können dadurch nicht nur implizit durch Konventionen, sondern explizit durch das Typsystem ausgedrückt und überprüft werden.
+\subsubsection{Dynamische Typisierung in Python (Duck Typing)}
+Python folgt dem Paradigma der dynamischen Typisierung. Typen sind hierbei Eigenschaften von Werten (Laufzeitobjekten), nicht von Variablen. Eine Variable ist lediglich ein Name, der an ein beliebiges Objekt gebunden werden kann. Die Typprüfung erfolgt implizit zur Laufzeit: Eine Operation (z.\,B. \texttt{obj.method()}) ist zulässig, wenn das Objekt zum Zeitpunkt des Aufrufs über das entsprechende Attribut verfügt.
+
+Dieses Konzept wird als \textbf{Duck Typing} bezeichnet (\enquote{If it walks like a duck and quacks like a duck, it is a duck}).
+Während dies maximale Flexibilität und schnelle Prototypenentwicklung ermöglicht, birgt es im Kontext compiler-naher Softwarearchitekturen signifikante Risiken:
+\begin{enumerate}
+	\item \textbf{Späte Fehlererkennung:} Inkonsistenzen in Datenstrukturen (z.\,B. ein fehlendes Feld in einem AST-Knoten) führen erst dann zu einem \texttt{AttributeError}, wenn der entsprechende Codepfad zur Laufzeit durchlaufen wird.
+	\item \textbf{Implizite Annahmen:} Die Struktur komplexer Objekte (z.\,B. \enquote{Ein Token ist ein Tupel aus Typ und Wert}) muss durch Dokumentation oder Konvention gesichert werden, da die Sprache sie nicht erzwingt.
+\end{enumerate}
+
+Zwar bietet Python mit \href{http://mypy-lang.org/}{\texttt{mypy}} ein Werkzeug für optionale statische Typannotationen (PEP 484), dessen Analysefähigkeit ist jedoch begrenzt. Insbesondere bei der Flussanalyse (Control Flow) kann \texttt{mypy} oft nicht automatisch deduzieren, dass ein Typ nach einer Prüfung sicher ist, was zu erzwungenen \texttt{cast}-Operationen oder \texttt{\# type: ignore}-Kommentaren führt.
+
+\subsubsection{Statische Typisierung und Control Flow Analysis in TypeScript}
+Im Gegensatz dazu führt TypeScript eine strikte statische Typprüfung vor der Ausführung durch. Ein zentrales Unterscheidungsmerkmal zu traditionellen statischen Sprachen (wie Java) ist dabei die Fähigkeit zur **Control Flow Analysis (CFA)**. Der Compiler analysiert den logischen Fluss des Codes, um den Typ einer Variable an jeder Stelle im Code so präzise wie möglich zu bestimmen.
+
+Dieses Verfahren wird als **Type Narrowing** bezeichnet. Aus einem breiten Typ (z.\,B. \texttt{string | number}) wird durch Bedingungen ein engerer Typ gefiltert \autocite{typescript_handbook_narrowing}.
+
+Abbildung~\ref{fig:narrowing_flow} visualisiert diesen Prozess: Der Compiler \enquote{versteht} die \texttt{if}-Bedingung und garantiert im jeweiligen Zweig den korrekten Typ, ohne dass zur Laufzeit weitere Casts notwendig sind.
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}[
+		node distance=1.5cm,
+		% Hier war der Fehler: align=center fehlte bei narrowed!
+		block/.style={rectangle, draw, rounded corners, minimum width=3cm, minimum height=1cm, align=center},
+		decision/.style={diamond, draw, aspect=2, minimum width=3cm, align=center, fill=yellow!10},
+		narrowed/.style={rectangle, draw, fill=green!10, minimum width=2.5cm, align=center}, 
+		arrow/.style={-Latex, thick}
+		]
+		% Start
+		\node[block] (start) {Variable \texttt{x}\\Typ: \texttt{string | number}};
+		
+		% Decision
+		\node[decision] (check) [below=of start] {\texttt{typeof x === \enquote{string}}};
+		
+		% Branches
+		\node[narrowed] (true_branch) [below left=1cm and 0.5cm of check] {True-Zweig\\Typ: \texttt{string}};
+		\node[narrowed] (false_branch) [below right=1cm and 0.5cm of check] {False-Zweig\\Typ: \texttt{number}};
+		
+		% End
+		\node[block] (end) [below=3.5cm of check] {Merge\\Typ: \texttt{string | number}};
+		
+		% Arrows
+		\draw[arrow] (start) -- (check);
+		\draw[arrow] (check) -| node[midway, above] {Ja} (true_branch);
+		\draw[arrow] (check) -| node[midway, above] {Nein} (false_branch);
+		\draw[arrow] (true_branch) |- (end);
+		\draw[arrow] (false_branch) |- (end);
+		
+	\end{tikzpicture}
+	\caption{Control Flow Analysis: Der TypeScript-Compiler verfeinert (narrowt) den Typ basierend auf logischen Bedingungen.}
+	\label{fig:narrowing_flow}
+\end{figure}
+
+\subsubsection{Type Narrowing und Discriminated Unions}
+Eine zentrale Stärke von TypeScript ist die Fähigkeit, Typen innerhalb von Kontrollstrukturen zu verfeinern. Dieses als \emph{Narrowing} bezeichnete Verfahren ermöglicht es dem Compiler, den Typ einer Variable in einem bestimmten Codeblock präzise einzugrenzen.
+
+Besonders relevant ist dies bei der Verwendung von \emph{Union Types} in Kombination mit Klassen. Der Operator \texttt{instanceof} fungiert in TypeScript als sogenannter \emph{Type Guard}. Listing~\ref{lst:narrowing_generic} illustriert dieses Prinzip anhand einer rekursiven Ausdrucksstruktur.
+
+\begin{listing}[H]
+	\caption{Type Narrowing mittels \texttt{instanceof} und Control Flow Analysis}
+	\label{lst:narrowing_generic}
+	\begin{minted}{typescript}
+class Value { 
+	constructor(public val: number) {} 
+}
+
+class Add { 
+	constructor(public left: Expr, public right: Expr) {} 
+}
+
+type Expr = Value | Add;
+
+function eval(e: Expr): number {
+	if (e instanceof Value) {
+		return e.val;
+	}
+	
+	return eval(e.left) + eval(e.right);
+}
+	\end{minted}
+\end{listing}
+
+Der Code demonstriert das Zusammenspiel mehrerer TypeScript-Konzepte. Die Klassen \texttt{Value} und \texttt{Add} definieren die Struktur der Daten, wobei \texttt{Value} einen primitiven Wert hält und \texttt{Add} rekursiv auf zwei weitere Ausdrücke verweist. Der Typ \texttt{Expr} wird als Vereinigung (\emph{Union Type}) dieser beiden Klassen definiert, sodass eine Variable dieses Typs zur Laufzeit entweder eine Instanz von \texttt{Value} oder von \texttt{Add} sein kann.
+
+Innerhalb der Funktion \texttt{eval} dient die Prüfung mittels \texttt{instanceof} als Type Guard. Der Compiler erkennt, dass im ersten \texttt{if}-Block die Variable \texttt{e} zwingend vom Typ \texttt{Value} ist, wodurch der Zugriff auf die Eigenschaft \texttt{val} statisch erlaubt wird. Im weiteren Verlauf greift die \emph{Control Flow Analysis}: Da der erste Pfad die Funktion durch ein \texttt{return} verlässt, schlussfolgert der Compiler für den verbleibenden Code, dass \texttt{e} nur noch vom Typ \texttt{Add} sein kann. Ein expliziter \texttt{else}-Block oder eine erneute Prüfung sind somit überflüssig; der Zugriff auf \texttt{left} und \texttt{right} ist typsicher gewährleistet.
+
+Dies unterscheidet sich fundamental von Python, wo ein fehlendes Attribut erst zur Laufzeit einen Fehler verursachen würde. In TypeScript garantiert das Typsystem die strukturelle Integrität der Fallunterscheidung bereits vor der Ausführung.
+
+\subsubsection{Strukturelle Typisierung (Structural Typing)}
+Ergänzend zum Narrowing ist die \emph{strukturelle Typisierung} von TypeScript hervorzuheben. Im Gegensatz zu nominalen Systemen (wie Java oder C\#) entscheidet nicht der Name einer Klasse oder eine explizite \texttt{implements}-Klausel über die Kompatibilität, sondern ausschließlich die Form (\emph{Shape}) des Objekts.
+
+Seien $A$ und $B$ zwei Objekttypen. Der Typ $A$ gilt als kompatibel zu (oder Subtyp von) $B$, formal notiert als $A \subseteq B$, wenn folgende Bedingung erfüllt ist:
+\[
+A \subseteq B \iff \forall p \in \text{properties}(B): p \in \text{properties}(A) \land \text{type}_A(p) \subseteq \text{type}_B(p)
+\]
+Hierbei bezeichnet:
+\begin{itemize}
+	\item $A$: Den Typ des zuzuweisenden Objekts (Kandidat).
+	\item $B$: Den erwarteten Zieltyp (Interface oder Klasse).
+	\item $p$: Eine Eigenschaft (Property) oder Methode des Typs.
+\end{itemize}
+In Worten: Damit $A$ anstelle von $B$ verwendet werden kann, muss $A$ mindestens alle Eigenschaften besitzen, die in $B$ definiert sind, und deren Typen müssen wiederum kompatibel sein. Zusätzliche Eigenschaften in $A$ stören die Kompatibilität nicht.
+
+Listing~\ref{lst:structural_typing} verdeutlicht dieses Prinzip. Ein Interface definiert lediglich eine Anforderung an die Struktur. Jedes Objekt, das diese Anforderung erfüllt, wird vom Typsystem akzeptiert.
+
+\begin{listing}[H]
+	\caption{Implizite Kompatibilität ohne explizite Implementierung}
+	\label{lst:structural_typing}
+	\begin{minted}{typescript}
+interface Vector2D {
+	x: number;
+	y: number;
+}
+
+function calculateLength(v: Vector2D): number {
+	return Math.sqrt(v.x * v.x + v.y * v.y);
+}
+
+class Particle {
+	constructor(
+	public x: number, 
+	public y: number, 
+	public velocity: number
+	) {}
+}
+
+const p = new Particle(3, 4, 10);
+const len = calculateLength(p);
+const len2 = calculateLength({ x: 5, y: 12 });
+	\end{minted}
+\end{listing}
+
+Im gezeigten Beispiel wird die Klasse \texttt{Particle} ($A$) von der Funktion \texttt{calculateLength} akzeptiert, die \texttt{Vector2D} ($B$) erwartet. Da eine Instanz von \texttt{Particle} die geforderten Eigenschaften \texttt{x} und \texttt{y} besitzt (und mit \texttt{velocity} sogar zusätzliche Eigenschaften), gilt die Bedingung $A \subseteq B$ als erfüllt.
+
+Dies erleichtert die Portierung von Python-Code erheblich, da Pythons \emph{Duck Typing}-Philosophie (\enquote{Wenn es wie eine Ente läuft, ist es eine Ente}) direkt auf TypeScripts Interfaces abgebildet werden kann. Ein Algorithmus, der beispielsweise erwartet, dass ein Objekt über eine \texttt{hashCode}-Methode verfügt, kann in TypeScript durch ein entsprechendes Interface typisiert werden, ohne dass die verwendeten Klassen in eine starre Vererbungshierarchie gezwungen werden müssen.
+
+Obwohl die explizite Verwendung von \texttt{implements} für die Typkompatibilität technisch nicht erforderlich ist, wird sie in der Praxis dennoch empfohlen. Sie verlagert die Fehlererkennung von der Aufrufstelle (\emph{Call Site}) zur Definitionsstelle (\emph{Definition Site}). Würde in der Klasse \texttt{Particle} beispielsweise die Eigenschaft \texttt{x} versehentlich fehlen, würde der Compiler dies ohne \texttt{implements} erst beim Aufruf von \texttt{calculateLength(p)} bemängeln. Mit einer expliziten Klausel (\texttt{class Particle implements Vector2D}) wird der Fehler direkt an der Klasse markiert, was die Intention des Entwicklers dokumentiert und die Wartbarkeit erhöht.
+
+\subsection{Algorithmik von Mengen und Abbildungen}
+\label{subsec:hashing_theory}
+
+Die effiziente Implementierung von Automatenalgorithmen (z.\,B. Potenzmengenkonstruktion, Minimierung) erfordert Datenstrukturen, die Mengen von Mengen verwalten können. Da Standardbibliotheken in JavaScript/TypeScript hierfür keine native Unterstützung bieten, ist ein tiefes Verständnis der zugrundeliegenden Hashing- und Speicherverfahren notwendig.
+
+\subsubsection{Identität und Gleichheit (Value Semantics)}
+In der Mengenlehre gilt das Extensionalitätsaxiom: Zwei Mengen sind genau dann gleich, wenn sie dieselben Elemente enthalten ($A = B \iff \forall x: (x \in A \iff x \in B)$). Diese Definition entspricht der \emph{Wertgleichheit} (Value Equality).
+Programmiersprachen unterscheiden jedoch technisch zwischen:
+\begin{enumerate}
+	\item \textbf{Referenzgleichheit (Identity):} Zwei Variablen zeigen auf dieselbe Speicheradresse. Dies ist das Standardverhalten von \texttt{Set} und \texttt{Map} in JavaScript für Objekte.
+	\item \textbf{Strukturelle Gleichheit (Deep Equality):} Zwei Objekte sind äquivalent, wenn ihre rekursive Struktur und ihre primitiven Werte übereinstimmen.
+\end{enumerate}
+Für die Portierung der Python-Logik, in der Tupel und `frozensets` als Schlüssel in Dictionaries dienen, ist die Implementierung struktureller Gleichheit zwingend erforderlich. Dies impliziert, dass auch der Hash-Wert eines Objekts nicht aus seiner Speicheradresse, sondern deterministisch aus seinem Inhalt abgeleitet werden muss.
+
+\subsubsection{Hash-Funktionen und Verteilung}
+Eine Hash-Funktion $h: D \rightarrow I$ bildet Daten beliebiger Größe auf einen Indexbereich ab. Für performante Hash-Tabellen sind drei Eigenschaften entscheidend:
+\begin{itemize}
+	\item \textbf{Determinismus:} Gleicher Input muss stets den gleichen Hash-Wert liefern. Dies ist bei rekursiven Strukturen nichttrivial, da die Iterationsreihenfolge von Elementen in Standard-Sets undefiniert ist. Eine kanonische Sortierung (z.\,B. nach Hash-Werten der Kinder) ist daher vor dem Hashing notwendig.
+	\item \textbf{Uniformität:} Die Hash-Werte sollten gleichmäßig über den Wertebereich verteilt sein, um Kollisionen zu minimieren. Moderne Verfahren nutzen hierzu Bit-Operationen (XOR, Shift) und Multiplikationen mit großen Primzahlen, um einen \enquote{Avalanche Effect} zu erzielen, bei dem die Änderung eines Eingabebits das Umkippen vieler Ausgabebits bewirkt \autocite[S.515ff]{cormen2022introduction}.
+	\item \textbf{Performance:} Da Hash-Berechnungen in inneren Schleifen von Automatenalgorithmen stattfinden, müssen Allokationen (z.\,B. Strings-Konkatenation) vermieden werden.
+\end{itemize}
+
+\subsubsection{Kollisionsauflösung: Open Addressing und SoA}
+Treffen zwei unterschiedliche Schlüssel auf denselben Hash-Index (Kollision), muss eine Ausweichstrategie gewählt werden. Während viele Standardimplementierungen (wie Java \texttt{HashMap}) auf \emph{Chaining} (verkettete Listen pro Bucket) setzen, bietet das \emph{Open Addressing} (offene Adressierung) signifikante Vorteile für die Cache-Lokalität.
+
+Beim Open Addressing werden alle Elemente direkt im Array der Tabelle gespeichert. Bei einer Kollision an Index $i$ wird eine Sondierungsfolge (Probing Sequence) durchlaufen, typischerweise \emph{Linear Probing}:
+\[
+\text{index}(k, j) = (h(k) + j) \pmod m
+\]
+wobei $j$ der Sondierungsschritt ist.
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}[
+		node distance=0cm,
+		slot/.style={
+			draw, 
+			rectangle, 
+			minimum width=1.5cm, 
+			minimum height=1cm, 
+			outer sep=0pt,
+			font=\small\ttfamily
+		},
+		index/.style={
+			font=\footnotesize\sffamily\color{gray},
+			below=0.1cm
+		},
+		arrow/.style={
+			->, 
+			>=Latex, 
+			thick, 
+			color=blue!70!black
+		},
+		collision/.style={
+			->, 
+			>=Latex, 
+			thick, 
+			color=red!70!black,
+			dashed,
+			bend right=45
+		}
+		]
+		
+		% --- Die Array-Slots ---
+		\node[slot] (s0) at (0,0) {};
+		\node[slot, fill=green!10] (s1) [right=of s0] {A};
+		\node[slot, fill=yellow!20] (s2) [right=of s1] {B};
+		\node[slot, fill=yellow!20] (s3) [right=of s2] {C};
+		\node[slot, fill=red!10] (s4) [right=of s3] {D};
+		\node[slot] (s5) [right=of s4] {};
+		\node[slot] (s6) [right=of s5] {};
+		
+		% --- Indizes unterhalb ---
+		\foreach \i in {0,...,6} {
+			\node[index] at (s\i.south) {\i};
+		}
+		
+		% --- Beschriftung der Elemente (Ideal Hash) ---
+		% Element A (Hash 1) -> Landet direkt
+		\node (idealA) [above=1.5cm of s1, font=\footnotesize] {h(A)=1};
+		\draw[arrow] (idealA) -- (s1.north);
+		
+		% Element B (Hash 1) -> Kollision -> +1
+		\node (idealB) [above=1.5cm of s2, font=\footnotesize] {h(B)=1};
+		\draw[arrow, opacity=0.3] (idealB) -- (s1.north); % Der Versuch
+		\draw[collision] (s1.north) to (s2.north); % Das Ausweichen
+		
+		% Element C (Hash 1) -> Kollision -> +2
+		\node (idealC) [above=1.5cm of s3, font=\footnotesize] {h(C)=1};
+		\draw[arrow, opacity=0.3] (idealC) -- (s1.north);
+		\draw[collision] (s2.north) to (s3.north);
+		
+		% Element D (Hash 3) -> Kollision mit C -> +1
+		\node (idealD) [above=1.5cm of s4, font=\footnotesize] {h(D)=3};
+		\draw[arrow, opacity=0.3] (idealD) -- (s3.north); % Der Versuch auf 3
+		\draw[collision] (s3.north) to (s4.north); % Das Ausweichen
+		
+		% --- Cluster Brace ---
+		\draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick, color=gray]
+		($(s1.south west)+(0,-0.5)$) -- ($(s4.south east)+(0,-0.5)$)
+		node[midway, below=0.2cm, font=\small\sffamily] {Primary Cluster};
+		
+		% --- Legende / Erklärung ---
+		\node[right=0.5cm of s6, align=left, font=\footnotesize\sffamily] {
+			\textbf{Legende:}\\
+			\textcolor{green!40!gray}{A}: Optimal platziert (PSL=0)\\
+			\textcolor{yellow!60!orange}{B, C}: Verschoben durch Kollision\\
+			\textcolor{red!60!gray}{D}: Verdrängt durch Cluster\\
+			(PSL = Probe Sequence Length)
+		};
+		
+	\end{tikzpicture}
+	\caption{Visualisierung von Linear Probing und Clusterbildung. Elemente B und C kollidieren mit A. Element D (Hash 3) trifft auf das belegte Feld 3 und muss auf 4 ausweichen, obwohl es gar nicht Hash 1 hat.}
+	\label{fig:linear_probing}
+\end{figure}
+
+Um die Performance weiter zu steigern, kann das Speicherlayout nach dem Prinzip \textbf{Structure of Arrays (SoA)} optimiert werden. Anstatt ein Array von Objekten (\texttt{\{key, value, hash\}}) zu speichern, werden drei separate, flache Arrays (\texttt{keys[]}, \texttt{values[]}, \texttt{hashes[]}) verwaltet. Dies erhöht die räumliche Lokalität (Spatial Locality) im CPU-Cache, da beim Durchsuchen der Tabelle nur die relevanten Datenströme geladen werden müssen.
+
+\subsubsection{Löschstrategien: Backshift Deletion}
+Eine Schwäche des Linear Probing ist das Löschen von Elementen. Wird ein Element einfach entfernt, entsteht eine Lücke, die die Sondierungskette für nachfolgende Elemente unterbricht.
+Klassische Implementierungen nutzen daher \enquote{Tombstones} (Grabsteine) -- spezielle Marker für gelöschte Felder. Diese haben jedoch den Nachteil, dass sie die Tabelle \enquote{verschmutzen} und die Suchzeit bei vielen Einfüge- und Löschoperationen degradieren.
+
+Eine effizientere, wenn auch implementierungstechnisch aufwendigere Methode ist das \textbf{Backshift Deletion} (auch bekannt als \emph{Backward Shift Deletion}).
+Hierbei wird beim Löschen an Index $i$ geprüft, ob das nachfolgende Element an $i+1$ (oder weiter) nur aufgrund einer Kollision dort liegt und eigentlich an eine Position $\le i$ gehört. Ist dies der Fall, wird das Element nach $i$ verschoben (\enquote{zurückgerückt}), und die Prüfung setzt sich rekursiv fort.
+Dieses Verfahren hält die Tabelle kompakt, eliminiert die Notwendigkeit von Tombstones vollständig und garantiert, dass die Suchpfade minimal bleiben. Es ist damit besonders geeignet für langlebige Datenstrukturen in einer Interpreter-Laufzeitumgebung.
+
+
+\subsection{Termersetzung und Pattern Matching}
+\label{subsec:term_rewriting}
+
+Für die Optimierung regulärer Ausdrücke und die symbolische Manipulation von Syntaxbäumen greift die Arbeit auf Konzepte der Termersetzung (Term Rewriting Systems, TRS) zurück. Ein TRS ist ein Berechnungsparadigma, bei dem Ausdrücke durch die gerichtete Anwendung von Regeln schrittweise transformiert werden, bis eine Normalform erreicht ist \autocite[S.8ff]{baader1998term}.
+
+\subsubsection{Termersetzungssysteme (TRS)}
+Formal ist ein TRS definiert als eine Menge von Regeln $l \rightarrow r$, wobei $l$ und $r$ Terme sind. Eine Regel ist anwendbar auf einen Term $t$, wenn $l$ durch Substitution von Variablen auf einen Unterterm von $t$ abgebildet werden kann.
+Im Kontext dieser Arbeit wird ein TRS verwendet, um die Axiome der Kleene-Algebra (Reguläre Algebra) operativ umzusetzen. Typische Regeln sind:
+\begin{align*}
+	R + \emptyset &\rightarrow R & (\text{Neutrales Element der Vereinigung}) \\
+	R \cdot \varepsilon &\rightarrow R & (\text{Neutrales Element der Konkatenation}) \\
+	R + R &\rightarrow R & (\text{Idempotenz})
+\end{align*}
+Das Ziel ist die Reduktion komplexer, maschinengenerierter Ausdrücke (wie sie bei der Konvertierung von Automaten entstehen) in eine menschlich lesbare Minimalform.
+
+\subsubsection{Pattern Matching und Unifikation}
+Die technische Umsetzung eines TRS erfordert einen \emph{Pattern Matching}-Algorithmus. Gegeben sei ein Muster $p$ (das Variablen enthalten kann, z.\,B. $R + \emptyset$) und ein konkreter Term $t$ (z.\,B. $(a \cdot b) + \emptyset$).
+Das Matching-Problem besteht darin, eine Substitution $\sigma$ zu finden, sodass gilt:
+\[
+\sigma(p) \equiv t
+\]
+Dabei bildet $\sigma$ jede Variable in $p$ auf einen Unterbaum von $t$ ab. Im Beispiel wäre $\sigma(R) = (a \cdot b)$.
+Die Implementierung in TypeScript (siehe \texttt{RegExp-Tutorial.ipynb}) realisiert dies durch eine rekursive \texttt{match}-Funktion, die eine \emph{Bindings-Map} aufbaut. Ein besonderer Aspekt ist hierbei die Prüfung auf Konsistenz bei nicht-linearen Mustern (z.\,B. $R + R \rightarrow R$): Wenn eine Variable mehrfach im Muster vorkommt, müssen alle gematchten Unterbäume strukturell identisch sein (Deep Equality), was die in Abschnitt~\ref{subsec:hashing_theory} eingeführte Wertsemantik voraussetzt.
+
+\subsubsection{Fixpunkt-Iteration}
+Da die Anwendung einer Regel neue Reduktionsmöglichkeiten schaffen kann (z.\,B. führt $0^* \rightarrow \varepsilon$ dazu, dass ein übergeordnetes $R \cdot \varepsilon$ zu $R$ wird), muss der Rewriting-Prozess iterativ erfolgen.
+Ein Term $t$ befindet sich in Normalform, wenn keine Regel mehr anwendbar ist. Der Algorithmus wendet die Regeln solange an, bis ein Fixpunkt erreicht ist:
+\[
+t_{n+1} = \text{rewrite}(t_n) \quad \text{mit} \quad t_{n+1} \equiv t_n
+\]
+Dieses Fixpunkt-Prinzip findet sich in der Arbeit nicht nur bei regulären Ausdrücken wieder, sondern ist auch die mathematische Basis der $\varepsilon$-Closure-Berechnung bei endlichen Automaten (siehe \texttt{01-NFA-2-DFA.ipynb}).
+
+\subsection{Formale Sprachen und Syntaxanalyse}
+\label{subsec:parsing_theory}
+
+Die Überführung von Quelltext in eine ausführbare Struktur erfolgt in mehreren Stufen der Abstraktion. Die Arbeit nutzt hierfür den modernen Parser-Generator \emph{Lezer}, dessen theoretische Einordnung im Folgenden kurz skizziert wird.
+
+\subsubsection{LR-Parsing und der Concrete Syntax Tree (CST)}
+Die Syntaxanalyse basiert auf einer kontextfreien Grammatik (CFG), die häufig in der Erweiterten Backus-Naur-Form (EBNF) notiert wird. Lezer generiert aus dieser Grammatik einen inkrementellen LR-Parser (Left-to-right, Rightmost derivation).
+Das Ergebnis des Parsvorgangs ist ein \emph{Concrete Syntax Tree} (CST). Der CST ist eine flache, vollständige Repräsentation des Quelltextes, die alle Terminalsymbole, inklusive Klammern, Kommata und Kommentare, enthält.
+
+Für die algorithmische Weiterverarbeitung (Evaluierung, Kompilierung) ist dieser Detailgrad hinderlich, da er syntaktisches Rauschen enthält.
+
+\subsubsection{Transformation zum Abstrakten Syntaxbaum (AST)}
+Ein zentraler Schritt der Implementierung ist die Überführung des CST in einen \emph{Abstract Syntax Tree} (AST). Der AST abstrahiert von der konkreten Syntax und repräsentiert nur die logische Struktur des Programms.
+Die Transformation $T: \text{CST} \rightarrow \text{AST}$ erfolgt in der Arbeit nicht durch strikte 1:1-Abbildung jeder Produktionsregel, sondern durch heuristische Verfahren (siehe \texttt{cst2ast}), um eine idiomatische Baumstruktur zu erzeugen:
+
+\begin{itemize}
+	\item \textbf{Pivot Promotion (Infix-Operatoren):} In der konkreten Syntax stehen Operatoren oft als Geschwisterknoten (z.\,B. $[\text{Expr}, \text{+}, \text{Expr}]$). Im AST wird der Operator zur Wurzel des Teilbaums erhoben (\emph{Pivot}), während die Operanden zu Kindern werden. Dies stellt die Operator-Präzedenz strukturell dar.
+	\item \textbf{Listen-Faltung (Cons-Lists):} Während Lezer Listen flach als Sequenz von Kindern liefert, modelliert die AST-Definition Listen als rekursive Tupel der Form \texttt{['.', Head, Tail]}. Diese \emph{Cons-Cell}-Struktur, bekannt aus LISP und funktionalen Sprachen, erlaubt eine einfache rekursive Verarbeitung im Interpreter ohne Index-Management.
+	\item \textbf{Implizite Aufrufe:} Der Transformator unterscheidet kontextbasiert zwischen Variablenzugriffen und Funktionsaufrufen, indem er auf die Existenz von Klammer-Token im CST prüft, selbst wenn die Grammatik diese Unterscheidung nicht explizit benennt.
+\end{itemize}
+
+\subsection{Laufzeitumgebungen und WebAssembly}
+\label{subsec:wasm_theory}
+
+Ein technisches Nebenziel der Arbeit ist die Plattformunabhängigkeit der Visualisierungskomponenten. Traditionell erfordert die Darstellung von Automaten-Graphen die Installation der Graphviz-Binaries auf dem Host-System.
+WebAssembly (WASM) ist ein binäres Instruktionsformat für eine stapelbasierte virtuelle Maschine, das als portables Zielformat für die Kompilierung von Hochsprachen wie C++ dient \autocite{haas2017bringing}.
+Durch die Nutzung von \texttt{@viz-js/viz} wird der ursprüngliche C-Code von Graphviz zu WASM kompiliert. Dies ermöglicht die Ausführung der komplexen Layout-Algorithmen direkt innerhalb der JavaScript-Laufzeitumgebung (Browser oder Node.js), isoliert vom Betriebssystem und ohne native Installationen. Dies erfüllt die Anforderung der Interoperabilität (vgl. Abschnitt~\ref{subsec:zielsetzung}).
