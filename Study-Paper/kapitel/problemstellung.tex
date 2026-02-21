@@ -1,69 +1,96 @@
 % !TEX root = ../master.tex
 
-\section{Problemstellung, Ziel und Vorgehensweise der Arbeit}
-\label{sec:problemstellung}
+\section{Einleitung}
+\label{sec:einleitung}
+
+Die Vermittlung theoretischer Informatikkonzepte profitiert maßgeblich von der praktischen Umsetzung in ausführbarem Code. An der Dualen Hochschule Baden-Württemberg (DHBW) werden Konzepte wie Tokenisierung, Parsing-Algorithmen und Automatenmodelle anhand von Python-Notebooks demonstriert. Diese Wahl ist didaktisch begründet durch die hohe Lesbarkeit von Python. In einem \enquote{compiler-nahen} Kontext, der sich durch rekursive Datenstrukturen und strikte Zustandsübergänge auszeichnet, offenbaren sich jedoch die Grenzen einer rein dynamisch typisierten Sprache. Parallel dazu hat sich TypeScript als Industriestandard etabliert, der die Flexibilität von Skriptsprachen mit der Sicherheit statischer Typsysteme verbindet.
+
+Diese Arbeit befasst sich mit der Übertragung dieser Lehrinhalte in das Type\-Script-Ökosystem. Der Fokus liegt dabei auf einer idiomatischen Portierung, die nicht nur die Syntax übersetzt, sondern die semantischen Konzepte der formalen Sprachen durch das statische Typsystem explizit modelliert.
 
 \subsection{Problemstellung}
-In der Lehrveranstaltung \emph{Formale Sprachen} an der Dualen Hochschule Baden-Württemberg werden zentrale Inhalte durch ausführbare Programme in Python vermittelt. Die Beispiele behandeln unter anderem Tokenisierung (Scanner), Syntaxanalyse (Parsing), den Umgang mit Konflikten in Grammatiken sowie die Konstruktion und Weiterverarbeitung abstrakter Syntaxbäume (AST). Damit bewegen sich die Programme in einem typischen \emph{compiler-nahen} Kontext, in dem strukturierte Datenmodelle und klar definierte Verarbeitungsphasen eine zentrale Rolle spielen.
+\label{subsec:problemstellung}
 
-Python ist jedoch eine \emph{dynamisch typisierte} Sprache. Typinformationen werden erst zur Laufzeit überprüft und können sich während der Programmausführung verändern. Fehler wie inkonsistente AST-Strukturen, falsche Operanden-Typen oder fehlerhafte Umgebungsabbildungen werden daher häufig erst dann sichtbar, wenn ein konkreter Ausführungspfad die betreffende Stelle erreicht. Insbesondere in mehrstufigen Verarbeitungsketten
-\[
-\text{Scanner} \rightarrow \text{Parser} \rightarrow \text{AST-Transformation} \rightarrow \text{Semantik}
-\]
-erschwert dies die Lokalisierung von Fehlerursachen erheblich.
+Die Portierung algorithmischer Kerne von Python nach TypeScript stellt spezifische Anforderungen an die Modellierung der Datenstrukturen und die Fehlererkennung. Folgende Problemfelder sind hierbei zentral:
 
-Zur Verbesserung der Typdisziplin wird im Rahmen der Lehrveranstaltung \texttt{mypy} eingesetzt. Dabei handelt es sich um einen statischen Typchecker für Python, der auf Grundlage von Typannotationen eine Überprüfung der Typkonsistenz bereits vor der Programmausführung ermöglicht. Fehlerklassen wie inkonsistente Rückgabetypen oder fehlerhafte Verwendungen parametrischer Datentypen (z.\,B.\ \texttt{Set[str]} oder \texttt{Dict[str, Set[str]]}) können so frühzeitig erkannt werden. Python nähert sich dadurch partiell einer statisch typisierten Disziplin an, ohne jedoch seine dynamische Semantik grundsätzlich zu verändern.
+\paragraph{Grenzen der optionalen Typisierung in Python}
+Obwohl Python mit Werkzeugen wie \texttt{mypy} Möglichkeiten zur statischen Typprüfung bietet, erweisen sich diese im Kontext interaktiver Jupyter-Notebooks oft als unzureichend. In der Praxis führt das dynamische Nachladen von Modulen in der Notebook-Umgebung häufig dazu, dass der Type-Checker inkonsistente Zustände meldet oder deaktiviert werden muss. Zudem fehlt dem Python-Typsystem oft die nötige Granularität bei der Flussanalyse (Control Flow Analysis): Während TypeScript durch \enquote{Type Narrowing} innerhalb eines \texttt{if}-Blocks den Typ einer Variable verfeinern kann, muss in Python häufig auf \texttt{cast} oder \texttt{type: ignore} zurückgegriffen werden, um Validierungsfehler zu unterdrücken. Dies untergräbt das Vertrauen in die Typsicherheit, gerade bei komplexen verschachtelten Strukturen wie abstrakten Syntaxbäumen (AST).
 
-Die Typprüfung bleibt optional und erzwingt keine vollständige strukturelle Absicherung der verwendeten Datenmodelle. Gerade im Kontext formaler Sprachen arbeiten die Programme mit stark verschachtelten und semantisch sensiblen Strukturen. Diese müssen wohldefinierte Invarianten erfüllen, etwa: Ein binärer Ausdruck besitzt genau zwei Operanden; Tokens gehören exakt zu einer definierten Kategorie; Umgebungen ordnen Bezeichner eindeutig Werte zu. In einer dynamisch typisierten Sprache werden solche Strukturbedingungen typischerweise durch Laufzeitprüfungen, Konventionen oder Tests abgesichert, nicht jedoch durch das Typsystem selbst.
+\paragraph{Divergenz der Gleichheitssemantik (Value vs. Reference Semantics)}
+Ein fundamentales Hindernis bei der direkten Übersetzung ist die unterschiedliche Behandlung von Objektidentität und Gleichheit. Algorithmen der theoretischen Informatik, insbesondere die Potenzmengenkonstruktion oder die Minimierung von Automaten, basieren auf der Annahme, dass Mengen von Zuständen oder Tupel als Schlüssel in Abbildungen verwendet werden können.
+In Python gilt: Zwei logisch identische Tupel oder Mengen werden als gleich behandelt (Wertgleichheit) und generieren denselben Hash-Wert.
+In der JavaScript/TypeScript-Laufzeitumgebung hingegen basieren \texttt{Set} und \texttt{Map} bei Objekten und Arrays auf Referenzgleichheit. Zwei strukturell identische Objekte an unterschiedlichen Speicheradressen gelten als ungleich.
 
-Ein weiterer praktisch relevanter Aspekt ergibt sich bei der Modellierung \emph{mathematischer Objekte} wie Mengen, Relationen oder Zustandsmengen von Automaten. In den Programmen des Vorlesungsskripts wird beispielsweise \texttt{frozenset} in Kombination mit PLY eingesetzt, um Mengen unveränderbar zu machen und sie dadurch zuverlässig als Elemente anderer Mengen oder als Schlüssel in Dictionaries verwenden zu können \autocite{stroetmann_formal_languages_repo}. Die Notwendigkeit solcher Konstruktionen verdeutlicht, dass zentrale semantische Eigenschaften, hier die Unveränderlichkeit von Mengen, nicht auf Sprachebene garantiert, sondern explizit programmiert werden müssen.
+Abbildung~\ref{fig:semantics_comparison} verdeutlicht diese Diskrepanz, die eine native Verwendung von Standard-Datenstrukturen für die genannten Algorithmen verhindert.
 
-Aus der vorangegangenen Analyse lassen sich folgende strukturelle Problemfelder identifizieren:
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}[
+		node distance=1.5cm,
+		obj/.style={rectangle, draw=black, rounded corners, minimum width=2cm, minimum height=0.8cm, align=center},
+		var/.style={circle, draw=gray, minimum size=0.8cm, fill=gray!10},
+		arrow/.style={-Latex, thick}
+		]
+		% --- Python Side ---
+		\node (py_label) at (0, 3) {\textbf{Python (Wertsemantik)}};
+		
+		\node[var] (p1) at (-1.5, 1.5) {A};
+		\node[var] (p2) at (1.5, 1.5) {B};
+		
+		\node[obj, fill=green!10] (val1) at (0, 0) {\texttt{(1, 2)}\\Hash: 0x5F3};
+		
+		\draw[arrow] (p1) -- (val1);
+		\draw[arrow] (p2) -- (val1);
+		
+		% yshift angepasst für mehr Abstand
+		\node[text width=4cm, align=center, yshift=-0.5cm] at (0, -1.0) {\footnotesize \texttt{A == B} ist \textbf{True}\\(Inhalt entscheidet)};
+		
+		% --- Separator ---
+		\draw[dashed] (3.5, 3) -- (3.5, -2);
+		
+		% --- TS Side ---
+		\node (ts_label) at (7, 3) {\textbf{TypeScript (Referenzsemantik)}};
+		
+		\node[var] (t1) at (5.5, 1.5) {A};
+		\node[var] (t2) at (8.5, 1.5) {B};
+		
+		\node[obj, fill=red!10] (obj1) at (5.5, 0) {\texttt{[1, 2]}\\Ref: 0x1A};
+		\node[obj, fill=red!10] (obj2) at (8.5, 0) {\texttt{[1, 2]}\\Ref: 0x9B};
+		
+		\draw[arrow] (t1) -- (obj1);
+		\draw[arrow] (t2) -- (obj2);
+		
+		% yshift angepasst für mehr Abstand
+		\node[text width=4cm, align=center, yshift=-0.5cm] at (7, -1.0) {\footnotesize \texttt{A === B} ist \textbf{False}\\(Speicheradresse entscheidet)};
+	\end{tikzpicture}
+	\caption{Gegenüberstellung der Gleichheitssemantik zwischen Python und TypeScript}
+	\vspace{0,2 cm}
+	\raggedright \footnotesize \textbf{Quelle:} Eigene Darstellung.
+	\label{fig:semantics_comparison}
+\end{figure}
 
-\begin{enumerate}
-    \item \textbf{Fehlende verpflichtende statische Typprüfung.}  
-    Die Typüberprüfung durch \texttt{mypy} ist optional und nicht integraler Bestandteil der Sprache. Programme bleiben auch ohne Typannotationen lauffähig, wodurch Typfehler weiterhin erst zur Laufzeit auftreten können.
-
-    \item \textbf{Unzureichende formale Absicherung struktureller Invarianten.}  
-    Zentrale Datenstrukturen wie Syntaxbäume oder Zustandsmengen müssen bestimmte Eigenschaften erfüllen (z.\,B.\ Anzahl von Operanden, eindeutige Zuordnung von Symbolen). Diese Strukturbedingungen werden jedoch nicht durch das Typsystem garantiert, sondern lediglich durch Konventionen oder Laufzeitprüfungen abgesichert.
-
-    \item \textbf{Erschwerte Modellierung mathematischer Strukturen.}  
-    Mathematische Objekte wie Mengen oder Relationen müssen explizit so implementiert werden, dass ihre semantischen Eigenschaften (z.\,B.\ Unveränderlichkeit) erhalten bleiben. Die Verwendung von \texttt{frozenset} ist hierfür ein Beispiel. Solche Eigenschaften werden nicht automatisch durch das Sprachdesign erzwungen.
-
-    \item \textbf{Veränderbarkeit von Daten als Standardverhalten.}  
-    Viele Datenstrukturen in Python sind standardmäßig veränderbar. Dadurch können Objekte unbeabsichtigt modifiziert werden, was insbesondere bei verschachtelten oder gemeinsam genutzten Datenstrukturen zu schwer nachvollziehbaren Fehlern führen kann.
-
-    \item \textbf{Fehlende sprachliche Unterstützung für klar strukturierte Datentypen.}  
-    Für die Modellierung unterschiedlich geformter AST-Knoten oder Zustände existieren keine strikt getrennten Datentypen mit automatischer Vollständigkeitsprüfung. Fehlerhafte oder unvollständige Fallunterscheidungen werden daher häufig nicht bereits beim Übersetzen des Programms erkannt.
-\end{enumerate}
+\paragraph{Herausforderungen bei der KI-gestützten Code-Generierung}
+Der Einsatz von Large Language Models (LLMs) zur Unterstützung der Portierung verspricht zwar eine Beschleunigung des Entwicklungsprozesses, ist jedoch mit Risiken hinsichtlich der semantischen Korrektheit behaftet. So neigen LLMs dazu, Inhalte zu generieren, die auf den ersten Blick plausibel wirken, sich bei genauerer Betrachtung jedoch als faktisch inkorrekt erweisen, ein Phänomen, welches in der Forschung als \enquote{Halluzination} beschrieben wird \autocite{lu2025agentopia}.
 
 \subsection{Zielsetzung}
-Aus den identifizierten Problemfeldern ergibt sich die zentrale Fragestellung dieser Arbeit: 
-Inwieweit kann eine systematische Übersetzung der Python-Programme in die statisch typisierte Sprache TypeScript die strukturellen und typbezogenen Schwächen der bestehenden Implementierungen reduzieren?
+\label{subsec:zielsetzung}
 
-Ziel der Arbeit ist es, die im Vorlesungsskript verwendeten Python-Programme formal zu analysieren und in TypeScript zu übertragen. Dabei sollen folgende Faktoren beim Code untersucht werden: 
+Das übergeordnete Ziel dieser Arbeit ist die Bereitstellung einer vollständig typisierten TypeScript-Implementierung der Lehrinhalte aus der Vorlesung \enquote{Theoretische Informatik III}. Das Ergebnis soll eine Codebasis sein, welche die ursprünglichen Python-Notebooks funktional ersetzt, jedoch die algorithmischen Strukturen durch das statische Typsystem formal absichert.
 
-\begin{itemize}
-    \item Lesbarkeit und strukturelle Klarheit des Codes
-    \item Durchsetzung struktureller Invarianten durch das Typsystem
-    \item Typsicherheit und Zeitpunkt der Fehlererkennung
-    \item Modellierung mathematischer Strukturen (Mengen, Relationen, Automaten)
-    \item Wartbarkeit und Erweiterbarkeit der Implementierungen
-    \item Laufzeitverhalten und Performance
-\end{itemize}
+Konkret wird angestrebt, die von der Dozentenseite kritisierte Schwerfälligkeit der Python-Typisierung durch eine idiomatische TypeScript-Modellierung zu ersetzen. Ziel ist es, nachzuweisen, dass komplexe Invarianten von Syntaxbäumen und Automaten durch moderne Sprachfeatures wie \emph{Discriminated Unions} und \emph{Control Flow Analysis} bereits zur Kompilierzeit garantiert werden können. Die Arbeit soll aufzeigen, an welchen Stellen die statische Analyse von TypeScript der dynamischen Natur von Python in Bezug auf Wartbarkeit und Fehlervermeidung überlegen ist.
 
-Die Arbeit verfolgt somit nicht die bloße Übersetzung des Codes, sondern untersucht zusätzlich die strukturellen und sicherheitsrelevanten Unterschiede beider Typmodelle.
+Ein wesentliches technisches Teilziel ist die Konzeption und Implementierung einer spezialisierten Bibliothek, welche die Lücke zwischen der Wertsemantik von Python und der Referenzsemantik von JavaScript schließt. Es soll eine performante Lösung entwickelt werden, die echtes Hashing und strukturelle Gleichheit für beliebig verschachtelte Datenstrukturen ermöglicht, um die Algorithmen der Mengenlehre ohne semantische Brüche portieren zu können.
 
-\subsection{Aufbau der Arbeit}
+Des Weiteren wird eine hohe technische Interoperabilität angestrebt. Die resultierende Lösung soll plattformunabhängig auf den gängigen Betriebssystemen (Windows, macOS, Linux) ausführbar sein. Durch die Reduktion nativer Abhängigkeiten soll die Einstiegshürde für Studierende minimiert und eine konsistente Ausführungsumgebung gewährleistet werden.
 
-Die Arbeit gliedert sich in mehrere aufeinander aufbauende Kapitel.
+Begleitend verfolgt die Arbeit das methodische Ziel, die Effektivität von Large Language Models in der Software-Modernisierung zu evaluieren. Es soll untersucht werden, inwieweit ein iterativer Prozess die Problematik von Halluzinationen bei komplexen algorithmischen Übersetzungen mitigieren kann.
 
-Kapitel~2 führt in die theoretischen Grundlagen statischer Typisierung ein. Dabei werden zentrale Konzepte moderner Typsysteme erläutert und die für diese Arbeit relevanten Eigenschaften von TypeScript dargestellt. Besonderes Augenmerk liegt auf der Modellierung strukturierter Datentypen sowie der Durchsetzung von Typinvarianten.
+\subsection{Methodik und Abgrenzung}
+\label{subsec:methodik}
 
-Kapitel~3 analysiert die im Vorlesungsskript verwendeten Python-Programme im Hinblick auf ihre strukturellen Eigenschaften. Dabei werden typische Muster der Implementierung compiler-naher Strukturen identifiziert und hinsichtlich ihrer typbezogenen Schwächen systematisch untersucht.
+Die Durchführung der Arbeit folgt einem selektiven und adaptiven Ansatz. Der Umfang der Portierung beschränkt sich auf die nummerierten Lehrnotebooks der Vorlesung sowie deren unmittelbare technische Abhängigkeiten. Übungsnotebooks, die primär dem unbetreuten Selbststudium dienen, sind explizit vom Umfang dieser Arbeit ausgeklammert. Die Auswahl der zu übersetzenden Artefakte erfolgte in Abstimmung mit dem Betreuer und ist im Anhang (siehe Abschnitt~\ref{app:notebook_liste}) tabellarisch aufgeführt.
 
-Kapitel~4 beschreibt die systematische Übersetzung ausgewählter Module nach TypeScript. Hierbei werden zentrale Entwurfsentscheidungen dokumentiert und die Unterschiede in der Modellierung von Syntaxbäumen, Zustandsmengen und weiteren mathematischen Objekten herausgearbeitet.
+Die technische Umsetzung umfasst nicht nur den algorithmischen Kern, sondern auch die notwendige Infrastruktur zur Visualisierung. Ein zentrales Entwurfsziel war hierbei die Minimierung externer Systemabhängigkeiten, um eine reibungslose Nutzung auf verschiedenen Betriebssystemen zu gewährleisten. Anstatt eine lokale Installation binärer Drittsoftware vorauszusetzen, wurde die Visualisierung durch den Einsatz portabler, direkt in die Laufzeitumgebung integrierbarer Bibliotheken realisiert. Dieser Ansatz stellt sicher, dass die Notebooks allein durch die Bereitstellung einer \emph{Conda}-Umgebung vollständig und ohne weitere Installationsschritte ausführbar sind.
 
-Kapitel~5 stellt die Ergebnisse vergleichend gegenüber. Untersucht werden insbesondere Typsicherheit, Durchsetzung struktureller Invarianten, Wartbarkeit sowie Auswirkungen auf Lesbarkeit und Performance.
+Ein zentraler methodischer Aspekt betrifft die textuelle Aufbereitung: Die begleitenden Markdown-Erklärungen in den Notebooks wurden nicht bloß übersetzt, sondern redaktionell so überarbeitet, dass sie die TypeScript-spezifischen Konzepte eigenständig und in sich geschlossen erläutern. Auf vergleichende Referenzen zur Python-Implementierung wurde im Fließtext bewusst verzichtet, um die didaktische Eigenständigkeit der TypeScript-Version zu wahren.
 
-Abschließend fasst Kapitel~6 die gewonnenen Erkenntnisse zusammen, bewertet die Ergebnisse im Hinblick auf die eingangs formulierte Fragestellung und gibt einen Ausblick auf mögliche weiterführende Untersuchungen.
+Entsprechend der Anforderung an die Reproduzierbarkeit und Zugänglichkeit der Ergebnisse wird der gesamte Quellcode in einem öffentlichen Repository bereitgestellt. Die Implementierung ist unter der URL \url{https://github.com/cstrerath/formal-languages-typescript} im Ordner \texttt{TypeScript} verfügbar.

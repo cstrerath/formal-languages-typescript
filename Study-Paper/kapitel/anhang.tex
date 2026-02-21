@@ -5,3 +5,59 @@
 %]{./anhang/Planung_und_Konzeption_des_PoC.pdf}
 
 % So könnte man voll PDF als Anhang nutzen, ist aber unschön.
+
+% !TEX root = ../master.tex
+
+\appendix
+\section{Anhang}
+\label{sec:anhang}
+
+\subsection{Verzeichnis der portierten Lehrnotebooks}
+\label{app:notebook_liste}
+
+Die folgende Tabelle listet alle Jupyter-Notebooks auf, die im Rahmen dieser Arbeit selektiert und von Python nach TypeScript portiert wurden. Die Gliederung folgt der Kapitelstruktur der Originalvorlesung \enquote{Theoretische Informatik III}.
+
+\begin{table}[h]
+	\caption{Übersicht der übersetzten Notebooks im Repository}
+	\centering
+	\renewcommand{\arraystretch}{1.2}
+	\begin{tabularx}{\textwidth}{@{}lX@{}}
+		\toprule
+		\textbf{Original-Kapitel} & \textbf{Notebook-Dateiname} \\
+		\midrule
+		\multicolumn{2}{@{}l}{\textbf{Chapter 03}} \\
+		& \texttt{01-Ply-Scanning-Example.ipynb} \\
+		& \texttt{02-Regexp-Tutorial.ipynb} \\
+		& \texttt{03-Exam-Evaluation.ipynb} \\
+		& \texttt{04-Html2Text.ipynb} \\
+		\addlinespace
+		\multicolumn{2}{@{}l}{\textbf{Chapter 04 \& 05}} \\
+		& \texttt{01-NFA-2-DFA.ipynb} \\
+		& \texttt{02-Test-NFA-2-DFA.ipynb} \\
+		& \texttt{03-Regexp-2-NFA.ipynb} \\
+		& \texttt{04-Test-Regexp-2-NFA.ipynb} \\
+		& \texttt{05-DFA-2-RegExp.ipynb} \\
+		& \texttt{06-Test-DFA-2-RegExp.ipynb} \\
+		& \texttt{07-Minimize.ipynb} \\
+		& \texttt{08-Test-Minimize.ipynb} \\
+		& \texttt{09-Equivalence.ipynb} \\
+		& \texttt{10-Test-Equivalence.ipynb} \\
+		\addlinespace
+		\multicolumn{2}{@{}l}{\textbf{Chapter 06}} \\
+		& \texttt{01-Top-Down-Parser.ipynb} \\
+		& \texttt{02-EBNF-Parser.ipynb} \\
+		\addlinespace
+		\multicolumn{2}{@{}l}{\textbf{Chapter 07}} \\
+		& \texttt{01-Calculator.ipynb} \\
+		& \texttt{02-Differentiator.ipynb} \\
+		& \texttt{03-Interpreter.ipynb} \\
+		\addlinespace
+		\multicolumn{2}{@{}l}{\textbf{Chapter 10}} \\
+		& \texttt{01-Conflicts.ipynb} \\
+		& \texttt{02-Conflicts-Resolved.ipynb} \\
+		\bottomrule
+	\end{tabularx}
+	\vspace{0,2 cm}
+	\raggedright \footnotesize \textbf{Quelle:} Eigene Darstellung.
+	\label{tab:notebook_list}
+\end{table}
