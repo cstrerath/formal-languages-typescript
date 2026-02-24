@@ -1,6 +1,7 @@
 # LaTeX auxiliary files
 *.aux
 *.lof
+*.lol
 *.log
 *.lot
 *.fls
@@ -53,3 +54,6 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Minted
+_minted
