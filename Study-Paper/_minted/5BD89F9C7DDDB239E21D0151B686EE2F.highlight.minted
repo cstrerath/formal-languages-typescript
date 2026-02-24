@@ -1,8 +1,0 @@
-\begin{MintedVerbatim}[commandchars=\\\{\}]
-\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{Operator}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{k+kt}{string}\PYG{p}{;}
-\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{k+kt}{string}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{k+kt}{number}\PYG{+w}{ }\PYG{o}{|}
-\PYG{+w}{           }\PYG{p}{[}\PYG{n+nx}{Operator}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{]}\PYG{+w}{                }\PYG{o}{|}
-\PYG{+w}{           }\PYG{p}{[}\PYG{n+nx}{Operator}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{]}\PYG{+w}{           }\PYG{o}{|}
-\PYG{+w}{           }\PYG{p}{[}\PYG{n+nx}{Operator}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{]}\PYG{+w}{      }\PYG{o}{|}
-\PYG{+w}{           }\PYG{p}{[}\PYG{n+nx}{Operator}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{AST}\PYG{p}{];}
-\end{MintedVerbatim}

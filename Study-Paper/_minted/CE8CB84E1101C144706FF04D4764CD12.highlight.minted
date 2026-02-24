@@ -1,8 +1,0 @@
-\begin{MintedVerbatim}[commandchars=\\\{\}]
-\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{Name}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{k+kt}{string}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{n+nx}{Record}\PYG{o}{\PYGZlt{}}\PYG{k+kt}{string}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{string}\PYG{o}{\PYGZgt{}}\PYG{p}{;}
-\PYG{k+kr}{type}\PYG{+w}{ }\PYG{n+nx}{Direction}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+s+s2}{\PYGZdq{}North\PYGZdq{}}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{l+s+s2}{\PYGZdq{}East\PYGZdq{}}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{l+s+s2}{\PYGZdq{}South\PYGZdq{}}\PYG{+w}{ }\PYG{o}{|}\PYG{+w}{ }\PYG{l+s+s2}{\PYGZdq{}West\PYGZdq{}}\PYG{p}{;}
-
-\PYG{k+kd}{function}\PYG{+w}{ }\PYG{n+nx}{swap}\PYG{o}{\PYGZlt{}}\PYG{n+nx}{a}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{b}\PYG{o}{\PYGZgt{}}\PYG{p}{(}\PYG{n+nx}{x}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{a}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{y}\PYG{o}{:}\PYG{+w}{ }\PYG{k+kt}{b}\PYG{p}{)}\PYG{o}{:}\PYG{+w}{ }\PYG{p}{[}\PYG{n+nx}{b}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{a}\PYG{p}{]}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
-\PYG{+w}{  }\PYG{k}{return}\PYG{+w}{ }\PYG{p}{[}\PYG{n+nx}{y}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nx}{x}\PYG{p}{];}
-\PYG{p}{\PYGZcb{}}
-\end{MintedVerbatim}

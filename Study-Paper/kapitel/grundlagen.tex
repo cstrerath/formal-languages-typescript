@@ -68,6 +68,9 @@ Abbildung~\ref{fig:narrowing_flow} visualisiert diesen Prozess: Der Compiler \en
 	\end{tikzpicture}
 	\caption{Control Flow Analysis: Der TypeScript-Compiler verfeinert (narrowt) den Typ basierend auf logischen Bedingungen.}
 	\label{fig:narrowing_flow}
+	
+	\vspace{0.2cm}
+	\raggedright \footnotesize \textbf{Quelle:} Eigene Darstellung.
 \end{figure}
 
 \subsubsection{Type Narrowing und Discriminated Unions}
@@ -155,36 +158,166 @@ Dies erleichtert die Portierung von Python-Code erheblich, da Pythons \emph{Duck
 
 Obwohl die explizite Verwendung von \texttt{implements} für die Typkompatibilität technisch nicht erforderlich ist, wird sie in der Praxis dennoch empfohlen. Sie verlagert die Fehlererkennung von der Aufrufstelle (\emph{Call Site}) zur Definitionsstelle (\emph{Definition Site}). Würde in der Klasse \texttt{Particle} beispielsweise die Eigenschaft \texttt{x} versehentlich fehlen, würde der Compiler dies ohne \texttt{implements} erst beim Aufruf von \texttt{calculateLength(p)} bemängeln. Mit einer expliziten Klausel (\texttt{class Particle implements Vector2D}) wird der Fehler direkt an der Klasse markiert, was die Intention des Entwicklers dokumentiert und die Wartbarkeit erhöht.
 
-\subsection{Algorithmik von Mengen und Abbildungen}
-\label{subsec:hashing_theory}
+\subsection{Realisierung von Wertsemantik in Laufzeitumgebungen}
+\label{subsec:value_semantics_impl}
 
-Die effiziente Implementierung von Automatenalgorithmen (z.\,B. Potenzmengenkonstruktion, Minimierung) erfordert Datenstrukturen, die Mengen von Mengen verwalten können. Da Standardbibliotheken in JavaScript/TypeScript hierfür keine native Unterstützung bieten, ist ein tiefes Verständnis der zugrundeliegenden Hashing- und Speicherverfahren notwendig.
+Ein zentrales Problem bei der Portierung von Python nach TypeScript ist die Diskrepanz im Identitätsbegriff. Während Python für Tupel und unveränderliche Mengen (\texttt{frozenset}) automatisch \emph{Wertsemantik} (Value Semantics) anwendet, basieren JavaScript-Container (\texttt{Set}, \texttt{Map}) bei Objekten strikt auf \emph{Referenzsemantik}. Zwei strukturell identische Zustände eines Automaten gelten in der JavaScript-Laufzeitumgebung als ungleich, sofern sie nicht physikalisch denselben Speicherbereich belegen. Diese Problematik wurde in Abbildung~\ref{fig:semantics_comparison} im Abschnitt~\ref{subsec:problemstellung} visualisiert.
 
-\subsubsection{Identität und Gleichheit (Value Semantics)}
-In der Mengenlehre gilt das Extensionalitätsaxiom: Zwei Mengen sind genau dann gleich, wenn sie dieselben Elemente enthalten ($A = B \iff \forall x: (x \in A \iff x \in B)$). Diese Definition entspricht der \emph{Wertgleichheit} (Value Equality).
-Programmiersprachen unterscheiden jedoch technisch zwischen:
-\begin{enumerate}
-	\item \textbf{Referenzgleichheit (Identity):} Zwei Variablen zeigen auf dieselbe Speicheradresse. Dies ist das Standardverhalten von \texttt{Set} und \texttt{Map} in JavaScript für Objekte.
-	\item \textbf{Strukturelle Gleichheit (Deep Equality):} Zwei Objekte sind äquivalent, wenn ihre rekursive Struktur und ihre primitiven Werte übereinstimmen.
-\end{enumerate}
-Für die Portierung der Python-Logik, in der Tupel und `frozensets` als Schlüssel in Dictionaries dienen, ist die Implementierung struktureller Gleichheit zwingend erforderlich. Dies impliziert, dass auch der Hash-Wert eines Objekts nicht aus seiner Speicheradresse, sondern deterministisch aus seinem Inhalt abgeleitet werden muss.
+Um die Algorithmen der theoretischen Informatik korrekt abzubilden, muss daher eine Datenstruktur implementiert werden, die Objekte anhand ihres Inhalts identifiziert. Hierfür existieren in der Informatik verschiedene algorithmische Standardverfahren.
 
-\subsubsection{Hash-Funktionen und Verteilung}
-Eine Hash-Funktion $h: D \rightarrow I$ bildet Daten beliebiger Größe auf einen Indexbereich ab. Für performante Hash-Tabellen sind drei Eigenschaften entscheidend:
+\subsubsection{Vergleich der Implementierungsstrategien}
+Zur Auswahl einer geeigneten Datenstruktur werden im Folgenden drei klassische Ansätze verglichen: Sortierte Arrays, Balancierte Suchbäume sowie Hash-Tabellen.
+
+Ein zentrales Unterscheidungsmerkmal ist die benötigte Schnittstelle der Schlüsselobjekte. Vergleichsbasierte Verfahren setzen voraus, dass Schlüssel eine totale Ordnung besitzen (Interface \texttt{Comparable} / \texttt{compareTo}), wohingegen Hash-Verfahren lediglich die Prüfung auf Äquivalenz und die Berechnung eines Streuwertes erfordern (Interface \texttt{Equality} / \texttt{hashCode}).
+
+Tabelle~\ref{tab:complexity_comparison} fasst das asymptotische Laufzeitverhalten der Operationen \emph{Suchen} und \emph{Einfügen} zusammen. Die Angaben beziehen sich auf $N$ Elemente in der Struktur.
+
+\begin{table}[H]
+	\centering
+	\caption{Asymptotischer Laufzeitvergleich verschiedener Datenstrukturen}
+	\label{tab:complexity_comparison}
+	\renewcommand{\arraystretch}{1.3}
+	\begin{tabularx}{\textwidth}{@{}l l l l l@{}}
+		\toprule
+		\textbf{Algorithmus} & \multicolumn{2}{c}{\textbf{Worst Case}} & \multicolumn{2}{c}{\textbf{Average Case}} \\
+		& \textit{Suche} & \textit{Einfügen} & \textit{Suche} & \textit{Einfügen} \\
+		\midrule
+		\textbf{Geordnetes Array} & $O(\log N)$ & $O(N)$ & $O(\log N)$ & $O(N)$ \\
+		\addlinespace
+		\textbf{Balancierter Suchbaum} & $O(\log N)$ & $O(\log N)$ & $O(\log N)$ & $O(\log N)$ \\
+		\addlinespace
+		\textbf{Hash-Tabelle} & $O(N)$ & $O(N)$ & $O(1)$ & $O(1)$ \\
+		\bottomrule
+	\end{tabularx}
+	
+	\vspace{0.2cm}
+	\raggedright \footnotesize \textbf{Quelle:} Eigene Darstellung in Anlehnung an \autocite[S. 520]{sedgewick2014algorithmen}.
+\end{table}
+
+
+\subsubsection{Bewertung der Verfahren}
+
+Die Analyse der asymptotischen Laufzeiten zeigt deutliche Unterschiede in der Eignung für generische Bibliotheken.
+
+\emph{Geordnete Arrays} ermöglichen durch die Binäre Suche zwar effiziente Lesezugriffe ($O(\log N)$) und sind extrem speichereffizient, da sie ohne Zeiger auskommen. Sie disqualifizieren sich jedoch für schreibintensive Szenarien. Sobald Mengen dynamisch wachsen, erfordert das Einfügen an einer beliebigen Stelle das Verschieben aller nachfolgenden Elemente im Speicher. Dies führt zu linearen Kosten ($O(N)$).
+In anwendungsnahen Szenarien, wie etwa einem Backtracking-Algorithmus zum Lösen von Sudokus, werden millionenfach Zwischenzustände in Mengen eingefügt und wieder entfernt. Ein Aufwand von $O(N)$ pro Schritt würde die Gesamtlaufzeit hier exponentiell in die Höhe treiben.
+
+\emph{Balancierte Suchbäume} garantieren zwar stabile logarithmische Laufzeiten für alle Operationen, weisen jedoch Nachteile auf technischer Ebene auf. Zum einen ist die Speicherstruktur ungünstig für moderne Hardware: Da Knoten einzeln im Heap allokiert und über Zeiger verknüpft sind, liegen logisch benachbarte Daten oft physikalisch weit verstreut. Dies führt beim Traversieren zu häufigen Cache-Misses \autocite[S. 301]{cormen2022introduction}.
+Zum anderen stellt die Anforderung einer totalen Ordnung (\texttt{compareTo}) eine signifikante Hürde dar. Für komplexe, verschachtelte Objekte ist es oft schwierig oder rechenintensiv, eine konsistente Totalordnung zu definieren.
+
+\emph{Hash-Tabellen} bieten mit einer amortisierten Laufzeit von $O(1)$ die theoretisch beste Performance für große, dynamische Mengen. Das Risiko von Kollisionen existiert, lässt sich durch qualitativ hochwertige Hash-Funktionen aber mitigieren. Entscheidend ist die Einfachheit: Durch den Verzicht auf komplexe Rebalancierungen und die mögliche Nutzung linearer Speicherbereiche profitieren Hash-Tabellen maximal von CPU-Caches \autocite[S. 301]{cormen2022introduction}.
+
+\subsubsection{Anforderungen an Hash-Funktionen}
+Eine Hash-Funktion $h: D \rightarrow I$ bildet Elemente aus einer theoretisch unendlichen Domäne $D$ (z.\,B. alle möglichen Zeichenketten oder Objektgraphen) auf einen endlichen Indexbereich $I = \{0, \dots, m-1\}$ ab. Damit eine Hash-Tabelle effizient arbeitet, muss die Funktion folgende theoretische Anforderungen erfüllen:
+
 \begin{itemize}
-	\item \textbf{Determinismus:} Gleicher Input muss stets den gleichen Hash-Wert liefern. Dies ist bei rekursiven Strukturen nichttrivial, da die Iterationsreihenfolge von Elementen in Standard-Sets undefiniert ist. Eine kanonische Sortierung (z.\,B. nach Hash-Werten der Kinder) ist daher vor dem Hashing notwendig.
-	\item \textbf{Uniformität:} Die Hash-Werte sollten gleichmäßig über den Wertebereich verteilt sein, um Kollisionen zu minimieren. Moderne Verfahren nutzen hierzu Bit-Operationen (XOR, Shift) und Multiplikationen mit großen Primzahlen, um einen \enquote{Avalanche Effect} zu erzielen, bei dem die Änderung eines Eingabebits das Umkippen vieler Ausgabebits bewirkt \autocite[S.515ff]{cormen2022introduction}.
-	\item \textbf{Performance:} Da Hash-Berechnungen in inneren Schleifen von Automatenalgorithmen stattfinden, müssen Allokationen (z.\,B. Strings-Konkatenation) vermieden werden.
+	\item \textbf{Determinismus:} Für zwei identische Objekte $x$ und $y$ muss zwingend gelten: $x = y \implies h(x) = h(y)$. Dies ist trivial für primitive Datentypen, stellt jedoch bei rekursiven Strukturen eine Herausforderung dar. Da Standard-Sets keine definierte Iterationsreihenfolge besitzen, muss die Hash-Funktion kommutativ sein (d.\,h. unabhängig von der Reihenfolge der Elemente), oder die Elemente müssen vor dem Hashing in eine kanonische Ordnung gebracht werden.
+	\item \textbf{Uniformität:} Die Wahrscheinlichkeit, dass ein beliebiger Schlüssel auf einen bestimmten Index abgebildet wird, sollte für alle Indizes gleich sein ($P(h(k) = i) \approx 1/m$). Eine ungleichmäßige Verteilung führt zu Häufungen (Clustering), was die Laufzeit der Hash-Tabelle im schlimmsten Fall auf $O(N)$ degradieren lässt \autocite[S. 283]{cormen2022introduction}.
+	\item \textbf{Effizienz:} Die Berechnung von $h(x)$ muss schnell erfolgen. In der Praxis kommen oft Verfahren wie \emph{FNV-1a} oder \emph{MurmurHash} zum Einsatz, die durch Bit-Operationen (XOR, Shift) und Multiplikationen mit Primzahlen eine gute Durchmischung bei geringer CPU-Last erreichen.
 \end{itemize}
 
-\subsubsection{Kollisionsauflösung: Open Addressing und SoA}
-Treffen zwei unterschiedliche Schlüssel auf denselben Hash-Index (Kollision), muss eine Ausweichstrategie gewählt werden. Während viele Standardimplementierungen (wie Java \texttt{HashMap}) auf \emph{Chaining} (verkettete Listen pro Bucket) setzen, bietet das \emph{Open Addressing} (offene Adressierung) signifikante Vorteile für die Cache-Lokalität.
+\subsubsection{Strategien der Kollisionsauflösung}
+Da die Domäne $D$ meist wesentlich größer ist als der Indexbereich $I$, sind Kollisionen ($h(x) = h(y)$ mit $x \neq y$) nach dem Schubfachprinzip unvermeidbar. Zur Auflösung dieser Konflikte unterscheidet die Literatur zwei Hauptklassen von Verfahren:
 
-Beim Open Addressing werden alle Elemente direkt im Array der Tabelle gespeichert. Bei einer Kollision an Index $i$ wird eine Sondierungsfolge (Probing Sequence) durchlaufen, typischerweise \emph{Linear Probing}:
-\[
-\text{index}(k, j) = (h(k) + j) \pmod m
-\]
-wobei $j$ der Sondierungsschritt ist.
+\paragraph{Separate Chaining (Verkettung)}
+Beim Chaining enthält jeder Slot der Hash-Tabelle einen Zeiger auf eine dynamische Datenstruktur (meist eine einfach verkettete Liste), die alle Elemente aufnimmt, die auf diesen Index hashen (siehe Abbildung~\ref{fig:chaining}).
+Der Vorteil dieses Verfahrens ist seine Robustheit: Der Füllgrad der Tabelle kann theoretisch über 100\,\% steigen, ohne dass die Tabelle vollständig blockiert. Der Nachteil liegt im Speicheroverhead durch die Zeiger und der schlechten Cache-Lokalität, da die Listen-Knoten verstreut im Heap liegen können.
+
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}[
+		node distance=0.5cm and 0.5cm,
+		listnode/.style={
+			rectangle split, 
+			rectangle split parts=2, 
+			rectangle split horizontal,
+			draw, 
+			minimum height=0.8cm,
+			text width=0.6cm,
+			align=center,
+			font=\small\ttfamily,
+			inner sep=4pt
+		},
+		bucket/.style={
+			draw,
+			minimum width=1.2cm,
+			minimum height=0.8cm,
+			fill=gray!5,
+			font=\small\ttfamily,
+			outer sep=0pt
+		},
+		index/.style={
+			font=\footnotesize\sffamily\color{gray},
+			left=0.3cm,
+			anchor=east
+		},
+		arrow/.style={
+			->, 
+			>=Latex, 
+			thick,
+			color=blue!70!black,
+			rounded corners=2pt
+		}
+		]
+		
+		% --- 1. Die Buckets (Das Array) ---
+		\foreach \i in {0,...,4} {
+			\node[bucket] (b\i) at (0, -\i*1.2) {/};
+			\node[index] at (b\i.west) {\i};
+		}
+		
+		% Buckets mit Inhalt
+		\node[bucket] at (0, -1.2) (b1) {$\bullet$}; 
+		\node[bucket] at (0, -3.6) (b3) {$\bullet$};
+		
+		% --- 2. Die Listen-Ketten ---
+		
+		% Kette für Bucket 1:
+		% A ist GRÜN (Erstes Element -> schnell)
+		\node[listnode, fill=green!10, right=0.8cm of b1] (nodeA) {
+			A \nodepart{two} $\bullet$
+		};
+		
+		% B ist GELB (Kollision -> Pointer Chasing)
+		\node[listnode, fill=yellow!20, right=of nodeA] (nodeB) {
+			B \nodepart{two} $\bullet$
+		};
+		
+		% C ist GELB
+		\node[listnode, fill=yellow!20, right=of nodeB] (nodeC) {
+			C \nodepart{two} /
+		};
+		
+		% Kette für Bucket 3:
+		% D ist GRÜN (Erstes Element)
+		\node[listnode, fill=green!10, right=0.8cm of b3] (nodeD) {
+			D \nodepart{two} /
+		};
+		
+		% --- 3. Die Pfeile ---
+		\draw[arrow] (b1.center) -- (nodeA.west);
+		\draw[arrow] (nodeA.two east) -- (nodeB.west);
+		\draw[arrow] (nodeB.two east) -- (nodeC.west);
+		\draw[arrow] (b3.center) -- (nodeD.west);
+		
+		% --- 4. Legende (Jetzt mit mehr Abstand) ---
+		\node[below=1.5cm of b4, font=\footnotesize\sffamily, align=left, anchor=west, xshift=-0.5cm] (legend) {
+			\textbf{Legende:}\\
+			\textcolor{green!40!gray}{Grün}: Listen-Kopf (Direkter Zugriff über Bucket-Pointer).\\
+			\textcolor{yellow!60!orange}{Gelb}: Listen-Rumpf (Zugriff erfordert Traversierung).\\
+			Elemente A, B und C teilen sich den Hash-Index 1.
+		};
+		
+	\end{tikzpicture}
+	\caption{Visualisierung von Separate Chaining}
+	\label{fig:chaining}
+	
+	\vspace{0.2cm}
+	\raggedright \footnotesize \textbf{Quelle:} Eigene Darstellung.
+\end{figure}
+
+\paragraph{Open Addressing (Offene Adressierung)}
+Bei der offenen Adressierung werden alle Elemente direkt im Array der Tabelle gespeichert. Tritt eine Kollision an Index $i$ auf, wird algorithmisch eine alternative Position (Sondierung) bestimmt. Ein weit verbreitetes Sondierungsverfahren ist das \emph{Lineare Sondieren} (Linear Probing), bei dem sequenziell die Positionen $i, i+1, i+2, \dots$ geprüft werden (siehe Abbildung~\ref{fig:linear_probing}).
 
 \begin{figure}[h]
 	\centering
@@ -239,8 +372,8 @@ wobei $j$ der Sondierungsschritt ist.
 		
 		% Element B (Hash 1) -> Kollision -> +1
 		\node (idealB) [above=1.5cm of s2, font=\footnotesize] {h(B)=1};
-		\draw[arrow, opacity=0.3] (idealB) -- (s1.north); % Der Versuch
-		\draw[collision] (s1.north) to (s2.north); % Das Ausweichen
+		\draw[arrow, opacity=0.3] (idealB) -- (s1.north); 
+		\draw[collision] (s1.north) to (s2.north); 
 		
 		% Element C (Hash 1) -> Kollision -> +2
 		\node (idealC) [above=1.5cm of s3, font=\footnotesize] {h(C)=1};
@@ -249,37 +382,82 @@ wobei $j$ der Sondierungsschritt ist.
 		
 		% Element D (Hash 3) -> Kollision mit C -> +1
 		\node (idealD) [above=1.5cm of s4, font=\footnotesize] {h(D)=3};
-		\draw[arrow, opacity=0.3] (idealD) -- (s3.north); % Der Versuch auf 3
-		\draw[collision] (s3.north) to (s4.north); % Das Ausweichen
+		\draw[arrow, opacity=0.3] (idealD) -- (s3.north); 
+		\draw[collision] (s3.north) to (s4.north); 
 		
 		% --- Cluster Brace ---
 		\draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick, color=gray]
-		($(s1.south west)+(0,-0.5)$) -- ($(s4.south east)+(0,-0.5)$)
-		node[midway, below=0.2cm, font=\small\sffamily] {Primary Cluster};
+		($(s1.south west)+(0,-0.8)$) -- ($(s4.south east)+(0,-0.8)$)
+		node[midway, below=0.1cm, font=\small\sffamily] {Primary Cluster};
 		
-		% --- Legende / Erklärung ---
-		\node[right=0.5cm of s6, align=left, font=\footnotesize\sffamily] {
+		% --- Legende UNTERHALB ---
+		\node[below=1.5cm of s3, align=center, font=\footnotesize\sffamily] {
 			\textbf{Legende:}\\
-			\textcolor{green!40!gray}{A}: Optimal platziert (PSL=0)\\
-			\textcolor{yellow!60!orange}{B, C}: Verschoben durch Kollision\\
-			\textcolor{red!60!gray}{D}: Verdrängt durch Cluster\\
-			(PSL = Probe Sequence Length)
+			\textcolor{green!40!gray}{A}: Optimal platziert (PSL=0) \quad
+			\textcolor{yellow!60!orange}{B, C}: Verschoben (Kollision) \quad
+			\textcolor{red!60!gray}{D}: Verdrängt durch Cluster
 		};
 		
 	\end{tikzpicture}
-	\caption{Visualisierung von Linear Probing und Clusterbildung. Elemente B und C kollidieren mit A. Element D (Hash 3) trifft auf das belegte Feld 3 und muss auf 4 ausweichen, obwohl es gar nicht Hash 1 hat.}
+	\caption{Visualisierung von Linear Probing}
 	\label{fig:linear_probing}
+	
+	\vspace{0.2cm}
+	\raggedright \footnotesize \textbf{Quelle:} Eigene Darstellung.
 \end{figure}
 
-Um die Performance weiter zu steigern, kann das Speicherlayout nach dem Prinzip \textbf{Structure of Arrays (SoA)} optimiert werden. Anstatt ein Array von Objekten (\texttt{\{key, value, hash\}}) zu speichern, werden drei separate, flache Arrays (\texttt{keys[]}, \texttt{values[]}, \texttt{hashes[]}) verwaltet. Dies erhöht die räumliche Lokalität (Spatial Locality) im CPU-Cache, da beim Durchsuchen der Tabelle nur die relevanten Datenströme geladen werden müssen.
+Dieses Verfahren maximiert die Cache-Effizienz, da Datenblöcke sequenziell geladen werden. Es leidet jedoch unter dem Phänomen des \emph{Primären Clusterings}: Belegte Plätze neigen dazu, zu langen Ketten zu verwachsen, was die Wahrscheinlichkeit für weitere Kollisionen in diesem Bereich erhöht und die Performance bei hohem Füllgrad signifikant verschlechtert \autocite[S. 293]{cormen2022introduction}.
 
-\subsubsection{Löschstrategien: Backshift Deletion}
-Eine Schwäche des Linear Probing ist das Löschen von Elementen. Wird ein Element einfach entfernt, entsteht eine Lücke, die die Sondierungskette für nachfolgende Elemente unterbricht.
-Klassische Implementierungen nutzen daher \enquote{Tombstones} (Grabsteine) -- spezielle Marker für gelöschte Felder. Diese haben jedoch den Nachteil, dass sie die Tabelle \enquote{verschmutzen} und die Suchzeit bei vielen Einfüge- und Löschoperationen degradieren.
+\subsubsection{Erhalt der Invarianten beim Löschen (Backshifting)}
+Eine besondere Herausforderung bei der offenen Adressierung stellt das Entfernen von Elementen dar. Wird ein Element naiv gelöscht, entsteht eine Lücke (\texttt{null}) im Cluster. Nachfolgende Elemente, die aufgrund einer Kollision hinter dieser Lücke platziert wurden, wären bei einer erneuten Suche nicht mehr auffindbar, da der Suchalgorithmus bei der ersten Lücke abbricht.
 
-Eine effizientere, wenn auch implementierungstechnisch aufwendigere Methode ist das \textbf{Backshift Deletion} (auch bekannt als \emph{Backward Shift Deletion}).
-Hierbei wird beim Löschen an Index $i$ geprüft, ob das nachfolgende Element an $i+1$ (oder weiter) nur aufgrund einer Kollision dort liegt und eigentlich an eine Position $\le i$ gehört. Ist dies der Fall, wird das Element nach $i$ verschoben (\enquote{zurückgerückt}), und die Prüfung setzt sich rekursiv fort.
-Dieses Verfahren hält die Tabelle kompakt, eliminiert die Notwendigkeit von Tombstones vollständig und garantiert, dass die Suchpfade minimal bleiben. Es ist damit besonders geeignet für langlebige Datenstrukturen in einer Interpreter-Laufzeitumgebung.
+Klassische Implementierungen verwenden daher oft \enquote{Tombstones} (spezielle Marker für gelöschte Felder). Diese führen jedoch langfristig zu einer Verschmutzung der Tabelle und verlangsamen Fehlsuchen, da der Algorithmus über Tombstones hinwegspringen muss.
+
+Um die Performance auch bei intensiven Modifikationen stabil zu halten, kommt in dieser Arbeit das Verfahren des \textbf{Backshift Deletion} (auch bekannt als \emph{Robin Hood Deletion}) zum Einsatz. Listing~\ref{lst:backshift_algo} zeigt eine mögliche Implementierung.
+
+\begin{listing}[H]
+	\caption{Algorithmus zur Rückverschiebung (Backshift Deletion), adaptiert nach \autocite[S. 302]{cormen2022introduction}}
+	\label{lst:backshift_algo}
+	\begin{minted}{typescript}
+function deleteAtIndex(index: number): void {
+	table[index] = null;
+	
+	let hole = index;
+	let scanner = (hole + 1) % capacity;
+	
+	while (table[scanner] !== null) {
+		const element = table[scanner];
+		const ideal = hash(element.key);
+		
+		const distToHole = (hole - ideal + capacity) % capacity;
+		const distToScanner = (scanner - ideal + capacity) % capacity;
+		
+		if (distToHole < distToScanner) {
+			table[hole] = element;
+			table[scanner] = null;
+			hole = scanner;
+		}
+		
+		scanner = (scanner + 1) % capacity;
+	}
+}
+	\end{minted}
+\end{listing}
+
+Der Algorithmus stellt die Invariante des linearen Sondierens wieder her, indem er Lücken schließt. Die Logik lässt sich wie folgt analysieren:
+
+\begin{itemize}
+	\item \textbf{Zeile 2:} Das Element an der übergebenen Position wird physisch entfernt. Es entsteht eine Lücke (Variable \texttt{hole}).
+	\item \textbf{Zeile 5:} Ein zweiter Zeiger (\texttt{scanner}) beginnt unmittelbar nach der Lücke und durchläuft zyklisch den restlichen Cluster.
+	\item \textbf{Zeile 11--12:} Hier erfolgt die Kernprüfung. Es werden zwei Distanzen berechnet: Wie weit ist die Lücke vom idealen Hash-Index des Elements entfernt (\texttt{distToHole}) und wie weit ist die aktuelle Position entfernt (\texttt{distToScanner}). Die Modulo-Arithmetik behandelt dabei den zyklischen Überlauf am Array-Ende.
+	\item \textbf{Zeile 14:} Ist die Lücke näher an der idealen Position als der aktuelle Platz ($distToHole < distToScanner$), bedeutet dies, dass das Element ursprünglich an die Stelle der Lücke (oder davor) wollte, aber verdrängt wurde.
+	\item \textbf{Zeile 15--17:} Das Element wird in die Lücke zurückgeschoben. Dadurch wandert die Lücke nun an die Position des Scanners. Der Prozess wiederholt sich rekursiv für die neue Lückenposition, bis das Ende des Clusters erreicht ist.
+\end{itemize}
+
+Die Terminierung des Algorithmus ist durch die Eigenschaften des Linear Probing garantiert, sofern der Füllgrad der Tabelle unter $100\,\%$ gehalten wird (typischerweise $\alpha \le 0.75$).
+Ein \emph{Cluster} ist in einer Hash-Tabelle definiert als eine zusammenhängende Sequenz von belegten Slots, die von leeren Slots (\texttt{null}) begrenzt wird. Da der \texttt{scanner}-Zeiger den Cluster ab der Lücke zyklisch durchläuft und sich nur vorwärts bewegt, muss er zwangsläufig das Ende des Clusters erreichen. Da die Tabelle nicht voll sein kann, existiert mindestens ein \texttt{null}-Feld, welches die \texttt{while}-Schleife in Zeile 7 abbricht. Ein unendlicher Loop ist somit ausgeschlossen.
+
+Das Verfahren hält die Tabelle kompakt und eliminiert die Notwendigkeit von Tombstones vollständig. Zwar sind die Kosten einer einzelnen Löschoperation im Worst-Case höher als beim bloßen Markieren, doch wird dies durch die verbesserte Cache-Lokalität und schnellere Suchzeiten (Misses) bei moderaten Füllgraden kompensiert.
 
 
 \subsection{Termersetzung und Pattern Matching}
