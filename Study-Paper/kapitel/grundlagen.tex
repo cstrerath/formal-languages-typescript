@@ -26,7 +26,7 @@ Während dies maximale Flexibilität und schnelle Prototypenentwicklung ermögli
 	\item \textbf{Implizite Annahmen:} Die Struktur komplexer Objekte (z.\,B. \enquote{Ein Token ist ein Tupel aus Typ und Wert}) muss durch Dokumentation oder Konvention gesichert werden, da die Sprache sie nicht erzwingt.
 \end{enumerate}
 
-Zwar bietet Python mit \href{http://mypy-lang.org/}{\texttt{mypy}} ein Werkzeug für optionale statische Typannotationen (PEP 484), dessen Analysefähigkeit ist jedoch begrenzt. Insbesondere bei der Flussanalyse (Control Flow) kann \texttt{mypy} oft nicht automatisch deduzieren, dass ein Typ nach einer Prüfung sicher ist, was zu erzwungenen \texttt{cast}-Operationen oder \texttt{\# type: ignore}-Kommentaren führt.
+Zwar bietet Python mit \href{http://mypy-lang.org/}{\texttt{mypy}} ein Werkzeug für optionale statische Typannotationen, dessen Analysefähigkeit ist jedoch begrenzt. Insbesondere bei der Flussanalyse (Control Flow) kann \texttt{mypy} oft nicht automatisch deduzieren, dass ein Typ nach einer Prüfung sicher ist, was zu erzwungenen \texttt{cast}-Operationen oder \texttt{\# type: ignore}-Kommentaren führt.
 
 \subsubsection{Statische Typisierung und Control Flow Analysis in TypeScript}
 Im Gegensatz dazu führt TypeScript eine strikte statische Typprüfung vor der Ausführung durch. Ein zentrales Unterscheidungsmerkmal zu traditionellen statischen Sprachen (wie Java) ist dabei die Fähigkeit zur **Control Flow Analysis (CFA)**. Der Compiler analysiert den logischen Fluss des Codes, um den Typ einer Variable an jeder Stelle im Code so präzise wie möglich zu bestimmen.
@@ -458,11 +458,4 @@ Ein \emph{Cluster} ist in einer Hash-Tabelle definiert als eine zusammenhängend
 Das Verfahren hält die Tabelle kompakt und eliminiert die Notwendigkeit von Tombstones vollständig. Zwar sind die Kosten einer einzelnen Löschoperation im Worst-Case höher als beim bloßen Markieren, doch wird dies durch die verbesserte Cache-Lokalität und schnellere Suchzeiten (Misses) bei moderaten Füllgraden kompensiert.
 
 
-\subsection{Laufzeitumgebungen und WebAssembly}
-\label{subsec:wasm_theory}
-
-Ein wesentliches Ziel bei der Bereitstellung der Projektresultate ist die barrierefreie Nutzung der Visualisierungskomponenten in interaktiven Umgebungen wie \emph{Jupyter Notebooks}. Traditionell erfordert die Darstellung von Automaten-Graphen via \emph{Graphviz} die manuelle Installation nativer Binärdateien auf dem Host-System. Insbesondere unter Windows-Umgebungen führt die notwendige Konfiguration von Systempfaden häufig zu Instabilitäten und erschwert die Reproduzierbarkeit der Forschungsergebnisse.
-
-Um diesen \enquote{Tricky Paths}-Problematiken zu begegnen, nutzt die Visualisierungslogik \ac{wasm}. Dabei handelt es sich um ein binäres Instruktionsformat für eine stapelbasierte virtuelle Maschine, das als portables Zielformat für die Kompilierung von Hochsprachen wie C++ dient \autocite{haas2017bringing}. 
-
-In dieser Arbeit wird die Bibliothek \texttt{@viz-js/viz} eingesetzt, welche den ursprünglichen C-Code von Graphviz mittels \emph{Emscripten} zu \ac{wasm} kompiliert hat. Dies ermöglicht es, die komplexen Layout-Algorithmen (wie \emph{dot}) direkt als reguläre Abhängigkeit via \texttt{npm} zu beziehen und innerhalb der Node.js-Laufzeitumgebung des Jupyter-Kernels (\emph{tslab}) auszuführen. Damit wird die geforderte \Gls{interoperabilität} auf Ebene der Entwicklungsumgebung erreicht: Das System ist nach einem Standard-Setup (\texttt{conda} und \texttt{npm install}) sofort einsatzbereit, ohne dass externe Grafik-Tools auf Betriebssystemebene vorinstalliert sein müssen.
+%%
