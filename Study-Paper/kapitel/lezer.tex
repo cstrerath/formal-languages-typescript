@@ -1,0 +1,113 @@
+% !TEX root = ../master.tex
+% !TEX root = ../master.tex
+\section{Vom Python-Werkzeug PLY zu Lezer}
+\label{subsec:ply_to_lezer}
+
+In den ursprünglichen Python-Implementierungen der Lehrveranstaltung werden zentrale Schritte der Sprachverarbeitung mit der Bibliothek \emph{PLY} (Python Lex-Yacc) umgesetzt. \emph{PLY} ist eine Parsergenerator-Bibliothek für Python, 
+die sich an den klassischen Werkzeugen \emph{Lex} und \emph{Yacc} orientiert. 
+Diese Werkzeuge werden häufig in Lehrumgebungen eingesetzt, um grundlegende Konzepte der 
+Compilertechnik wie Tokenisierung und Parsing praktisch umzusetzen. 
+Die Bibliothek wurde von David Beazley entwickelt und ist frei verfügbar 
+\autocite{beazley_ply}.
+
+Die grundlegende Architektur eines solchen Sprachprozessors besteht aus zwei zentralen Phasen: der lexikalischen Analyse und der syntaktischen Analyse. Zunächst zerlegt der Lexer den Eingabetext in eine Folge elementarer Token, anschließend analysiert der Parser diese Tokenfolge anhand einer kontextfreien Grammatik und konstruiert daraus eine syntaktische Struktur, etwa einen abstrakten Syntaxbaum (AST) \autocite[S.5ff]{aho2006compilers}.
+
+\emph{PLY} bildet diese beiden Komponenten explizit ab:
+
+\begin{itemize}
+    \item \textbf{Lexikalische Analyse (Lexer):}  
+    Token werden über reguläre Ausdrücke definiert. Der Lexer erkennt daraus elementare Spracheinheiten wie Zahlen, Operatoren oder Schlüsselwörter.
+
+    \item \textbf{Syntaxanalyse (Parser):}  
+    Die Grammatik der Sprache wird als Menge von Produktionsregeln formuliert. \emph{PLY} generiert daraus einen Parser, der auf LR-Parsing-Techniken basiert. Diese Parsingverfahren lesen die Eingabe von links nach rechts und konstruieren eine rechtsableitende Analyse, wodurch auch komplexe Programmiersprachen effizient verarbeitet werden können.
+\end{itemize}
+
+Ein charakteristisches Merkmal von \emph{PLY} ist, dass Token-Definitionen und Grammatikregeln direkt im Python-Code definiert werden. Produktionsregeln werden dabei als Funktionen formuliert, deren Docstrings die jeweilige Grammatikregel enthalten. Diese enge Integration erleichtert die prototypische Entwicklung von Parsern im Lehrkontext.
+
+\begin{minted}{python}
+tokens = ('NUMBER', 'PLUS')
+
+t_PLUS = r'\+'
+
+def t_NUMBER(t):
+    r'\d+'
+    t.value = int(t.value)
+    return t
+\end{minted}
+
+Während \emph{PLY} somit eine klassische Compilerarchitektur innerhalb der Python-Umgebung realisiert, verfolgt das TypeScript-Ökosystem einen anderen Ansatz. Für editornahe Anwendungen und webbasierte Entwicklungsumgebungen wird häufig das Parser-Framework \emph{Lezer} eingesetzt.
+
+\emph{Lezer} verfolgt das Ziel, syntaktische Analysen effizient und inkrementell durchzuführen. Im Gegensatz zu traditionellen Parsergeneratoren wird der Parser so konstruiert, dass er Änderungen am Quelltext lokal verarbeiten kann, ohne den gesamten Syntaxbaum neu berechnen zu müssen \autocite{lezer_docs}.
+
+Die Grammatik wird hierbei nicht mehr als Python-Code formuliert, sondern als deklarative Grammatikbeschreibung in einer eigenen Syntax definiert:
+
+\begin{minted}{typescript}
+@top Expression { Add }
+
+Add {
+  Expression "+" Expression
+}
+\end{minted}
+
+Aus dieser Beschreibung generiert \emph{Lezer} einen Parser, der direkt im TypeScript-Ökosystem verwendet werden kann.
+
+Der zentrale Unterschied zwischen beiden Ansätzen liegt somit weniger in der zugrundeliegenden formalen Theorie. Beide basieren auf kontextfreien Grammatiken und klassischen Parsingverfahren, sie Unterscheiden sich vielmehr in der Zielumgebung. Während \emph{PLY} primär für klassische Compilerprototypen und Lehrzwecke in Python konzipiert wurde, ist \emph{Lezer} auf moderne Entwicklungswerkzeuge und inkrementelle Analyse von Programmtexten ausgelegt.
+
+Im Kontext dieser Arbeit dient \emph{PLY} daher als Referenzimplementierung der ursprünglichen Python-Notebooks, während \emph{Lezer} die Grundlage für die Umsetzung der gleichen Sprachverarbeitungsschritte im TypeScript-Ökosystem bildet.
+
+\subsection{Grundlagen von Lezer}
+\label{subsec:lezer_basics}
+
+Lezer ist ein Parsergenerator, der speziell für moderne Entwicklungsumgebungen und Web-basierte Editoren konzipiert wurde. Das Werkzeug wurde im Kontext des CodeMirror-Projekts entwickelt und dient dazu, aus einer formalen Grammatikbeschreibung automatisch einen Parser zu erzeugen \autocite{lezer_docs}.
+
+Ähnlich wie klassische Parsergeneratoren basiert auch Lezer auf grundlegenden Konzepten der Compilertechnik. In der Compilerkonstruktion wird die Syntax einer Programmiersprache üblicherweise durch eine formale Beschreibung, meist in Form einer kontextfreien Grammatik, spezifiziert. Auf Grundlage dieser Grammatik kann automatisch ein Parser erzeugt werden, der Eingabetexte gemäß der definierten Sprachstruktur analysiert. Das Ergebnis dieser Analyse ist eine strukturierte Repräsentation des Programms, typischerweise in Form eines Parse- oder Syntaxbaums, der die hierarchische Struktur des Eingabetextes abbildet \autocite[S.191ff]{aho2006compilers}.
+
+Der zentrale Unterschied zu traditionellen Parsergeneratoren besteht darin, dass Lezer für die Anforderungen moderner Entwicklungswerkzeuge optimiert ist. Während klassische Compiler in der Regel eine vollständige Analyse eines Programms durchführen, arbeiten Code-Editoren mit kontinuierlich veränderlichem Quelltext. Jede Änderung im Editor würde bei einem traditionellen Parser eine vollständige Neuberechnung des Syntaxbaums erfordern. Lezer verfolgt daher einen inkrementellen Ansatz: Bei Änderungen am Quelltext werden nur jene Teile des Syntaxbaums neu berechnet, die tatsächlich von der Änderung betroffen sind \autocite{haverbeke2019lezer}.
+
+Ein weiteres charakteristisches Merkmal von Lezer ist die kompakte Repräsentation der Syntaxstruktur. Anstelle eines klassischen abstrakten Syntaxbaums erzeugt Lezer zunächst einen sogenannten \emph{Concrete Syntax Tree} (CST). Dieser enthält alle syntaktischen Elemente der Grammatik, einschließlich Zwischensymbole und Strukturknoten. Diese detaillierte Repräsentation ist insbesondere für Editorfunktionen wie Syntax-Highlighting, Autovervollständigung oder Fehlermarkierung relevant.
+
+Die Beschreibung der Grammatik erfolgt in einer deklarativen Grammatiksyntax, die syntaktisch an etablierte Notationen aus der Compilertechnik angelehnt ist. Produktionsregeln definieren dabei, wie komplexe syntaktische Strukturen aus einfacheren Symbolen aufgebaut werden. Aus dieser Grammatik generiert das Lezer-Werkzeug automatisch einen Parser, der anschließend in JavaScript- oder TypeScript-Anwendungen integriert werden kann.
+
+Im Kontext dieser Arbeit wird Lezer eingesetzt, um die in den Python-Notebooks implementierten Parsing-Algorithmen in das TypeScript-Ökosystem zu übertragen. Die formale Grammatik der jeweiligen Sprache bildet dabei die Grundlage für die Generierung des Parsers, während TypeScript zur Modellierung der resultierenden Syntaxstrukturen verwendet wird.
+
+\subsection{Grammatikdefinition in Lezer}
+\label{subsec:lezer_grammar}
+
+Die Grundlage eines jeden Parsers bildet eine formale Beschreibung der Syntax der zu analysierenden Sprache. In der Compilertechnik wird diese üblicherweise durch eine \emph{kontextfreie Grammatik} spezifiziert. Eine solche Grammatik definiert, aus welchen Symbolen eine Sprache besteht und nach welchen Regeln diese kombiniert werden dürfen \autocite[S.197ff]{aho2006compilers}.
+
+Auch Lezer basiert auf diesem Prinzip. Die Syntax der Sprache wird in Form einer deklarativen Grammatikbeschreibung formuliert, aus der anschließend automatisch ein Parser generiert werden kann \autocite{lezer_docs}. Im Unterschied zu klassischen Parsergeneratoren erfolgt die Entwicklung der Grammatik in dieser Arbeit innerhalb einer interaktiven Notebook-Umgebung.
+
+\paragraph{Implementierung im Jupyter Notebook}
+
+Im Rahmen der Portierung der Lehrmaterialien wurde die Grammatik nicht in einer separaten Projektstruktur entwickelt, sondern direkt in einem Jupyter Notebook implementiert. Dieses Vorgehen entspricht der Struktur der ursprünglichen Python-Lehrmaterialien, die ebenfalls notebookbasiert aufgebaut sind. 
+
+Die Notebook-Umgebung ermöglicht eine schrittweise Entwicklung der Grammatik: Änderungen an der Grammatikdefinition können unmittelbar getestet werden, indem der Parser neu generiert und auf Beispielausdrücke angewendet wird. Dadurch entsteht ein explorativer Entwicklungsprozess, der insbesondere für didaktische Zwecke geeignet ist.
+
+\paragraph{Aufbau einer Lezer-Grammatik}
+
+Eine Lezer-Grammatik besteht aus einer Menge von Produktionsregeln, die beschreiben, wie syntaktische Strukturen aufgebaut sind. Dabei wird zunächst ein Startsymbol definiert, das die oberste Struktur der Sprache repräsentiert. Weitere Regeln definieren anschließend, wie komplexe Ausdrücke aus einfacheren Komponenten zusammengesetzt werden.
+
+Das folgende Beispiel illustriert eine vereinfachte Grammatikdefinition für arithmetische Ausdrücke:
+
+\begin{minted}{javascript}
+@top Expression { Add }
+
+Add {
+  Expression "+" Expression |
+  Number
+}
+
+@tokens {
+  Number { $[0-9]+ }
+}
+\end{minted}
+
+Die Direktive \texttt{@top} definiert das Startsymbol der Grammatik. In diesem Beispiel beschreibt die Regel \texttt{Expression} den Einstiegspunkt der syntaktischen Analyse. Die Produktionsregel \texttt{Add} erlaubt entweder die Kombination zweier Ausdrücke mit einem Additionsoperator oder einen numerischen Wert.
+
+Die Token-Definition erfolgt im Block \texttt{@tokens}. Hier werden reguläre Ausdrücke verwendet, um elementare Spracheinheiten wie Zahlen zu erkennen. Dieses Verfahren entspricht dem klassischen Konzept der lexikalischen Analyse, bei der reguläre Ausdrücke zur Beschreibung von Tokenmustern eingesetzt werden \autocite[S.111ff]{aho2006compilers}.
+
+\paragraph{Vom Grammatikmodell zum Parser}
+
+Aus der Grammatikbeschreibung generiert das Lezer-Werkzeug automatisch einen Parser. Dieser Parser analysiert Eingabetexte entsprechend den definierten Produktionsregeln und erzeugt daraus eine strukturierte Baumrepräsentation des Programms.
+
+Im Kontext dieser Arbeit dient die Grammatikdefinition als formale Grundlage für die Analyse der in den Lehrmaterialien verwendeten Ausdrucksstrukturen. Durch die Kombination aus Notebook-Umgebung und automatischer Parsergenerierung kann die Grammatik iterativ erweitert und unmittelbar getestet werden. Dieses Vorgehen erleichtert sowohl die Entwicklung als auch das Verständnis der zugrundeliegenden Sprachstruktur.
