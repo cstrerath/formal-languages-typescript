@@ -1,41 +1,52 @@
 \documentclass[a4paper,ngerman,12pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage{helvet}
-\usepackage{microtype}
-\renewcommand{\familydefault}{\sfdefault}
+
+% --- 1. Encoding & Sprache ---
+\usepackage[utf8]{inputenc} % In aktuellen TeX-Versionen Standard, schadet aber nicht
+\usepackage[T1]{fontenc}
 \usepackage[ngerman]{babel}
-\usepackage[german=quotes]{csquotes}
-\usepackage[backend=biber, autocite=inline, style=numeric,sorting=none]{biblatex}
-\addbibresource{literatur/bibliography.bib}  % Angepasster Pfad!
-\usepackage{makeidx}
+\usepackage{textalpha}
+\DeclareUnicodeCharacter{03A3}{\textSigma}
+\DeclareUnicodeCharacter{03B4}{\textdelta} 
+
+% --- 2. Schriftart & Mikrotypografie ---
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+
+% --- 3. Mathematik ---
+\usepackage{amsmath} % (Doppelter Eintrag entfernt)
+\usepackage{amssymb}
+\usepackage{stmaryrd}
+
+% --- 4. Farben, Grafiken & Zeichnungen ---
+\usepackage{xcolor}
 \usepackage{graphicx}
-\usepackage{acronym}
+\usepackage{pdfpages}
+\usepackage{tikz}
+\usetikzlibrary{shapes, shapes.multipart, arrows.meta, positioning, calc, decorations.pathreplacing}
+
+% --- 5. Layout & Seitenränder ---
 \usepackage{geometry}
+\geometry{
+    left=3.5cm,
+    top=2.5cm,
+    right=2.5cm,
+    bottom=2.5cm}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{titlesec}
 \usepackage{tocloft}
 \setlength{\cftsecnumwidth}{2.9em}
 \setlength{\cftsubsecnumwidth}{3.9em}
 \setlength{\cftsubsubsecnumwidth}{4.9em}
-\usepackage[onehalfspacing]{setspace}
-\usepackage{glossaries}
+
+% --- 6. Tabellen ---
 \usepackage{tabularx}
-\usepackage{listings}
-\usepackage{titlesec}
 \usepackage{booktabs}
 \usepackage{makecell}
-\usepackage{tikz}
-\usetikzlibrary{shapes, shapes.multipart, arrows.meta, positioning, calc, decorations.pathreplacing}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{pdfpages}
-\usepackage{xurl}
-\usepackage{amsmath}
-\usepackage{stmaryrd}
+
+% --- 7. Quellcode (Minted VOR csquotes laden!) ---
+\usepackage{listings}
 \usepackage{minted}
-\usepackage{xcolor}
-\usepackage[T1]{fontenc}
-\usepackage{textalpha}
-\DeclareUnicodeCharacter{03A3}{\textSigma}
-\DeclareUnicodeCharacter{03B4}{\textdelta} 
 \definecolor{LightYellow}{rgb}{1.0, 1.0, 0.9} 
 \setminted{
     frame=lines,
@@ -46,7 +57,19 @@
     linenos,
     bgcolor=LightYellow 
 }
-\usepackage[hidelinks=true]{hyperref}
+
+% --- 8. Zitate & Literaturverzeichnis ---
+\usepackage[german=quotes]{csquotes}
+\usepackage[backend=biber, autocite=inline, style=numeric, sorting=none]{biblatex}
+\addbibresource{literatur/bibliography.bib}
+
+% --- 9. URLs & Hyperlinks ---
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+
+% --- 10. Verzeichnisse ---
+\usepackage{makeidx}
+\usepackage[acronym]{glossaries}
 
 \geometry{
 	left=3.5cm,
@@ -74,7 +97,7 @@
 	\cleardoublepage
 	\input{vorspann/inhaltsverzeichnis}
 	\cleardoublepage
-	\input{vorspann/acronyms}
+    \printnoidxglossary[type=\acronymtype,title=Abkürzungsverzeichnis]
 	\cleardoublepage
 	\listoffigures
 	\cleardoublepage

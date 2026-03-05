@@ -39,6 +39,7 @@
 **/build/
 **/out/
 **/_minted/
+**/_minted-*/
 
 # Editor backup files
 *~
