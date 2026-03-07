@@ -23,6 +23,9 @@ Die grundlegende Architektur eines solchen Sprachprozessors besteht aus zwei zen
 
 Ein charakteristisches Merkmal von \emph{PLY} ist, dass Token-Definitionen und Grammatikregeln direkt im Python-Code definiert werden. Produktionsregeln werden dabei als Funktionen formuliert, deren Docstrings die jeweilige Grammatikregel enthalten. Diese enge Integration erleichtert die prototypische Entwicklung von Parsern im Lehrkontext.
 
+\begin{listing}[htbp]
+    \caption{Ply-Grammatik in Python}
+    \label{lst:python-ply-grammatik}
 \begin{minted}{python}
 tokens = ('NUMBER', 'PLUS')
 
@@ -33,6 +36,7 @@ def t_NUMBER(t):
     t.value = int(t.value)
     return t
 \end{minted}
+\end{listing}
 
 Während \emph{PLY} somit eine klassische Compilerarchitektur innerhalb der Python-Umgebung realisiert, verfolgt das TypeScript-Ökosystem einen anderen Ansatz. Für editornahe Anwendungen und webbasierte Entwicklungsumgebungen wird häufig das Parser-Framework \emph{Lezer} eingesetzt.
 
@@ -40,13 +44,17 @@ Während \emph{PLY} somit eine klassische Compilerarchitektur innerhalb der Pyth
 
 Die Grammatik wird hierbei nicht mehr als Python-Code formuliert, sondern als deklarative Grammatikbeschreibung in einer eigenen Syntax definiert:
 
+\begin{listing}[htbp]
+    \caption{Lezer-Grammatik in TypeScript}
+    \label{lst:typescript-lezer-grammatik}
 \begin{minted}{typescript}
 @top Expression { Add }
 
 Add {
-  Expression "+" Expression
+    Expression "+" Expression
 }
 \end{minted}
+\end{listing}
 
 Aus dieser Beschreibung generiert \emph{Lezer} einen Parser, der direkt im TypeScript-Ökosystem verwendet werden kann.
 
@@ -80,3 +88,144 @@ Ein weiterer wichtiger Aspekt von \emph{Lezer} ist seine Integration in das Java
 Im Kontext dieser Arbeit wird \emph{Lezer} verwendet, um die syntaktische Analyse der ursprünglichen Python-Lehrbeispiele in eine TypeScript-basierte Implementierung zu übertragen. Die Grammatik der Sprache bildet dabei die formale Grundlage für die Generierung des Parsers, während TypeScript für die Weiterverarbeitung der analysierten Strukturen eingesetzt wird.
 
 Der nächste Abschnitt beschreibt daher die konkrete Definition der Grammatik, die als Grundlage für die spätere Parsergenerierung dient.
+
+\subsection{Grammatikdefinition in Lezer}
+\label{subsec:lezer_grammar}
+
+Die syntaktische Struktur der zu analysierenden Sprache wird in \emph{Lezer} durch eine deklarative Grammatikbeschreibung festgelegt. Diese Grammatik bildet die Grundlage für die spätere Generierung des Parsers und definiert, welche syntaktischen Strukturen innerhalb der Sprache zulässig sind.
+
+Im Rahmen dieser Arbeit wurde die Grammatik direkt innerhalb der verwendeten Jupyter-Notebooks entwickelt. Dieses Vorgehen orientiert sich an der Struktur der ursprünglichen Lehrmaterialien, die ebenfalls notebookbasiert aufgebaut sind. Dadurch konnte die Grammatik schrittweise erweitert und unmittelbar anhand von Beispielausdrücken getestet werden.
+
+Ein wesentliches Merkmal der vorliegenden Implementierung besteht darin, dass die Grammatik nicht in einer separaten Datei abgelegt wurde, sondern als mehrzeiliger String direkt im TypeScript-Code des Notebooks definiert ist. Die Grammatik wird somit als Datenobjekt innerhalb des Programms gehalten und kann ohne Zwischenschritt unmittelbar an die Parsergenerierung übergeben werden. Dieses Vorgehen vereinfacht den experimentellen Umgang mit der Grammatik, da Änderungen direkt an der Stringdefinition vorgenommen und sofort getestet werden können.
+
+\paragraph{Struktur einer Lezer-Grammatik}
+
+Eine \emph{Lezer}-Grammatik besteht aus mehreren Komponenten, die gemeinsam die syntaktische Struktur der Sprache beschreiben. Dazu gehören insbesondere:
+
+\begin{itemize}
+\item die Definition eines Startsymbols,
+\item Regeln zur Beschreibung komplexer syntaktischer Strukturen,
+\item sowie Token-Definitionen für elementare Sprachelemente.
+\end{itemize}
+
+Das folgende Beispiel zeigt eine vereinfachte Grammatikdefinition für arithmetische Ausdrücke, wie sie im Notebook als String festgehalten wird:
+\begin{listing}[htbp]
+    \caption{Umsetzung Lezer-Grammatik in TypeScript}
+    \label{lst:umsetzung-typescript-lezer-grammatik}
+\begin{minted}{typescript}
+const grammarDefinition = `
+    @top Expression { Add }
+
+    Add {
+        Expression "+" Expression |
+        Number
+    }
+
+    @tokens {
+        Number { $[0-9]+ }
+    }
+`;
+\end{minted}
+\end{listing}
+
+Die Variable \texttt{grammarDefinition} enthält die vollständige Grammatikbeschreibung als Zeichenkette. Durch diese Repräsentation bleibt die Grammatik eng mit dem restlichen Notebook-Code verknüpft. Insbesondere kann sie direkt an die Funktion zur Parsererzeugung übergeben werden, ohne dass ein externer Lade- oder Build-Schritt erforderlich ist.
+
+Das Schlüsselwort \texttt{@top} definiert das Startsymbol der Grammatik. Dieses Symbol bildet den Einstiegspunkt der syntaktischen Analyse. Die Regel \texttt{Add} beschreibt eine mögliche Struktur eines Ausdrucks: Ein Ausdruck kann entweder aus zwei Teilausdrücken bestehen, die durch einen Additionsoperator verbunden sind, oder aus einem numerischen Wert.
+
+Die Definition der Token erfolgt im Block \texttt{@tokens}. Hier werden reguläre Ausdrücke verwendet, um elementare Spracheinheiten zu erkennen. Diese Token bilden die Grundlage für die syntaktische Analyse, da sie die kleinsten Einheiten darstellen, aus denen komplexere Strukturen aufgebaut werden.
+
+\paragraph{Iterative Entwicklung der Grammatik}
+
+Die Entwicklung der Grammatik erfolgte iterativ innerhalb der Notebook-Umgebung. Nach jeder Anpassung der Stringdefinition konnte der Parser neu generiert und direkt auf Beispielausdrücke angewendet werden. Dieses Vorgehen erleichtert insbesondere die schrittweise Erweiterung der Grammatik, da syntaktische Fehler oder Mehrdeutigkeiten frühzeitig erkannt werden können.
+
+Darüber hinaus unterstützt die Notebook-Umgebung eine experimentelle Arbeitsweise, bei der einzelne Sprachkonstrukte isoliert getestet werden können. Dies ist insbesondere im Lehrkontext hilfreich, da die Auswirkungen einzelner Grammatikregeln unmittelbar sichtbar werden.
+
+Die so definierte Grammatik bildet schließlich die Grundlage für die Generierung des Parsers, die im folgenden Abschnitt beschrieben wird.
+
+\subsection{Generierung des Parsers}
+\label{subsec:lezer_parser_generation}
+
+Nachdem die Grammatik definiert wurde, kann daraus ein ausführbarer Parser erzeugt werden. In klassischen Projekten erfolgt dieser Schritt häufig über ein separates Generatorwerkzeug im Build-Prozess. Im Rahmen dieser Arbeit wurde die Parsergenerierung jedoch direkt innerhalb der Notebook-Umgebung durchgeführt.
+
+Hierzu ist insbesondere das Paket \texttt{@lezer/generator} relevant. Nach der offiziellen Dokumentation übernimmt dieses Paket die Erzeugung der Parse-Tabellen aus einer Grammatikbeschreibung. Üblicherweise wird es als Generatorwerkzeug im Build-Prozess eingesetzt; es kann jedoch auch direkt als JavaScript-Funktion verwendet werden \autocite{lezer_docs}. Genau dieses Vorgehen wurde in der vorliegenden Arbeit genutzt.
+
+Die grundlegende Erstellung des Parsers erfolgt über die Funktion \texttt{build\-Parser}, die aus \texttt{@lezer/generator} importiert wird. Diese Funktion nimmt die zuvor definierte Grammatik als Eingabe und erzeugt daraus eine Parserinstanz:
+
+\begin{listing}[htbp]
+    \caption{Erstellung des Parsers in TypeScript}
+    \label{lst:parser_typescript}
+\begin{minted}{typescript}
+import { buildParser } from "@lezer/generator";
+
+const parser = buildParser(grammarDefinition);
+\end{minted}
+\end{listing}
+
+Die Variable \texttt{grammarDefinition} enthält hierbei die deklarative Beschreibung der Grammatik. Auf Grundlage dieser Definition erzeugt \emph{Lezer} die internen Parsingtabellen und Datenstrukturen, die für die syntaktische Analyse benötigt werden. Der so erzeugte Parser basiert zur Laufzeit auf dem \emph{Lezer}-LR-System, während die erzeugten Syntaxbäume auf den gemeinsamen Baumstrukturen des \emph{Lezer}-Ökosystems beruhen \autocite{lezer_docs}.
+
+\paragraph{Parserinstanz}
+
+Das Ergebnis des Generierungsprozesses ist ein Parserobjekt, das anschließend zur Analyse von Eingabetexten verwendet werden kann. Der Parser verarbeitet einen Eingabestring und erzeugt daraus eine Baumstruktur, welche die syntaktische Struktur des Ausdrucks repräsentiert.
+
+Diese Struktur ermöglicht es, einzelne Sprachelemente gezielt zu identifizieren und weiterzuverarbeiten. Insbesondere können nachgelagerte Verarbeitungsschritte auf bestimmte Knoten des Syntaxbaums zugreifen, um beispielsweise Ausdrücke auszuwerten oder Transformationen durchzuführen.
+
+\paragraph{Integration in den Notebook-Workflow}
+
+Die Generierung des Parsers innerhalb des Notebooks bietet mehrere Vorteile für den Entwicklungsprozess. Änderungen an der Grammatik können unmittelbar getestet werden, da der Parser nach jeder Anpassung neu erzeugt werden kann. Dadurch entsteht ein iterativer Entwicklungsprozess, bei dem Grammatikdefinition und Parserverhalten eng miteinander verknüpft sind.
+
+Dieses Vorgehen entspricht der didaktischen Struktur der ursprünglichen Lehrmaterialien, in denen Sprachkonstrukte schrittweise eingeführt und unmittelbar anhand von Beispielen überprüft werden.
+
+Der generierte Parser bildet schließlich die Grundlage für die syntaktische Analyse innerhalb der TypeScript-Implementierung. Im folgenden Abschnitt wird beschrieben, wie der Parser in die eigentliche Programmlogik integriert wird und wie die erzeugten Syntaxbäume weiterverarbeitet werden.
+
+\subsection{Integration in die TypeScript-Implementierung}
+\label{subsec:lezer_ts_integration}
+
+Die Generierung des Parsers stellt im Projekt keinen isolierten Endpunkt dar, sondern ist unmittelbar in die weitere TypeScript-Implementierung eingebettet. Der mit \texttt{buildParser(grammarDefinition)} erzeugte Parser wird direkt zur Analyse von Eingabestrings verwendet und bildet damit die Eingangsstufe für die weitere Verarbeitung der Sprachelemente.
+
+Im konkreten Projekt greifen dabei mehrere Pakete des \emph{Lezer}-Ökosystems zusammen. Das Paket \texttt{@lezer/generator} wird zur Erzeugung des Parsers aus der Grammatikdefinition verwendet. Das Paket \texttt{@lezer/common} stellt mit \texttt{TreeCursor} eine zentrale Schnittstelle für die Traversierung der erzeugten Baumstruktur bereit. Zusätzlich wird \texttt{@lezer/lr} für den LR-basierten Parser-Typ verwendet, sodass die Parserinstanz auch auf Typebene explizit beschrieben werden kann \autocite{lezer_docs}.
+
+\paragraph{Parsing von Eingabetexten}
+
+Nach der Erzeugung der Parserinstanz kann ein Eingabetext über die Methode \texttt{parse} analysiert werden. Diese Methode ist nicht projektspezifisch implementiert, sondern Bestandteil der durch \emph{Lezer} erzeugten Parserinstanz. Im Projekt wird sie über den Ausdruck \texttt{parser.parse(input)} aufgerufen. Das Ergebnis ist zunächst keine fachliche Datenstruktur der Anwendung, sondern eine vom Parser erzeugte syntaktische Baumrepräsentation. Diese Struktur enthält die durch die Grammatik erkannten Knoten und dient als unmittelbares Resultat der \emph{Lezer}-Analyse.
+
+Im Notebook wird dieser Schritt direkt mit der anschließenden Weiterverarbeitung verbunden. Ein typisches Muster besteht darin, den Eingabetext zunächst durch den generierten Parser analysieren zu lassen, anschließend einen Cursor auf dem erzeugten Baum zu erzeugen und diesen Baum danach in eine projektspezifische Datenstruktur zu überführen:
+
+\begin{listing}[htbp]
+    \caption{ParseStmnt Funktion in TypeScript}
+    \label{lst:parser_fkt_typescript}
+\begin{minted}{typescript}
+import { buildParser } from "@lezer/generator";
+import { TreeCursor } from "@lezer/common";
+
+function parseStmnt(input: string): Stmnt {
+    const tree = parser.parse(input);
+    const ast = cstToAST(tree.cursor(), input, config);
+    if (ast instanceof AssignNode || ast instanceof ExprStmtNode) {
+        return ast;
+    }
+    throw new Error(`Expected a statement, got: ${ast.constructor.name}`);
+}
+\end{minted}
+\end{listing}
+
+Dieses Beispiel verdeutlicht, dass im Projekt zwischen der von \emph{Lezer} bereitgestellten Parsingfunktion und der eigenen Anwendungslogik unterschieden wird. Während \texttt{parser.parse(...)} die konkrete Syntax analysiert und einen Syntaxbaum erzeugt, übernimmt die Funktion \texttt{parseStmnt} die Kapselung dieses Schritts sowie die anschließende Transformation in eine typisierte interne Repräsentation.
+
+\paragraph{Transformation vom CST zum projektspezifischen AST}
+
+Für die eigentliche Programmlogik genügt die konkrete Syntaxstruktur allein nicht. Benötigt wird vielmehr eine Datenstruktur, die auf die Anforderungen der weiteren Verarbeitung abgestimmt ist. Aus diesem Grund wird der durch \emph{Lezer} erzeugte Baum in einen projektspezifischen abstrakten Syntaxbaum (AST) überführt.
+
+Im Projekt erfolgt diese Transformation über die Funktion \texttt{cstToAST}. Diese verarbeitet den vom Parser erzeugten Baum rekursiv anhand eines \texttt{TreeCursor}. Für jeden Knoten wird geprüft, ob eine zugehörige Transformationsregel definiert ist. Ist dies der Fall, wird aus den Kindknoten ein passender AST-Knoten konstruiert. Knoten, die lediglich syntaktische Zwischenstufen darstellen, können dabei ausgelassen oder automatisch reduziert werden. Die entsprechende Transformationslogik ist im Projekt generisch über \texttt{ParserConfig} und \texttt{TransformRule} organisiert, sodass die Abbildung vom konkreten Syntaxbaum auf den projektspezifischen AST regelbasiert erfolgt.
+
+Dieses Vorgehen trennt die parsernahe Syntaxrepräsentation klar von der semantisch relevanten internen Modellierung. Die von \emph{Lezer} erzeugte Struktur bleibt damit auf die Analyse des Eingabetexts beschränkt, während die eigentliche Programmlogik ausschließlich mit den definierten TypeScript-Typen und Klassen arbeitet.
+
+\paragraph{Typsicherheit an der Schnittstelle}
+
+Ein weiterer Vorteil dieser Integration liegt in der klaren Typisierung der Schnittstelle zwischen Parser und Anwendungscode. Die Funktion \texttt{parseStmnt} kapselt nicht nur den Aufruf des generierten Parsers, sondern überprüft zusätzlich, ob das Resultat tatsächlich die erwartete Form besitzt. Dadurch wird verhindert, dass nachgelagerte Verarbeitungsschritte mit ungeeigneten oder unerwarteten Knotenstrukturen arbeiten.
+
+Gerade im Kontext dieser Arbeit ist dieser Schritt von Bedeutung, da die Portierung nach TypeScript nicht nur die syntaktische Analyse reproduzieren soll, sondern zugleich die Vorteile statischer Typisierung nutzbar macht. Die Integration des Parsers endet daher nicht beim Erzeugen eines Syntaxbaums, sondern umfasst auch dessen kontrollierte Überführung in wohldefinierte, typisierte Datenstrukturen.
+
+\paragraph{Bedeutung für die Gesamtarchitektur}
+
+Die Einbettung des \emph{Lezer}-Parsers in die TypeScript-Implementierung zeigt, dass der Parser im Projekt als Teil einer mehrstufigen Verarbeitungskette verstanden wird. Auf die formale Grammatikdefinition folgt die Parsererzeugung, anschließend die Analyse konkreter Eingaben durch den generierten Parser und schließlich die Transformation in eine interne Repräsentation, auf der Auswertung, Analyse oder weitere Übersetzungsschritte aufbauen können.
+
+Damit übernimmt \emph{Lezer} im Gesamtsystem die Aufgabe, die textuelle Eingabe in eine formal strukturierte Zwischenform zu überführen. Die fachliche Bedeutung der erkannten Konstrukte entsteht jedoch erst durch die nachgelagerte Abbildung auf die projektspezifischen AST-Klassen. Genau diese Trennung zwischen syntaktischer Analyse und semantischer Weiterverarbeitung macht die Integration in die TypeScript-Implementierung besonders anschlussfähig und wartbar.
