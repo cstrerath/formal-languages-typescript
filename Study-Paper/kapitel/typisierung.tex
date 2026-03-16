@@ -1,0 +1,221 @@
+% ==========================================
+% KAPITEL 2: Grundlagen der Typisierung
+% ==========================================
+\section{Grundlagen der Typisierung}
+\label{sec:typisierung}
+
+Was ist ein Typ? Im Arbeitsspeicher eines Computers sind alle Daten letztlich nur endlose Reihen von Nullen und Einsen. Erst das Konzept eines \enquote{Typs} gibt dieser rohen Bitfolge eine Bedeutung. Der Typ entscheidet, ob eine bestimmte Bitfolge als ganze Zahl, als Buchstabe oder als komplexes Objekt (wie etwa ein Suchbaum) interpretiert werden soll. Gleichzeitig dienen Typen als Leitplanken für uns Entwickler: Sie verhindern beispielsweise, dass wir versehentlich Text mit Zahlen multiplizieren. 
+
+Im Folgenden betrachten wir, wie unterschiedlich Programmiersprachen diese Leitplanken umsetzen. Dabei vergleichen wir unsere Ausgangssprache Python mit unserer Zielsprache TypeScript und zeigen auf, warum bestimmte Paradigmen für komplexe Projekte besser geeignet sind.
+
+\subsection{Python und die Grenzen dynamischer Typisierung}
+\label{subsec:python-typen}
+
+In Python wird der Typ einer Variable nicht beim Schreiben des Codes festgelegt, sondern erst dann bestimmt, wenn das Programm tatsächlich ausgeführt wird. Das folgende Beispiel zeigt, was das in der Praxis bedeutet:
+
+\begin{listing}[htbp]
+    \caption{Dynamische Typen in Python}
+    \label{lst:python-dynamic}
+    \begin{minted}{python}
+x = 42          # x ist jetzt eine Zahl
+x = "Hello"     # x ist jetzt ein Text, kein Fehler, kein Einwand
+x = [1, 2, 3]   # x ist jetzt eine Liste, Python akzeptiert das stillschweigend
+
+print(x + 1)    # Erst hier stürzt das Programm ab: TypeError
+    \end{minted}
+\end{listing}
+
+Python führt standardmäßig keine Vorab-Prüfung durch. Das Programm startet, arbeitet die Zeilen nacheinander ab und bemerkt den Fehler erst in dem Moment, in dem er tatsächlich auftritt.
+
+Dieses Verhalten hat einen technischen Grund, der in der Ausführungsart der Sprache liegt. Python arbeitet mit einem sogenannten \textit{Interpreter}. Ein Interpreter ist ein Programm, das den Quellcode einliest und ihn direkt, Schritt für Schritt, ausführt. Er analysiert den Code nicht vorab im Gesamten. Wie im obigen Beispiel in Zeile 5 zu sehen ist, bemerkt der Interpreter den fatalen Typfehler bei der Ausführung von \mintinline{python}{print(x + 1)} erst in dem exakten Moment, in dem er diese Zeile erreicht. Vorher \enquote{weiß} er schlicht nichts von dem Problem.
+
+\paragraph*{Der TypeError: Wenn die Operation nicht zum Typ passt}
+Wenn der Interpreter in Zeile 5 schließlich ankommt, prüft er den aktuellen Zustand: \mintinline{python}{x} ist eine Liste und die Operation verlangt die Addition mit einer ganzen Zahl (\mintinline{python}{int}). Diese Operation ist für diese Kombination von Datentypen schlicht nicht definiert, weshalb der Interpreter die Ausführung strikt verweigert. Das Resultat ist ein \mintinline{python}{TypeError}.
+
+Im Gegensatz dazu nutzen statisch typisierte Sprachen (wie unsere Zielsprache TypeScript) einen \textit{Compiler}. Ein Compiler ist ein Übersetzungsprogramm, das als vorgeschalteter Wächter agiert. Er liest und analysiert den \textit{gesamten} Quellcode vor der Ausführung auf logische Widersprüche und Typfehler. Erst wenn der Code fehlerfrei ist, wird er übersetzt und darf ausgeführt werden. Ein Programm mit dem Typfehler aus Zeile 5 würde bei einem Compiler-Ansatz mit einer Fehlermeldung abgelehnt werden und könnte gar nicht erst starten.
+
+\paragraph*{Duck Typing}
+Weil Python Typen so locker handhabt, folgt die Sprache einem Prinzip, das als \textit{Duck Typing} bekannt ist. Anstatt den genauen Typ eines Objekts zu prüfen, wird einfach versucht, die benötigte Methode aufzurufen \autocite{python_glossary}. Der Fokus liegt also nicht darauf, \textit{was} ein Objekt ist, sondern nur darauf, \textit{was} es kann. Der Name leitet sich von der bekannten Redewendung ab: \enquote{Wenn es wie eine Ente läuft und wie eine Ente quakt, dann muss es eine Ente sein.}
+
+\begin{listing}[htbp]
+    \caption{Duck Typing in Python}
+    \label{lst:duck-typing}
+    \begin{minted}{python}
+def make_sound(animal):
+    # Python prüft nicht, was "animal" ist, nur ob es .sound() aufrufen kann
+    animal.sound()
+
+class Duck:
+    def sound(self):
+        print("Quack!")
+
+class Dog:
+    def sound(self):
+        print("Woof!")
+
+class Rock:
+    pass  # hat keine sound()-Methode
+
+make_sound(Duck())  # Ausgabe: Quack!
+make_sound(Dog())   # Ausgabe: Woof!
+make_sound(Rock())  # Erst hier stürzt das Programm ab: AttributeError
+    \end{minted}
+\end{listing}
+
+Die Funktion \mintinline{python}{make_sound} akzeptiert jeden beliebigen Wert. Ob der übergebene Wert tatsächlich eine Methode \mintinline{python}{sound()} besitzt, stellt sich erst bei der Ausführung heraus. Für kleine Skripte ist das flexibel, in einer größeren Codebasis, wie den Vorlesungsnotebooks, wird dieses Verhalten jedoch zum Problem: Ein fehlerhafter Aufruf kann tief im Inneren eines Algorithmus verborgen sein und erst sehr spät zur Laufzeit einen Absturz verursachen.
+
+\paragraph*{Was ist eigentlich ein Attribut?}
+Um den daraus resultierenden Fehler zu verstehen, müssen wir kurz klären, was Python unter einem \textit{Attribut} versteht. In Python ist fast alles ein Objekt. Man kann sich ein Objekt stark vereinfacht als einen Container vorstellen, der Variablen und Funktionen bündelt. Alles, was an ein solches Objekt angeheftet ist und über die Punkt-Notation (\mintinline{python}{objekt.name}) abgerufen wird, nennt man Attribut.
+
+\begin{listing}[htbp]
+    \caption{Daten- und Methoden-Attribute in Python}
+    \label{lst:python-attributes}
+    \begin{minted}{python}
+class Player:
+    def __init__(self):
+        # 'health' ist ein Daten-Attribut (eine Variable, die zum Objekt gehört)
+        self.health = 100
+
+    # 'jump' ist ein Methoden-Attribut (eine Funktion, die zum Objekt gehört)
+    def jump(self):
+        print("Jump!")
+
+p = Player()
+print(p.health)  # Greift auf das Daten-Attribut 'health' zu
+p.jump()         # Greift auf das Methoden-Attribut 'jump' zu und führt es aus
+    \end{minted}
+\end{listing}
+
+Wenn ein Attribut -- wie \mintinline{python}{jump} im obigen Beispiel -- ausführbar ist, bezeichnen wir es im Entwickler-Alltag meist als \textit{Methode}. Für den Python-Interpreter ist es technisch gesehen jedoch zunächst nur ein Name (ein Attribut), nach dem er am Objekt sucht, sobald der Punkt aufgerufen wird.
+
+\paragraph*{Der AttributeError: Wenn das Attribut fehlt}
+Genau hier kommt das späte Scheitern des Duck Typings ins Spiel, welches sich in der Regel durch einen \mintinline{python}{AttributeError} äußert. Wenn wir in Zeile 18 unseres Enten-Beispiels \mintinline{python}{make_sound(Rock())} aufrufen, sucht der Interpreter zur Laufzeit am übergebenen Stein-Objekt nach einem Attribut namens \mintinline{python}{sound}. Da die Klasse \mintinline{python}{Rock} dieses Attribut nicht definiert hat, schlägt die Suche fehl. Während der \mintinline{python}{TypeError} also aussagt \enquote{Ich kann diese Operation mit diesem Typ nicht ausführen}, bedeutet der \mintinline{python}{AttributeError} schlicht: \enquote{Das Objekt besitzt das geforderte Attribut überhaupt nicht.}
+
+\paragraph*{Type Hints als freiwillige Dokumentation}
+Um der fehlenden Typsicherheit entgegenzuwirken, führte Python sogenannte \textit{Type Hints} ein. Entwickler können Variablen, Parameter und Rückgabewerte mit \textit{Typ-Annotationen} versehen -- das sind syntaktische Markierungen wie \mintinline{python}{: int} oder \mintinline{python}{-> str}, die den gewünschten Datentyp im Code sichtbar machen. Wichtig ist hierbei: Python selbst ignoriert diese Hinweise zur Ausführungszeit vollständig. Sie dienen nicht dem Interpreter, sondern primär dem Programmierer als Dokumentation sowie externen Werkzeugen als Metadaten.
+
+\begin{listing}[htbp]
+    \caption{Type Hints in Python haben zur Laufzeit keine Auswirkung}
+    \label{lst:type-hints}
+    \begin{minted}{python}
+def add(a: int, b: int) -> int:
+    return a + b
+
+# Python führt dies fehlerfrei aus (String-Konkatenation statt Addition)
+print(add("Hello", "World"))  # Ausgabe: HelloWorld
+    \end{minted}
+\end{listing}
+
+\paragraph*{Was ist ein Linter?}
+Da Python die Typ-Annotationen zur Laufzeit schlicht überliest, muss ein externes Werkzeug die eigentliche Überprüfung übernehmen. Ein solches Werkzeug nennt man \textit{Linter} (oder spezifischer: \textit{Static Type Checker}). Ein Linter ist ein separates Analyseprogramm. Er nimmt den Quellcode, liest ihn durch und sucht nach formalen oder logischen Fehlern, wie etwa Typ-Konflikten. Das Entscheidende dabei ist: Ein Linter führt den Code \textit{nicht} aus. Er führt eine rein statische Textanalyse durch. In der Python-Welt hat sich für die Typprüfung der Linter \textit{mypy} als Standard etabliert. Er analysiert klassische Python-Dateien (\mintinline{text}{.py}) und warnt den Entwickler vor Fehlern, noch bevor das Programm überhaupt gestartet wird.
+
+\paragraph*{Die Herausforderung: Jupyter-Notebooks und nb-mypy}
+Die Vorlesungsmaterialien bestehen jedoch nicht aus einfachen Textdateien, sondern aus interaktiven \textit{Jupyter-Notebooks} (\mintinline{text}{.ipynb}). In einem Notebook schreibt man den Code nicht in eine einzige große Textdatei, sondern zerteilt ihn in kleine Blöcke, die sogenannten \textit{Zellen}. 
+
+Wenn man eine Zelle ausführt, wird nur dieser spezifische Code-Schnipsel an einen im Hintergrund laufenden Python-Prozess geschickt. Dieser Prozess merkt sich alle bisher definierten Variablen und Funktionen im Arbeitsspeicher. Das Standard-Werkzeug \textit{mypy} ist jedoch für statische Dateien konzipiert. Es schaut nur auf den reinen Text und hat keinen Zugriff auf diesen dynamisch wachsenden Zustand im Hintergrundspeicher.
+
+Um dennoch eine statische Typanalyse in den Notebooks zu ermöglichen, wird im Vorlesungsprojekt die Erweiterung \textit{nb-mypy} eingesetzt. Sie klinkt sich in die Notebook-Umgebung ein und versucht, den Code einer Zelle durch \textit{mypy} zu prüfen, kurz bevor er an den Hintergrundprozess gesendet wird. 
+
+\paragraph*{Der Bruch an der Dateigrenze: Das \%run-Problem}
+Doch genau an der Schnittstelle zwischen mehreren Notebooks bricht diese Architektur zusammen. Die Vorlesungsunterlagen trennen häufig die Implementierung eines Algorithmus und dessen Tests in zwei separate Notebooks. Um den Algorithmus im Test-Notebook verfügbar zu machen, wird der \textit{Magic Command} \mintinline{text}{%run} genutzt. Magic Commands sind spezielle Jupyter-Befehle (erkennbar am \mintinline{text}{%}), die den Hintergrundprozess anweisen, Sonderaufgaben zu erledigen. Im Fall von \mintinline{text}{%run} wird ein externes Notebook dynamisch ausgeführt, wodurch all dessen Variablen und Funktionen in den aktuellen Speicher geladen werden.
+
+\begin{listing}[htbp]
+    \caption{Typ-Verlust durch dynamische Code-Ausführung in Jupyter-Notebooks}
+    \label{lst:nb-mypy-fail}
+    \begin{minted}{python}
+# --- Zelle im Notebook: algorithm.ipynb ---
+def calculate_state(start_id: int) -> str:
+    return f"State_{start_id}"
+
+# --- Zelle im Notebook: test.ipynb ---
+# Ein Magic Command führt das externe Notebook dynamisch aus
+%run algorithm.ipynb
+
+# nb-mypy verliert an dieser Grenze den Typ-Kontext.
+# Es weiß nicht, was "calculate_state" ist oder welche Signatur es hat.
+result = calculate_state(42) 
+    \end{minted}
+\end{listing}
+
+Da \textit{nb-mypy} lediglich den statischen Text der aktuellen Zelle analysiert, versteht es die Auswirkungen des dynamischen \mintinline{text}{%run}-Befehls nicht. Die Typinformationen aus dem Algorithmus-Notebook werden für den Linter nicht in das Test-Notebook übertragen. 
+
+Als Konsequenz meldet der Linter im Test-Notebook unzählige falsche Fehler, da ihm der Typ-Kontext fehlt. Um das System nutzbar zu halten, muss \textit{nb-mypy} über Befehle wie \mintinline{python}{%nb_mypy unload} temporär komplett deaktiviert oder mit speziellen Kommentaren (\mintinline{python}{# type: ignore}) zum Schweigen gebracht werden. 
+
+Ein Typsystem, das an Dateigrenzen seine Informationen verliert und vom Entwickler händisch abgeschaltet werden muss, verfehlt seinen Zweck der verlässlichen Fehlervermeidung komplett. Es wird vom Hilfsmittel zum frustrierenden Hindernis. Diese fundamentale Inkompatibilität zwischen einer hochdynamischen Ausführungsumgebung und einem nachträglich aufgesetzten Type Checker zeigt deutlich, warum für dieses Projekt ein kompletter Paradigmenwechsel nötig war. Wir benötigen eine Sprache, die Module, Importe und Typsicherheit nicht als externe Pflaster behandelt, sondern nativ in ihrem Fundament verankert hat. Dies führt uns im folgenden Abschnitt direkt zu unserer Zielsprache: TypeScript.
+
+% ------------------------------------------
+% 2.2 TypeScript: Statische Sicherheit zur Compile-Zeit
+% ------------------------------------------
+\subsection{TypeScript: Statische Sicherheit zur Compile-Zeit}
+\label{subsec:ts-typen}
+
+% - Grundlegende Typen (number, string, Arrays).
+% - Tupel und Type Aliases (type Tuple = [number, number]).
+% -> TODO: Direktes Code-Beispiel aus dem Projekt-Kontext.
+
+% ------------------------------------------
+% 2.3 Strukturelles Typing: Verträge statt Vererbung
+% ------------------------------------------
+\subsection{Strukturelles Typing: Verträge statt Vererbung}
+\label{subsec:interfaces-strukturell}
+
+% - Was ist ein Interface?
+% - Strukturell vs. Nominell (Kurzer Exkurs: Java verlangt 'implements', TS schaut nur auf die Form).
+% - ZENTRALES BEISPIEL: Das 'Structural'-Interface!
+% -> TODO: TypeScript-Code:
+% \begin{minted}{typescript}
+% interface Structural {
+%     equals(other: any): boolean;
+%     hashCode(): number;
+%     toString(): string;
+% }
+% \end{minted}
+% - Kernsatz: "Alles, was hashCode und equals hat, ist in TypeScript ein Structural". 
+
+% ------------------------------------------
+% 2.4 Generics: Typen als Parameter
+% ------------------------------------------
+\subsection{Generics: Typen als Parameter}
+\label{subsec:generics}
+
+% - Parametrisierte Typen für wiederverwendbaren Code.
+% - Warum brauchen wir das? Weil wir später Set<Tuple> oder Set<Structural> instanziieren müssen.
+% -> TODO: Minimales, lauffähiges Beispiel für eine generische Struktur.
+
+% ------------------------------------------
+% 2.5 Literal Types: Werte als Typen
+% ------------------------------------------
+\subsection{Literal Types: Werte als Typen}
+\label{subsec:literal-types}
+
+% - Das Konzept: Ein Typ, der exakt einen spezifischen Wert repräsentiert (z.B. der String "Token").
+% - Der Schmerz in Python: Benötigt extra Imports (from typing import Literal) und fühlt sich oft unnatürlich an.
+% - Die Eleganz in TypeScript: Native Unterstützung und Kombination mit Union Types.
+% -> TODO: Code-Vergleich:
+% \begin{minted}{python}
+% from typing import Literal
+% Mode = Literal["strict", "loose"]
+% \end{minted}
+% \begin{minted}{typescript}
+% type Mode = "strict" | "loose";
+% \end{minted}
+
+% ------------------------------------------
+% 2.6 Type Narrowing: Typ-Prüfung im Kontrollfluss
+% ------------------------------------------
+\subsection{Type Narrowing: Typ-Prüfung im Kontrollfluss}
+\label{subsec:type-narrowing}
+
+% - Wie TypeScript Typen durch if/else und switch-Statements einschränkt.
+% - Baut direkt auf den Literal Types und Union Types von vorher auf! (Perfekt für Discriminated Unions bei AST-Nodes).
+% - Werkzeuge: typeof, instanceof, in-Checks.
+% -> TODO: Direkter Vergleich! Python (isinstance/mypy) vs. TypeScript (automatisches Narrowing).
+
+% ------------------------------------------
+% 2.7 Gegenüberstellung: Paradigmen im Vergleich
+% ------------------------------------------
+\subsection{Gegenüberstellung: Paradigmen im Vergleich}
+\label{subsec:vergleich-py-ts}
+
+% - Zusammenfassende \begin{table} mit \begin{tabularx}
+% - Kompakte Übersicht: Dynamisch vs. Statisch, Laufzeit vs. Compile-Zeit, mypy vs. nativer TS-Compiler.

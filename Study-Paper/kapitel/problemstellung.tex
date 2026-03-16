@@ -3,94 +3,85 @@
 \section{Einleitung}
 \label{sec:einleitung}
 
-Die Vermittlung theoretischer Informatikkonzepte profitiert maßgeblich von der praktischen Umsetzung in ausführbarem Code. An der Dualen Hochschule Baden-Württemberg (DHBW) werden Konzepte wie Tokenisierung, Parsing-Algorithmen und Automatenmodelle anhand von Python-Notebooks demonstriert. Diese Wahl ist didaktisch begründet durch die hohe Lesbarkeit von Python. In einem \enquote{compiler-nahen} Kontext, der sich durch rekursive Datenstrukturen und strikte Zustandsübergänge auszeichnet, offenbaren sich jedoch die Grenzen einer rein dynamisch typisierten Sprache. Parallel dazu hat sich TypeScript als Industriestandard etabliert, der die Flexibilität von Skriptsprachen mit der Sicherheit statischer Typsysteme verbindet.
+Die Theoretische Informatik bildet ein wichtiges Fundament im Informatikstudium. Themen wie Automaten oder formale Sprachen können anfangs jedoch sehr abstrakt wirken. Um diese theoretischen Konzepte greifbarer zu machen, kommen in der Vorlesung \enquote{Theoretische Informatik III} interaktive Notebooks zum Einsatz. Dort wird erklärender Text direkt mit ausführbarem Programmcode gemischt. Bislang basieren diese Notebooks auf der Programmiersprache Python. Studierende können so theoretische Algorithmen direkt ausprobieren, verändern und live nachvollziehen.
 
-Diese Arbeit befasst sich mit der Übertragung dieser Lehrinhalte in das Type\-Script-Ökosystem. Der Fokus liegt dabei auf einer idiomatischen Portierung, die nicht nur die Syntax übersetzt, sondern die semantischen Konzepte der formalen Sprachen durch das statische Typsystem explizit modelliert.
+Diese Arbeit befasst sich mit der Übertragung dieser Lehrinhalte in die Programmiersprache TypeScript. Der Fokus liegt dabei auf einer Portierung, welche nicht nur die Syntax übersetzt, sondern die Konzepte der formalen Sprachen durch verbindliche Datenstrukturen explizit modelliert.
 
 \subsection{Problemstellung}
 \label{subsec:problemstellung}
 
-Die Portierung algorithmischer Kerne von Python nach TypeScript stellt spezifische Anforderungen an die Modellierung der Datenstrukturen und die Fehlererkennung. Folgende Problemfelder sind hierbei zentral:
+Ausgangspunkt dieser Arbeit sind interaktive Python-Notebooks, die Konzepte der theoretischen Informatik demonstrieren. Werden diese Lehrmaterialien in das TypeScript-Ökosystem übertragen, reicht es jedoch nicht aus, lediglich die Syntax der Sprache zu übersetzen. Es entstehen fundamentale technische Hürden, da beide Sprachen Daten auf unterschiedliche Weise verarbeiten. Folgende zwei Problemfelder stehen dabei im Fokus:
 
-\paragraph{Grenzen der optionalen Typisierung in Python}
-Obwohl Python mit Werkzeugen wie \texttt{mypy} Möglichkeiten zur statischen Typprüfung bietet, erweisen sich diese im Kontext interaktiver Jupyter-Notebooks oft als unzureichend. In der Praxis führt das dynamische Nachladen von Modulen in der Notebook-Umgebung häufig dazu, dass der Type-Checker inkonsistente Zustände meldet oder deaktiviert werden muss. Zudem fehlt dem Python-Typsystem oft die nötige Granularität bei der Flussanalyse (Control Flow Analysis): Während TypeScript durch \enquote{Type Narrowing} innerhalb eines \texttt{if}-Blocks den Typ einer Variable verfeinern kann, muss in Python häufig auf \texttt{cast} oder \texttt{type: ignore} zurückgegriffen werden, um Validierungsfehler zu unterdrücken. Dies untergräbt das Vertrauen in die Typsicherheit, gerade bei komplexen verschachtelten Strukturen wie abstrakten Syntaxbäumen (AST).
+\paragraph*{Zu späte Fehlererkennung bei verschachtelten Daten}
+In Python haben Variablen keine festen Typen. Das führt oft dazu, dass Programmierfehler erst auffallen, wenn der Code ausgeführt wird und plötzlich abstürzt. Zwar gibt es externe Werkzeuge, um Datentypen in Python nachträglich zu prüfen, diese sind jedoch nicht nativ in die Sprache integriert und stoßen gerade in der interaktiven Umgebung der Notebooks oft an ihre Grenzen.
 
-\paragraph{Divergenz der Gleichheitssemantik (Value vs. Reference Semantics)}
-Ein fundamentales Hindernis bei der direkten Übersetzung ist die unterschiedliche Behandlung von Objektidentität und Gleichheit. Algorithmen der theoretischen Informatik, insbesondere die Potenzmengenkonstruktion oder die Minimierung von Automaten, basieren auf der Annahme, dass Mengen von Zuständen oder Tupel als Schlüssel in Abbildungen verwendet werden können.
-In Python gilt: Zwei logisch identische Tupel oder Mengen werden als gleich behandelt (Wertgleichheit) und generieren denselben Hash-Wert.
-In der JavaScript/TypeScript-Laufzeitumgebung hingegen basieren \texttt{Set} und \texttt{Map} bei Objekten und Arrays auf Referenzgleichheit. Zwei strukturell identische Objekte an unterschiedlichen Speicheradressen gelten als ungleich.
+In der Vorlesung arbeiten wir ständig mit tief verschachtelten Objekten, beispielsweise Datenstrukturen, bei denen eine Liste wieder viele weitere Objekte und Listen enthält. Fehlt einem dieser verschachtelten Elemente versehentlich eine wichtige Eigenschaft, merkt Python das erst, wenn der Code im Hintergrund genau dieses fehlerhafte Element aufruft. Wir benötigen stattdessen eine Sprache, die uns schon während des Tippens garantiert, dass unsere Datenstrukturen über alle Ebenen hinweg fehlerfrei und vollständig aufgebaut sind.
 
-Abbildung~\ref{fig:semantics_comparison} verdeutlicht diese Diskrepanz, die eine native Verwendung von Standard-Datenstrukturen für die genannten Algorithmen verhindert.
+\paragraph*{Das unerwartete Verhalten von Mengen (Sets)}
+Das gravierendste Hindernis bei der Übersetzung zeigt sich jedoch bei der Arbeit mit Mengen (Sets). In der theoretischen Informatik ist es unumgänglich, berechnete Zustände in Mengen zu speichern, um Duplikate zu vermeiden oder später zu prüfen, ob ein Zustand bereits erreicht wurde.
 
-\begin{figure}[h]
-	\centering
-	\begin{tikzpicture}[
-		node distance=1.5cm,
-		obj/.style={rectangle, draw=black, rounded corners, minimum width=2cm, minimum height=0.8cm, align=center},
-		var/.style={circle, draw=gray, minimum size=0.8cm, fill=gray!10},
-		arrow/.style={-Latex, thick}
-		]
-		% --- Python Side ---
-		\node (py_label) at (0, 3) {\textbf{Python (Wertsemantik)}};
-		
-		\node[var] (p1) at (-1.5, 1.5) {A};
-		\node[var] (p2) at (1.5, 1.5) {B};
-		
-		\node[obj, fill=green!10] (val1) at (0, 0) {\texttt{(1, 2)}\\Hash: 0x5F3};
-		
-		\draw[arrow] (p1) -- (val1);
-		\draw[arrow] (p2) -- (val1);
-		
-		% yshift angepasst für mehr Abstand
-		\node[text width=4cm, align=center, yshift=-0.5cm] at (0, -1.0) {\footnotesize \texttt{A == B} ist \textbf{True}\\(Inhalt entscheidet)};
-		
-		% --- Separator ---
-		\draw[dashed] (3.5, 3) -- (3.5, -2);
-		
-		% --- TS Side ---
-		\node (ts_label) at (7, 3) {\textbf{TypeScript (Referenzsemantik)}};
-		
-		\node[var] (t1) at (5.5, 1.5) {A};
-		\node[var] (t2) at (8.5, 1.5) {B};
-		
-		\node[obj, fill=red!10] (obj1) at (5.5, 0) {\texttt{[1, 2]}\\Ref: 0x1A};
-		\node[obj, fill=red!10] (obj2) at (8.5, 0) {\texttt{[1, 2]}\\Ref: 0x9B};
-		
-		\draw[arrow] (t1) -- (obj1);
-		\draw[arrow] (t2) -- (obj2);
-		
-		% yshift angepasst für mehr Abstand
-		\node[text width=4cm, align=center, yshift=-0.5cm] at (7, -1.0) {\footnotesize \texttt{A === B} ist \textbf{False}\\(Speicheradresse entscheidet)};
-	\end{tikzpicture}
-	\caption{Gegenüberstellung der Gleichheitssemantik zwischen Python und TypeScript}
-	\vspace{0,2 cm}
-	\raggedright \footnotesize \textbf{Quelle:} Eigene Darstellung.
-	\label{fig:semantics_comparison}
-\end{figure}
+In Python funktioniert das exakt so, wie man es intuitiv erwartet. Fügen wir ein Tupel in eine Menge ein und fragen danach ab, ob ein Tupel mit denselben Zahlen enthalten ist, liefert Python das erwartete Ergebnis:
 
-\paragraph{Herausforderungen bei der KI-gestützten Code-Generierung}
-Der Einsatz von Large Language Models (LLMs) zur Unterstützung der Portierung verspricht zwar eine Beschleunigung des Entwicklungsprozesses, ist jedoch mit Risiken hinsichtlich der semantischen Korrektheit behaftet. So neigen LLMs dazu, Inhalte zu generieren, die auf den ersten Blick plausibel wirken, sich bei genauerer Betrachtung jedoch als faktisch inkorrekt erweisen, ein Phänomen, welches in der Forschung als \enquote{Halluzination} beschrieben wird \autocite{lu2025agentopia}.
+\begin{listing}[H]
+    \caption{Mengen in Python: Das erwartete Verhalten}
+    \label{lst:set_python}
+    \begin{minted}{python}
+menge = set()
+menge.add((1, 2))
+
+# Die Menge enthält das Tupel sichtbar
+print(menge)            # Ausgabe: {(1, 2)}
+
+# Die Abfrage liefert das erwartete Ergebnis
+print((1, 2) in menge)  # Ausgabe: True
+    \end{minted}
+\end{listing}
+
+Ein naiver Übersetzungsversuch nach TypeScript führt hier jedoch zu einem fundamentalen Bruch in der Logik. Zwar erlaubt uns die Sprache, im Code ganz genau festzulegen, dass unsere Menge ausschließlich Tupel aus exakt zwei Zahlen aufnehmen darf. Führen wir diesen Code jedoch aus und fragen das zuvor hinzugefügte Element ab, erhalten wir plötzlich ein falsches Ergebnis:
+
+\begin{listing}[H]
+    \caption{Mengen in TypeScript: Das fehlerhafte Verhalten bei Tupeln}
+    \label{lst:set_ts}
+    \begin{minted}{typescript}
+// Wir definieren den Typ Tuple, der zwei Zahlen akzeptiert.
+type Tuple = [number, number];
+
+// Die Menge soll nur diese Tupel akzeptieren
+const menge = new Set<Tuple>();
+menge.add([1, 2]);
+
+// Die Menge enthält das Element sichtbar
+console.log(menge);             // Ausgabe: Set(1) { [ 1, 2 ] }
+
+// Die Abfrage liefert ein ungewöhnliches Ergebnis
+console.log(menge.has([1, 2])); // Ausgabe: false
+    \end{minted}
+\end{listing}
+
+Obwohl die Konsolenausgabe beweist, dass das Element \texttt{[1, 2]} offensichtlich in die Menge eingefügt wurde, behauptet TypeScripts Standard-Set in der anschließenden Abfrage, es sei nicht vorhanden. Dieser zunächst unerklärliche Widerspruch führt bei einer direkten Portierung dazu, dass Logik-Abfragen fehlschlagen, Endlosschleifen entstehen und Algorithmen falsche Ergebnisse liefern.
 
 \subsection{Zielsetzung}
 \label{subsec:zielsetzung}
 
-Das übergeordnete Ziel dieser Arbeit ist die Bereitstellung einer vollständig typisierten TypeScript-Implementierung der Lehrinhalte aus der Vorlesung \enquote{Theoretische Informatik III}. Das Ergebnis soll eine Codebasis sein, welche die ursprünglichen Python-Notebooks funktional ersetzt, jedoch die algorithmischen Strukturen durch das statische Typsystem formal absichert.
+Das übergeordnete Ziel dieser Arbeit ist es, die Lehrinhalte der Vorlesung \enquote{Theoretische Informatik III} vollständig nach TypeScript zu übersetzen. Die neue Codebasis soll die bisherigen Python-Notebooks ersetzen und dabei die strikten Typvorgaben der neuen Sprache nutzen, um Fehler schon während des Schreibens zu verhindern. 
 
-Konkret wird angestrebt, die von der Dozentenseite kritisierte Schwerfälligkeit der Python-Typisierung durch eine idiomatische TypeScript-Modellierung zu ersetzen. Ziel ist es, nachzuweisen, dass komplexe Invarianten von Syntaxbäumen und Automaten durch moderne Sprachfeatures wie \emph{Discriminated Unions} und \emph{Control Flow Analysis} bereits zur Kompilierzeit garantiert werden können. Die Arbeit soll aufzeigen, an welchen Stellen die statische Analyse von TypeScript der dynamischen Natur von Python in Bezug auf Wartbarkeit und Fehlervermeidung überlegen ist.
+Daraus leiten sich folgende konkrete Teilziele ab:
 
-Ein wesentliches technisches Teilziel ist die Konzeption und Implementierung einer spezialisierten Bibliothek, welche die Lücke zwischen der Wertsemantik von Python und der Referenzsemantik von JavaScript schließt. Es soll eine performante Lösung entwickelt werden, die echtes Hashing und strukturelle Gleichheit für beliebig verschachtelte Datenstrukturen ermöglicht, um die Algorithmen der Mengenlehre ohne semantische Brüche portieren zu können.
+\begin{enumerate}
+    \item \textbf{Strukturierte Neuimplementierung:} Die Algorithmen der Vorlesung sollen vollständig in TypeScript portiert werden. Der fehleranfällige Verzicht auf feste Typen in Python wird dabei durch verbindliche Datenstrukturen und strikte Typvorgaben ersetzt.
 
-Des Weiteren wird eine hohe technische Interoperabilität angestrebt. Die resultierende Lösung soll plattformunabhängig auf den gängigen Betriebssystemen (Windows, macOS, Linux) ausführbar sein. Durch die Reduktion nativer Abhängigkeiten soll die Einstiegshürde für Studierende minimiert und eine konsistente Ausführungsumgebung gewährleistet werden.
-
-Begleitend verfolgt die Arbeit das methodische Ziel, die Effektivität von Large Language Models in der Software-Modernisierung zu evaluieren. Es soll untersucht werden, inwieweit ein iterativer Prozess die Problematik von Halluzinationen bei komplexen algorithmischen Übersetzungen mitigieren kann.
+    \item \textbf{Lösung des Mengen-Problems:} Um die Algorithmen fehlerfrei auszuführen, muss das fehlerhafte Verhalten von TypeScripts Standard-Sets umgangen werden. Das zentrale technische Ziel ist daher die Entwicklung einer eigenen Datenstruktur, die sich beim Vergleichen von Inhalten exakt wie ein Python-Set verhält und auch tief verschachtelte Objekte verlässlich erkennt.
+    
+    \item \textbf{Einheitliche Ausführungsumgebung:} Da die Notebooks lokal auf den Rechnern der Studierenden ausgeführt werden, muss eine standardisierte Umgebung geschaffen werden, die unabhängig vom Betriebssystem identisch funktioniert. Ein wichtiges technisches Teilziel ist es dabei, die Hintergrundprozesse der Notebooks so anzupassen, dass TypeScripts strenge Prüfregeln auch bei der interaktiven, schrittweisen Ausführung zuverlässig greifen. Der Einrichtungsaufwand soll durch eine klare Anleitung minimal gehalten werden.
+\end{enumerate}
 
 \subsection{Methodik und Abgrenzung}
 \label{subsec:methodik}
 
-Die Durchführung der Arbeit folgt einem selektiven und adaptiven Ansatz. Der Umfang der Portierung beschränkt sich auf die nummerierten Lehrnotebooks der Vorlesung sowie deren unmittelbare technische Abhängigkeiten. Übungsnotebooks, die primär dem unbetreuten Selbststudium dienen, sind explizit vom Umfang dieser Arbeit ausgeklammert. Die Auswahl der zu übersetzenden Artefakte erfolgte in Abstimmung mit dem Betreuer und ist im Anhang (siehe Abschnitt~\ref{app:notebook_liste}) tabellarisch aufgeführt.
+Die methodische Durchführung dieser Arbeit folgt einem fokussierten Ansatz. Der Umfang der Portierung beschränkt sich auf die nummerierten Lehrnotebooks der Vorlesung sowie deren unmittelbare technische Abhängigkeiten. Übungsnotebooks, die primär dem unbetreuten Selbststudium dienen, sind explizit vom Umfang dieser Arbeit ausgeklammert. Die genaue Auswahl der zu übersetzenden Artefakte erfolgte in Abstimmung mit dem Betreuer und ist im Anhang (siehe Abschnitt~\ref{app:notebook_liste}) tabellarisch aufgeführt.
 
-Die technische Umsetzung umfasst nicht nur den algorithmischen Kern, sondern auch die notwendige Infrastruktur zur Visualisierung. Ein zentrales Entwurfsziel war hierbei die Minimierung externer Systemabhängigkeiten, um eine reibungslose Nutzung auf verschiedenen Betriebssystemen zu gewährleisten. Anstatt eine lokale Installation binärer Drittsoftware vorauszusetzen, wurde die Visualisierung durch den Einsatz portabler, direkt in die Laufzeitumgebung integrierbarer Bibliotheken realisiert. Dieser Ansatz stellt sicher, dass die Notebooks allein durch die Bereitstellung einer \emph{Conda}-Umgebung vollständig und ohne weitere Installationsschritte ausführbar sind.
+Ein zentraler methodischer Aspekt betrifft die didaktische Aufbereitung: Die begleitenden Erklärtexte der Notebooks wurden nicht isoliert übersetzt, sondern inhaltlich an die neuen Strukturen von TypeScript angepasst. Dabei wurde bewusst darauf verzichtet, die neuen Konzepte kontinuierlich mit der alten Python-Implementierung zu vergleichen. Die Notebooks sollen als eigenständiges Lehrmaterial funktionieren, das die theoretischen Konzepte nativ und in sich geschlossen vermittelt.
 
-Ein zentraler methodischer Aspekt betrifft die textuelle Aufbereitung: Die begleitenden Markdown-Erklärungen in den Notebooks wurden nicht bloß übersetzt, sondern redaktionell so überarbeitet, dass sie die TypeScript-spezifischen Konzepte eigenständig und in sich geschlossen erläutern. Auf vergleichende Referenzen zur Python-Implementierung wurde im Fließtext bewusst verzichtet, um die didaktische Eigenständigkeit der TypeScript-Version zu wahren.
+Auf technischer Ebene war die Minimierung von Systemabhängigkeiten ein wesentliches Entwurfsziel. Insbesondere für die grafische Visualisierung von Automaten und Graphen wurde darauf geachtet, keine komplexen lokalen Installationen von externer Software vorauszusetzen. Stattdessen kommen integrierbare, plattformunabhängige Lösungen zum Einsatz, um die Ausführung auf verschiedenen Betriebssystemen zu garantieren und den Einstieg für die Studierenden so barrierefrei wie möglich zu gestalten.
 
-Entsprechend der Anforderung an die Reproduzierbarkeit und Zugänglichkeit der Ergebnisse wird der gesamte Quellcode in einem öffentlichen Repository bereitgestellt. Die Implementierung ist unter der URL \url{https://github.com/cstrerath/formal-languages-typescript} im Ordner \texttt{TypeScript} verfügbar.
+Um die Ergebnisse dieser Arbeit nachvollziehbar und frei zugänglich zu machen, wird der gesamte entwickelte Quellcode in einem öffentlichen \gls{repository} bereitgestellt. Die Implementierung ist unter der URL \url{https://github.com/cstrerath/formal-languages-typescript} im Verzeichnis \texttt{TypeScript} abrufbar.

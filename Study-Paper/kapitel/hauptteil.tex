@@ -1,532 +1,117 @@
 % !TEX root = ../master.tex
 
-\section{Lezer als Parser-Generator}
+\section{Methodik: KI-gestützte Software-Modernisierung}
 \label{sec:hauptteil}
 
-Dieses Kapitel behandelt die theoretischen Grundlagen und die praktische
-Einbindung von \emph{Lezer} als Parser-Generator im Kontext der
-Übersetzung von Python-Programmen nach TypeScript. Während in Kapitel~1
-die typentheoretischen Grundlagen von TypeScript analysiert wurden und
-Kapitel~2 geeignete Datenstrukturen diskutierte, wird nun die syntaktische
-Ebene betrachtet: die formale Beschreibung, Analyse und Transformation
-von Programmen mittels Grammatiken und Parsern.
+Dieses Kapitel beschreibt den Arbeitsprozess, mit dem die Python-basierten Lehrartefakte der Vorlesung in eine idiomatische TypeScript-Codebasis überführt wurden. Im Zentrum steht dabei nicht die bloße Syntaxportierung einzelner Dateien, sondern eine schrittweise \emph{Modernisierung} der Artefakte: Invarianten, die in Python häufig nur implizit (Konvention, Dokumentation, Laufzeitprüfungen) abgesichert sind, werden im TypeScript-Ökosystem explizit als Typen, Modulgrenzen und überprüfbare Schnittstellen modelliert. Damit folgt die Umsetzung einer klassischen Leitidee aus der Compilertechnik: Eine Übersetzung ist nur dann belastbar, wenn sie für eine potenziell große Menge zulässiger Eingaben korrekt arbeitet und zentrale Annahmen der Semantik systematisch absichert \autocite[S.~14]{aho2006compilers}.
 
-\subsection{Einordnung in die Theorie formaler Sprachen}
+\subsection{Zielsetzung und Einordnung des Vorgehens}
+\label{subsec:methodik_ziel}
 
-Die syntaktische Analyse basiert auf dem Modell kontextfreier Grammatiken
-(Chomsky-Typ~2). Eine kontextfreie Grammatik ist ein vierfach Tupel
-$G = (V, \Sigma, P, S)$ bestehend aus einer Menge von syntaktische Variablen oder Nichtterminalen
-$V$, Terminalen oder Token $\Sigma$, Grammatikregeln $P$ und einem Startsymbol $S$
-\autocite[S.171ff]{hopcroft2006automata}.
+Die in Abschnitt~\ref{subsec:problemstellung} identifizierten Schwierigkeiten (späte Fehlererkennung in dynamischer Typisierung, Divergenz von Wert- und Referenzsemantik sowie die begrenzte Zuverlässigkeit KI-generierter Vorschläge) motivieren eine Methodik, die drei Ziele gleichzeitig verfolgt:
+\begin{enumerate}
+    \item \textbf{Semantische Äquivalenz:} Die TypeScript-Implementierungen sollen die fachlich intendierte Bedeutung der Lehrbeispiele bewahren (Tokenisierung, Parsing, Automatenkonstruktionen, AST-Operationen).
+   \item \textbf{Explizite Invarianten:} Strukturelle Annahmen werden als Typen,
+Daten\-repräsentationen und Validierungs\-regeln festgeschrieben (z.\,B.\ in Form eines
+AST\-/Knotens, Typdisziplin von Umgebungen, Wohl\-definiert\-heit von
+Mengen\-/Map\-/Operationen).
+    \item \textbf{Reproduzierbarkeit:} Die Ergebnisse werden so veröffentlicht, dass sie ohne proprietäre oder systemgebundene Spezialinstallationen nachvollziehbar ausführbar sind (öffentliche Codebasis, deterministische Build-Schritte, dokumentierte Abhängigkeiten).
+\end{enumerate}
 
-Die zentrale Aufgabe eines Parsers besteht darin, für eine Eingabesequenz
-ein Ableitungs- bzw.\ Parsebaum-Konstrukt zu bestimmen. Ein Parsebaum
-repräsentiert die hierarchische Struktur der Ableitung und ist Grundlage
-für weitere semantische Transformationen
-\autocite[S.61f]{grune2008parsing}.
+Damit ist Kapitel~\ref{sec:hauptteil} als \enquote{Essay-Kapitel} zu verstehen: Es begründet, \emph{warum} bestimmte technische Entscheidungen getroffen wurden, und zeigt, \emph{wie} der Übersetzungsprozess organisiert wurde \autocite[S.~14]{aho2006compilers}.
 
-Für die vorliegende Projektarbeit ist insbesondere die Unterscheidung
-zwischen Top-Down- und Bottom-Up-Verfahren relevant.
-LR-Verfahren (Left-to-right, Rightmost derivation in reverse)
-gehören zur Klasse der deterministischen Bottom-Up-Parser und besitzen
-für kontextfreie Grammatiken eine hohe Ausdrucksstärke
-\autocite[S.82f]{grune2008parsing}.
+\subsection{Artefaktauswahl und Abgrenzung}
+\label{subsec:methodik_scope}
 
-\subsection{Lezer: Konzept und Architektur}
+Die Portierung ist selektiv: Übersetzt werden die nummerierten Lehrnotebooks sowie die unmittelbaren technischen Abhängigkeiten (z.\,B.\ Hilfsbibliotheken für Mengen, Maps, Visualisierung). Notebooks, die vorwiegend Übungscharakter besitzen und keinen Kernbeitrag zur Transformationskette leisten, sind vom Umfang ausgeschlossen. Diese Abgrenzung reduziert Varianz in der Eingabemenge und fokussiert die Arbeit auf die \emph{algorithmischen Kerne}, an denen sich die typischen Übersetzungshürden besonders deutlich zeigen (z.\,B.\ Hashing/Equality bei Potenzmengenkonstruktionen oder AST-Strukturen in Parsern). Die Auswahl und die Anforderungen an Portabilität und Zugänglichkeit folgen dem in Abschnitt~\ref{subsec:methodik} beschriebenen Vorgehen \autocite[S.~14]{aho2006compilers}.
 
-Lezer ist ein moderner Parser-Generator, der im Umfeld des
-CodeMirror-Editors entwickelt wurde. Er erzeugt effiziente
-LR-basierte Parser in JavaScript bzw.\ TypeScript
-\autocite{lezer_docs}.
+\subsection{Portierungsworkflow als mehrstufige Übersetzung}
+\label{subsec:methodik_workflow}
 
-Im Unterschied zu klassischen Parsergeneratoren wie Yacc
-\autocite[S.287f]{aho2006compilers} verfolgt Lezer einen stark
-inkrementellen Ansatz. Das bedeutet, dass bei Änderungen am Quelltext
-nicht der gesamte Parsebaum neu konstruiert wird, sondern nur die
-betroffenen Teilbereiche aktualisiert werden.
+Die praktische Überführung eines Notebooks wird als wiederholbarer Workflow organisiert. Dieser orientiert sich an einer \emph{Pipeline}, wie sie auch in der Sprachverarbeitung üblich ist (Trennung von Frontend-Strukturen wie Token/Parse Tree und nachgelagerter Semantik), ergänzt um eine explizite Typ- und Datenmodellierungsphase:
 
-Formal entspricht die von Lezer verarbeitete Grammatik einer
-kontextfreien Grammatik mit expliziten Präzedenz- und
-Assoziativitätsangaben. Diese Technik dient der Auflösung
-klassischer Mehrdeutigkeiten, etwa bei arithmetischen Ausdrücken
-\autocite[S.210]{hopcroft2006automata}.
+\begin{enumerate}
+    \item \textbf{Extraktion der Semantik und Invarianten (Python-Analyse):}
+    Zunächst wird der funktionale Kern identifiziert: Welche Eingaben sind zulässig? Welche Zwischenrepräsentationen werden erzeugt (Tokenlisten, Parse Trees, ASTs, Zustandsmengen)? Welche Invarianten sind implizit (z.\,B.\ \enquote{Token ist immer Paar aus Typ und Lexem}, \enquote{ein AST-Knoten der Form \texttt{[op,left,right]} hat genau drei Felder})?
 
-\subsection{Grammatikdefinition in Lezer}
+    \item \textbf{Zielrepräsentation festlegen (TypeScript-Design):}
+    Die Python-Datenstrukturen werden nicht 1:1 abgebildet, sondern in idiomatische TypeScript-Repräsentationen überführt. Dabei werden insbesondere die in Kapitel~\ref{sec:grundlagen} diskutierten Stärken genutzt: Union Types, Narrowing und explizite Modellierung von Varianten, um ungültige Zustände früh zu verhindern.
 
-Eine Lezer-Grammatik wird deklarativ beschrieben. Beispielhaft sei
-eine stark vereinfachte Ausdrucksgrammatik angegeben:
+    \item \textbf{Implementierung/Refactoring (TS-Architektur):}
+    Die Umsetzung erfolgt in klar getrennten Modulen:
+    (a) Parser-/Scanner-Schicht,
+    (b) CST$\rightarrow$AST-Transformation,
+    (c) semantische Operationen (Auswertung, Konstruktionen, Analysen),
+    (d) Infrastruktur (z.\,B.\ strukturierte Mengen/Maps, Visualisierung).
+    Diese Aufteilung reduziert Kopplung und erlaubt, die kritischen Stellen (Wertsemantik, Hashing, Rekursion) zentral zu lösen, statt sie in jedem Notebook neu zu \enquote{patchen}.
 
-\begin{minted}{typescript}
-const grammarDefinition = `
-    @top Program { Statement+ }
+    \item \textbf{Validierung gegen Referenzverhalten (Differential Checking):}
+    Wo möglich, werden identische Testeingaben in Python- und TypeScript-Version ausgeführt und die Ergebnisse verglichen (z.\,B.\ gleiche Tokenfolge, gleiche Akzeptanzentscheidungen bei Automaten, gleiche AST-Form). Zusätzlich wird in TypeScript die Typprüfung als \emph{statischer Test} genutzt: Eine Übersetzung gilt erst dann als stabil, wenn sie ohne Umgehungen wie \texttt{any} oder großflächige Type Assertions auskommt.
 
-    @tokens {
-        "+" "-" "*" "/" ":="
-        Number      { $[0-9]+ ("." $[0-9]*)?   }
-        Identifier  { $[a-zA-Z] $[a-zA-Z0-9_]* }
-        space       { $[ \t\r\n]+ }
-    }
+    \item \textbf{Redaktionelle Überarbeitung der Notebook-Texte:}
+    Die begleitenden Erklärtexte werden nicht nur übersetzt, sondern in eine eigenständige TypeScript-Didaktik überführt, um die TS-Version unabhängig lesbar zu machen (ohne permanente Rückverweise auf Python).
+\end{enumerate}
 
-    Statement {
-        Identifier ":=" Expr ";" |
-        Expr ";"
-    }
+\noindent
+Als komprimierte Darstellung des wiederkehrenden Ablaufs dient Listing~\ref{lst:workflow}.
 
-    Expr {
-        Expr "+" Product |
-        Expr "-" Product |
-        Product
-    }
-
-    Product {
-        Product "*" Factor |
-        Product "/" Factor |
-        Factor
-    }
-
-    Factor {
-        "(" Expr ")" |
-        Number       |
-        Identifier
-    }
-
-    @skip { space }
-`;
+\begin{minted}[fontsize=\small, frame=single, linenos, label={Portierungsworkflow pro Notebook}]{text}
+(1) Python-Notebook lesen: Eingaben, Ausgaben, Invarianten notieren
+(2) Zieltypen definieren: Token, CST/AST, Environment, Mengen/Maps
+(3) Architektur entscheiden: Module & Schnittstellen festlegen
+(4) Code portieren + refactoren: TS-Implementierung in kleinen Inkrementen
+(5) Checks: TS-Compiler (strict), Unit-/Vergleichstests, Beispielausgaben
+(6) Notebook-Text redaktionell anpassen: TS-spezifische Erklärungen
 \end{minted}
+\label{lst:workflow}
 
-Formal entspricht dies der kontextfreien Grammatik:
+\subsection{Einsatz von LLMs als \enquote{Sparringspartner}}
+\label{subsec:methodik_llm}
 
-\[
-\begin{array}{rcl}
-\mathit{stmt} & \rightarrow & \mathit{IDENTIFIER} ':=' \mathit{expr}\; ';' \\
-              & \mid        & \mathit{expr}\; ';' \\[0.5em]
-
-\mathit{expr} & \rightarrow & \mathit{expr} '+' \mathit{product} \\
-              & \mid        & \mathit{expr} '-' \mathit{product} \\
-              & \mid        & \mathit{product} \\[0.5em]
-
-\mathit{product} & \rightarrow & \mathit{product} '*' \mathit{factor} \\
-                 & \mid        & \mathit{product} '/' \mathit{factor} \\
-                 & \mid        & \mathit{factor} \\[0.5em]
-
-\mathit{factor} & \rightarrow & '(' \mathit{expr} ')' \\
-                & \mid        & \mathit{NUMBER} \\
-                & \mid        & \mathit{IDENTIFIER}
-\end{array}
-\]
-
-Die linke Rekursion wird von LR-basierten Verfahren direkt unterstützt,
-im Gegensatz zu LL-Verfahren, bei denen sie zuvor eliminiert werden
-müsste \autocite[S.212ff]{aho2006compilers}.
-
-\subsection{Parsebäume und abstrakte Syntaxbäume}
-
-Ein wesentlicher Schritt bei der Übersetzung von Python nach TypeScript
-besteht in der Konstruktion eines abstrakten Syntaxbaums (AST).
-Der konkrete Parsebaum enthält syntaktische Details, während der AST
-auf die semantisch relevanten Knoten reduziert wird
-\autocite[S.358f.]{aho2006compilers}.
-
-Lezer erzeugt intern eine kompakte Baumrepräsentation, die
-inkrementell aktualisierbar ist. Für Transformationszwecke wird
-dieser Baum traversiert und in eine eigene AST-Struktur überführt,
-welche anschließend zur Codegenerierung genutzt wird.
-
-Die formale Korrektheit dieses Vorgehens lässt sich als
-Homomorphismus zwischen zwei Baumstrukturen interpretieren:
-\[
-h : T_{\text{Python}} \rightarrow T_{\text{TypeScript}}
-\]
-wobei $T_{\text{Python}}$ der durch die Python-Grammatik erzeugte
-Baum ist und $T_{\text{TypeScript}}$ die Zielstruktur repräsentiert.
-
-\subsection{Inkrementelles Parsing und Komplexität}
-
-Klassische LR-Parser besitzen im deterministischen Fall lineare
-Laufzeit in der Länge der Eingabe
-\autocite[S.73]{hopcroft2006automata}.
-Lezer erweitert dieses Modell um inkrementelle Aktualisierung.
-
-Sei $n$ die Länge des Quelltexts und $k$ die Länge einer lokalen
-Änderung, so wird im Idealfall nur ein Teilbaum der Größe
-$\mathcal{O}(k)$ neu berechnet.
-Dies ist insbesondere für editorintegrierte Anwendungen
-relevant.
-
-\subsection{Bedeutung für die Python--TypeScript-Übersetzung}
-
-Im Rahmen der Studienarbeit übernimmt Lezer folgende Aufgaben:
-
+Large Language Models werden in dieser Arbeit nicht als automatische \enquote{Übersetzungsmaschine} verstanden, sondern als Werkzeug zur Unterstützung einzelner Mikroschritte:
 \begin{itemize}
-    \item Formale Spezifikation der Python-Teilgrammatik
-    \item Konstruktion eines syntaktisch korrekten Parsebaums
-    \item Bereitstellung einer strukturierten Baumrepräsentation
-          für die Transformation
+    \item \textbf{Strukturierungshilfe:} Vorschläge für Modulzuschnitte, Funktionssignaturen, Typalias-Design.
+    \item \textbf{Portierungsentwürfe:} initiale TypeScript-Fassungen kleiner, lokal verständlicher Python-Funktionen.
+    \item \textbf{Textredaktion:} sprachliche Glättung der Notebook-Erklärungen in Richtung TypeScript-Didaktik.
 \end{itemize}
 
-Die syntaktische Korrektheit ist Voraussetzung für die spätere
-Typtransformation und Codegenerierung. Fehlerhafte oder
-mehrdeutige Grammatiken würden direkt zu fehlerhaften
-Übersetzungen führen.
+\noindent
+Wesentlich ist dabei eine Rollenklärung: Das LLM liefert \emph{Hypothesen}, nicht \emph{Beweise}. Insbesondere bei formalen Artefakten (Grammatiken, Automaten, rekursive Datenstrukturen) können plausibel klingende Vorschläge semantisch falsch sein. Daher wird LLM-Nutzung systematisch in ein \emph{Inkrement- und Prüfregime} eingebettet:
+\begin{enumerate}
+    \item \textbf{Prompting in kleinen Einheiten:} statt \enquote{Portiere das ganze Notebook} werden einzelne Funktionen oder Datentypen isoliert.
+    \item \textbf{Explizite Invarianten im Prompt:} z.\,B.\ \enquote{keine Klassen, nur Union/tuples}, \enquote{keine Referenzgleichheit für AST}, \enquote{keine Mutation nach Hashing}.
+    \item \textbf{Pflichtausgaben:} zu jeder vorgeschlagenen Implementierung werden Tests oder Gegenbeispiele verlangt (\enquote{zeige Inputs, die brechen würden}).
+\end{enumerate}
 
-\subsection{Zusammenfassung Kapitel 3}
+\subsection{Umgang mit Halluzinationen und Qualitätssicherung}
+\label{subsec:methodik_quality}
 
-Lezer stellt einen modernen, LR-basierten Parser-Generator dar,
-der sich aufgrund seiner inkrementellen Architektur besonders
-für editornahe Anwendungen eignet. Formal basiert er auf
-kontextfreien Grammatiken und deterministischen
-Bottom-Up-Verfahren.
+Zur Eindämmung semantisch falscher KI-Ausgaben werden drei Sicherungsmechanismen kombiniert:
 
-Für die vorliegende Studienarbeit bildet Lezer die Brücke
-zwischen der formalen Beschreibung der Python-Syntax
-und der strukturierten Transformation in typisierte
-TypeScript-Programme.
+\paragraph{(1) Compiler als formales Prüfwerkzeug}
+TypeScript selbst wird als \enquote{früher Filter} eingesetzt: Viele Fehlerklassen (inkonsistente Rückgabetypen, vergessene Fälle in Union Types, falsche Tokenformen) werden vor der Ausführung sichtbar. Die Typprüfung wirkt hier als Ergänzung zur in Kapitel~\ref{sec:grundlagen} diskutierten Zielsetzung, ungültige Zustände möglichst zu eliminieren.
 
-Im folgenden Kapitel wird die konkrete Modellierung der
-Python-Grammatik und deren Anpassung an die Anforderungen
-der Übersetzung detailliert analysiert.
+\paragraph{(2) Differential Checking gegenüber Referenzverhalten}
+Wo die Python-Version als Referenz dient, wird anhand identischer Eingaben verglichen. Der Vergleich erfolgt nicht nur auf Endergebnissen, sondern möglichst auch auf Zwischendarstellungen (Tokenfolgen, Parse Trees, AST-Formen), um Fehlersuche zu lokalisieren.
 
-\section{Transformation und Codegenerierung}
-\label{sec:transformation-codegen}
+\paragraph{(3) Invarianten als Laufzeitassertion an kritischen Grenzen}
+Trotz statischer Typisierung existieren Grenzen (z.\,B.\ externe Eingaben, Parser-Fehlersituationen). An diesen Stellen werden gezielte Assertions eingesetzt, jedoch bewusst nur an \emph{Schnittstellen} (I/O, Parser-Entry, Visualisierung), um den Kern der Algorithmen nicht mit defensiver Prüfung zu überfrachten.
 
-Nachdem in Kapitel~3 die syntaktische Analyse mittels \emph{Lezer} behandelt wurde,
-steht nun die semantische Verarbeitung des erzeugten Syntaxbaums im Fokus.
-Ziel ist eine Abbildung eines Python-Programms bzw.\ der Python-Lehrbeispiele auf ein
-strukturell und typologisch äquivalentes TypeScript-Programm.
-Dabei umfasst ``Transformation'' sowohl (i) die Zuordnung/Explizierung von Typinformationen
-als auch (ii) die Anpassung an syntaktische und semantische Unterschiede zwischen beiden Sprachen,
-bevor abschließend (iii) TypeScript-Quelltext generiert wird.
+\subsection{Refactoring-Strategien: Von Python-Analyse zur TS-Architektur}
+\label{subsec:methodik_refactor}
 
-\subsection{Einordnung als syntaxgerichtete Übersetzung}
+Die Portierung wird als Refactoring mit Semantikerhalt verstanden. Typische Muster sind:
 
-Die Umsetzung folgt dem Prinzip der \emph{syntaxgerichteten Übersetzung}:
-Grammatiksymbolen werden Attribute zugeordnet, deren Werte während der Traversierung
-berechnet werden \autocite[S.304ff]{aho2006compilers}.
-In der Praxis werden diese Attribute im Projekt insbesondere genutzt, um
-\emph{(a)} typologische Informationen zu propagieren (z.\,B.\ ``Zahl'', ``Tokenliste'',
-``Automatenzustand''), und \emph{(b)} passende Zielkonstrukte in TypeScript zu wählen
-(z.\,B.\ Tupeltypen, Union-Typen oder projektinterne Container mit struktureller Gleichheit).
+\paragraph{Explizitmachen impliziter Strukturen}
+Python-typische \enquote{Container-Pakte} (Tupel mit Positionsbedeutung, verschachtelte Listen, Dictionaries mit freien Keys) werden in TypeScript in deklarierte Typen überführt. Dies reduziert die Zahl der Stellen, an denen \enquote{Wissen über die Struktur} nur im Kopf existiert.
 
-Eine syntaxgerichtete Definition kann als Tupel $(G, A, R)$ modelliert werden, wobei
-$G$ eine kontextfreie Grammatik bezeichnet, $A$ eine Attributmenge, und $R$
-die Menge semantischer Regeln zur Attributberechnung.
+\paragraph{Trennung von Repräsentation und Algorithmus}
+Algorithmen (z.\,B.\ Potenzmengenbildung, Parserauswertung) werden so geschrieben, dass sie nur über wohldefinierte Operationen auf Daten zugreifen. Dadurch kann eine zentrale Bibliothek (insbesondere für Mengen/Maps mit Wertsemantik) als Fundament dienen, statt ad-hoc-Lösungen pro Notebook zu erzeugen.
 
-\subsection{Abbildung von Python- auf TypeScript-Typen (erweitert)}
-\label{sec:type-mapping}
+\paragraph{Stabilisierung der Gleichheits- und Hashing-Semantik}
+Ein zentraler Refactoring-Schritt ist die Beseitigung stillschweigender Annahmen aus Python (Wertgleichheit als Default). In TypeScript wird diese Semantik bewusst in eine dedizierte Komponente ausgelagert (vgl. Kapitel~4), um die Korrektheit mengenbasierter Algorithmen nicht vom Zufall der Referenzidentität abhängig zu machen.
 
-Ein wesentlicher Unterschied zwischen Python und TypeScript liegt in der Typisierung.
-Python ist dynamisch typisiert, während TypeScript eine statische Typprüfung durchführt
-\autocite[S.1ff]{pierce2002tapl}.
-Für die Portierung bedeutet dies: Datenformen, die in Python \emph{implizit} zur Laufzeit entstehen,
-müssen in TypeScript \emph{explizit} und konsistent modelliert werden.
+\subsection{Reproduzierbarkeit und Nachvollziehbarkeit}
+\label{subsec:methodik_repro}
 
-TypeScript ist zudem \emph{strukturell} typisiert: Typkompatibilität ergibt sich aus der Struktur,
-nicht aus nominalen Typnamen. Dadurch lassen sich viele Python-Datenmodelle direkt als
-Objekt-/Record-Strukturen oder als Union-Typen ausdrücken \autocite[S.44ff]{vanderkam2019effective}.
-
-\subsubsection{Grundabbildungen}
-Für Basis- und Standard-Container-Typen ergibt sich zunächst eine direkte Abbildung:
-
-\begin{center}
-\begin{tabular}{@{}lll@{}}
-\toprule
-\textbf{Python} & \textbf{TypeScript} & \textbf{Bemerkung} \\
-\midrule
-\texttt{int}, \texttt{float} & \texttt{number} & gemeinsame Zahlendomäne \\
-\texttt{bool} & \texttt{boolean} & direkt \\
-\texttt{str} & \texttt{string} & direkt \\
-\texttt{list[T]} & \texttt{T[]} / \texttt{Array<T>} & sequenziell, indexierbar \\
-\texttt{tuple[T1,T2]} & \texttt{[T1,T2]} & feste Länge/Positionen \\
-\texttt{X | Y} & \texttt{X | Y} & Union-Typen (mit Narrowing) \\
-\texttt{Literal[\string"A\string",\string"B\string"]} & \texttt{\string"A\string"\ |\ \string"B\string"} & String-Literal-Union \\
-\texttt{None} / optional & \texttt{null} / \texttt{undefined} & je nach Modellierung \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Union-Typen werden im Projekt genutzt, um Python-typische Mehrdeutigkeiten (z.\,B.\
-``Zahl \emph{oder} AST-Knoten'') statisch auszudrücken. Durch Guards/Narrowing können gültige
-Fälle schrittweise eingegrenzt werden \autocite[S.73ff]{vanderkam2019effective}.
-
-\subsubsection{Unions, Literale und Generics (Beispiele aus der Portierung)}
-Im Python-Notebook werden Unions (PEP~604), Literale und \texttt{TypeVar} genutzt;
-in TypeScript werden diese als Union-Typen, String-Literal-Unions und Generics umgesetzt:
-
-\begin{minted}[label={Beispielcode in Python}]{python}
-Name      = str | dict[str, str]
-Direction = Literal["North", "East", "South", "West"]
-
-a = TypeVar("a")
-b = TypeVar("b")
-def swap(x: a, y: b) -> tuple[b, a]:
-    return (y, x)
-\end{minted}
-
-\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
-type Name = string | Record<string, string>;
-type Direction = "North" | "East" | "South" | "West";
-
-function swap<a, b>(x: a, y: b): [b, a] {
-  return [y, x];
-}
-\end{minted}
-
-\subsubsection{Schlüsselstrukturen: \texttt{tuple}/\texttt{frozenset} als Keys}
-Ein zentraler Unterschied betrifft Python-typische Muster wie
-\texttt{dict} mit \texttt{tuple}-Schlüsseln oder \texttt{frozenset} (hashbar, unveränderlich).
-In JavaScript/TypeScript verwenden \texttt{Map}/\texttt{Set} bei Objekt-/Array-Keys standardmäßig
-\emph{Referenzgleichheit}; in Python basieren \texttt{tuple}/\texttt{frozenset} hingegen auf
-\emph{Wertgleichheit} (Inhalt).
-Damit Algorithmen (z.\,B.\ Determinisierung, Minimierung, Äquivalenzprüfung) unverändert funktionieren,
-werden im Projekt strukturell vergleichbare Container eingesetzt:
-\texttt{Tuple<...>} (wertbasierte Tupel) sowie \texttt{RecursiveSet<T>} und \texttt{RecursiveMap<K,V>}
-(Containers mit struktureller Gleichheit und Hashbarkeit).
-
-\subsubsection{Automaten: \texttt{set}/\texttt{frozenset}, Transitionen und Zustandsmengen}
-\paragraph{Python:} Zustandsmengen werden für Immutability und Hashbarkeit als \texttt{frozenset}
-modelliert; Transitionen sind \texttt{dict} mit \texttt{tuple}-Schlüsseln:
-
-\begin{minted}[label={Beispielcode in Python}]{python}
-State       = TypeVar("State", str, int)
-Char        = str
-TransRel    = dict[tuple[State, Char], set[State]]
-TransRelDet = dict[tuple[frozenset[State], Char], frozenset[State]]
-
-NFA = tuple[set[State], set[Char], TransRel, State, set[State]]
-DFA = tuple[
-    set[frozenset[State]], set[Char], TransRelDet,
-    frozenset[State], set[frozenset[State]]
-]
-\end{minted}
-
-\paragraph{TypeScript:} Für strukturelle Gleichheit (gleicher Inhalt statt gleicher Referenz)
-werden \texttt{RecursiveSet} und \texttt{RecursiveMap} verwendet; komplexe Schlüssel werden über
-\texttt{Tuple<...>} repräsentiert:
-
-\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
-type State = string | number;
-type Char = string;
-
-type DFAState = RecursiveSet<State>;
-
-type TransRel =
-  RecursiveMap<Tuple<[State, Char]>, RecursiveSet<State>>;
-
-type TransRelDet =
-  RecursiveMap<Tuple<[DFAState, Char]>, DFAState>;
-
-interface NFA {
-  Q: RecursiveSet<State>;
-  Sigma: RecursiveSet<Char>;
-  delta: TransRel;
-  q0: State;
-  A: RecursiveSet<State>;
-}
-
-interface DFA {
-  Q: RecursiveSet<DFAState>;
-  Sigma: RecursiveSet<Char>;
-  delta: TransRelDet;
-  q0: DFAState;
-  A: RecursiveSet<DFAState>;
-}
-\end{minted}
-
-Damit bleibt die in Python ``natürliche'' Nutzung von Mengen/Tupeln als Schlüssel
-(z.\,B.\ im Determinisierungsalgorithmus) in TypeScript semantisch erhalten, ohne auf \texttt{any}
-oder manuelle Serialisierung ausweichen zu müssen.
-
-\subsubsection{Rekursive Strukturen: ParseTree, RegExp und AST}
-Viele Lehrbeispiele modellieren Bäume rekursiv. Python nutzt hierfür häufig verschachtelte Tupel und Unions;
-TypeScript bildet dies entweder als rekursive Union-Typen oder als explizite \texttt{Tuple}-Formen ab.
-
-\paragraph{ParseTree (RegExp):}
-\begin{minted}[label={Beispielcode in Python}]{python}
-ParseTree     = tuple[str, list["ParseTree"]]
-ParseTreeList = list[ParseTree]
-\end{minted}
-
-\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
-type ParseTree = Tuple<[string, ParseTreeList]>;
-type ParseTreeList = ParseTree[];
-\end{minted}
-
-\paragraph{AST (Ausdrucksbäume):}
-In Python wird der AST häufig als ``Atom oder verschachteltes Tupel'' modelliert; eine Umgebung als \texttt{dict}:
-
-\begin{minted}[label={Beispielcode in Python}]{python}
-NestedTuple = TypeVar('NestedTuple')
-NestedTuple = int | str | tuple[NestedTuple, ...]
-Number      = int | float
-\end{minted}
-
-In TypeScript wird dies in ein rekursives AST-Union überführt, plus explizite Environment-Struktur:
-
-\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
-type Operator = string;
-type AST = string | number | 
-           [Operator, AST]                |
-           [Operator, AST, AST]           |
-           [Operator, AST, AST, AST]      |
-           [Operator, AST, AST, AST, AST];
-\end{minted}
-
-Die Fallunterscheidung erfolgt in TypeScript entsprechend über die Tupellänge und ggf.\ über Guards (z.\,B.\ \texttt{Array.isArray(x)} und \texttt{x.length}), wodurch die Auswertung/Transformation analog zum Python-Code umgesetzt werden kann.
-
-\subsubsection{Parser-Rückgabewerte: \texttt{tuple} → TS-Tupeltyp}
-Für rekursive Descent-Parser liefern Python-Funktionen häufig ein Paar aus ``Wert'' und ``Resttokenliste'' zurück.
-In TypeScript wird dies als Tupeltyp modelliert:
-
-\begin{minted}[label={Beispielcode in Python}]{python}
-def parseExpr(TL: list[str]) -> tuple[float, list[str]]:
-    ...
-def parseFactor(TL: list[str]) -> tuple[float, list[str]]:
-    ...
-\end{minted}
-
-\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
-type TokenList = string[];
-type ParseResult = [number, TokenList];
-type Parser = (TL: TokenList) => ParseResult;
-
-function parseExpr(TL: TokenList): ParseResult { /* ... */ }
-function parseFactor(TL: TokenList): ParseResult { /* ... */ }
-\end{minted}
-
-\paragraph{Zwischenfazit.}
-Die Portierung nutzt Standardabbildungen (z.\,B.\ \texttt{list[T]}→\texttt{T[]}) dort,
-wo TypeScript dieselbe Semantik bietet. Für Python-typische Schlüsselstrukturen
-(\texttt{tuple}/\texttt{frozenset} als Keys) sind jedoch eigene, strukturell vergleichbare Container notwendig,
-um die Algorithmen (Determinize/Minimize/Equivalence) ohne Semantikverlust in TypeScript ausdrücken zu können.
-
-\subsection{Transformation des abstrakten Syntaxbaums}
-
-Die eigentliche Transformation erfolgt durch rekursive Traversierung des Syntaxbaums.
-Dabei wird jeder Python-Knoten (bzw.\ jede Python-Konstruktion) auf einen korrespondierenden
-TypeScript-Knoten abgebildet. Formal sei $t \in T_{\text{Python}}$ ein Syntaxbaum, dann ist die Transformation
-eine Funktion
-\[
-f(t) = t'
-\]
-mit $t' \in T_{\text{TypeScript}}$.
-
-Die Transformation ist \emph{strukturerhaltend}:
-Die Hierarchie der Ausdrücke bleibt erhalten, während (i) Typannotationen ergänzt,
-(ii) konkrete Syntaxformen angepasst und (iii) notwendige Hilfskonstrukte (z.\,B.\ Guards)
-eingeführt werden.
-
-\subsection{Behandlung semantischer Unterschiede}
-
-Python erlaubt z.\,B.\ implizite Wahrheitswerte für beliebige Objekte, während TypeScript
-eine strengere Typdisziplin verlangt. Ein Python-Konstrukt wie
-
-\begin{minted}[label={Beispielcode in Python}]{python}
-if x:
-    print(x)
-\end{minted}
-
-wird daher in TypeScript explizit konvertiert bzw.\ durch Guards abgesichert:
-
-\begin{minted}[label={Beispielcode in TypeScript}]{typescript}
-if (Boolean(x)) {
-  console.log(x);
-}
-\end{minted}
-
-Je nach Datentyp kann statt \texttt{Boolean(x)} auch ein präziser Guard sinnvoll sein
-(z.\,B.\ \texttt{x !== undefined \&\& x !== null} oder \texttt{typeof x === "number"}).
-Solche Anpassungen sind Teil der semantischen Phase der Übersetzung, da sie
-nicht rein syntaktisch entschieden werden können.
-
-\subsection{Erzeugung von TypeScript-Code}
-
-Die Codegenerierung erfolgt nach der Baumtransformation durch Serialisierung des Ziel-IR
-(bzw.\ Ziel-AST) in TypeScript-Quelltext. Dabei werden insbesondere
-
-\begin{itemize}
-  \item Typannotationen eingefügt (z.\,B.\ \texttt{: number}, \texttt{: ParseResult}),
-  \item Blockstrukturen an TypeScript angepasst,
-  \item optionale syntaktische Normalisierungen vorgenommen (z.\,B.\ Semikolons, Klammerung).
-\end{itemize}
-
-Formal entspricht die Generierung einer linearen Projektion des Baums:
-\[
-g : T_{\text{TypeScript}} \rightarrow \Sigma^*
-\]
-wobei $\Sigma^*$ die Menge aller möglichen Quelltextstrings bezeichnet.
-
-\subsection{Korrektheit der Transformation}
-
-Die Übersetzung ist korrekt, wenn für jedes zulässige Python-Programm $P$ gilt:
-\[
-\llbracket P \rrbracket_{\text{Python}}
-=
-\llbracket f(P) \rrbracket_{\text{TypeScript}}
-\]
-unter Berücksichtigung der eingeführten Typrestriktionen und ggf.\ notwendiger Guards.
-Dies entspricht dem Begriff der \emph{semantischen Äquivalenz} \autocite[S.15ff]{aho2006compilers}.
-
-In der praktischen Umsetzung wird diese Forderung typischerweise durch eine Kombination aus
-Testfällen (z.\,B.\ Referenz-Ausgaben) und Invarianten abgesichert (z.\,B.\ ``Übergangsfunktion bleibt total auf dem Alphabet'',
-``AST-Knotenformen sind vollständig abgedeckt'').
-
-\subsection{Zusammenfassung Kapitel 4}
-
-Kapitel~4 hat die Transformation von Python nach TypeScript als semantische Phase der Übersetzung
-modelliert: auf Basis syntaxgerichteter Regeln werden Typinformationen expliziert,
-Python-Datenmodelle in statisch typisierte TypeScript-Strukturen überführt und anschließend
-TypeScript-Quelltext generiert. Ein Schwerpunkt liegt dabei auf der typ- und strukturgetreuen
-Abbildung von Python-typischen Schlüsselstrukturen (Tupel/Mengen als Keys), um die Semantik
-der Lehralgorithmen in TypeScript ohne Semantikverlust zu erhalten.
-
-\section{Validierung, Tests und Grenzen der Portierung}
-Nachdem in Kapitel~4 die Transformation und Codegenerierung beschrieben wurde, behandelt dieses Kapitel die praktische Absicherung der Übersetzung: Wie wird überprüft, dass die TypeScript-Implementierungen (i) dieselbe Semantik wie die Python-Versionen besitzen und (ii) die neu eingeführten Typinvarianten tatsächlich eingehalten werden. Ergänzend werden typische Grenzen diskutiert, die sich aus Sprach- und Laufzeitunterschieden ergeben.
-
-\subsection{Statische Absicherung durch den TypeScript-Compiler}
-Ein zentraler Qualitätsgewinn der Portierung ist die frühzeitige Fehlererkennung durch den TypeScript-Compiler. Durch explizite Typen (insbesondere Union-Typen, Tupel-Varianten und generische Container) werden viele Fehlerklassen, die in Python erst zur Laufzeit sichtbar würden, bereits beim Übersetzen ausgeschlossen. In der Praxis betrifft dies vor allem:
-
-\begin{itemize}
-  \item \textbf{Arity-/Formfehler in AST-ähnlichen Strukturen:} Operator-Knoten mit falscher Operandenanzahl werden durch Tupeltypen verhindert.
-  \item \textbf{Inkonsistente Rückgabewerte:} Parser-Funktionen, die in Python Paare (Wert, Restliste) liefern, werden als Tupeltyp \texttt{[Value, TokenList]} modelliert; fehlende oder vertauschte Komponenten sind dadurch statisch auffindbar.
-  \item \textbf{Fehlende Null-/Optional-Behandlung:} Optionale Werte werden explizit als \texttt{T | undefined} bzw.\ \texttt{T | null} modelliert, sodass Zugriff ohne Guard nicht möglich ist. \autocite[S.73ff]{vanderkam2019effective}
-\end{itemize}
-
-Damit fungiert der TypeScript-Compiler als formales Prüfwerkzeug, das strukturelle Konsistenz über das gesamte Projekt hinweg erzwingt, ohne dass Laufzeitprüfungen notwendig werden. \autocite[S.44ff]{vanderkam2019effective}
-
-\subsection{Dynamische Validierung durch Tests}
-Die in Kapitel~4 formulierte semantische Äquivalenz
-\[
-\llbracket P \rrbracket_{\text{Python}} = \llbracket f(P) \rrbracket_{\text{TypeScript}}
-\]
-ist im Projektkontext nicht vollständig formal bewiesen, sondern wird durch Tests und Vergleichsausführungen empirisch abgesichert. \autocite[S.15ff]{aho2006compilers}
-Dabei werden drei Testebenen unterschieden:
-
-\subsubsection{Unit-Tests für lokale Funktionen}
-Für einzelne Komponenten (z.\,B.\ Tokenisierung, Hilfsfunktionen auf Mengen/Maps, einzelne Transformationsschritte) werden Eingabe-Ausgabe-Tests eingesetzt. Ziel ist, Grenzfälle (leere Eingaben, Sonderzeichen, ungewöhnliche Tokenfolgen) explizit abzudecken.
-
-\subsubsection{Integrations-Tests entlang der Pipeline}
-Integrations-Tests prüfen ganze Verarbeitungsketten, z.\,B.:
-\[
-\text{Source} \rightarrow \text{Scanner} \rightarrow \text{Parser} \rightarrow \text{Transformation} \rightarrow \text{Codegen}
-\]
-Hier steht weniger die isolierte Funktion, sondern die \emph{Kompatibilität der Schnittstellen} im Vordergrund. Gerade die Portierung von ``locker'' typisierten Python-Schnittstellen auf strikt typisierte TypeScript-Schnittstellen deckt an dieser Stelle häufig Integrationsprobleme auf (z.\,B.\ falsche Tokenformen oder uneinheitliche AST-Knotenrepräsentationen).
-
-\subsubsection{Differentialtests: Python vs.\ TypeScript}
-Wo möglich, wird die TypeScript-Ausgabe direkt gegen das Verhalten der Python-Referenz implementiert (``gleiches Input-Set, gleiche Output-Relation''). Besonders geeignet sind hierfür deterministische Funktionen (z.\,B.\ Determinisierung/Minimierung von Automaten, Regex-ParseTree-Erzeugung, Parser-Auswertung arithmetischer Ausdrücke). Diese Vorgehensweise nähert die in Kapitel~4 genannte Korrektheitsforderung praktisch an, ohne vollständige Formalisierung.
-
-\subsection{Typinvarianten als Test}
-Ein Teil der Validierung wird bereits durch das Typmodell selbst übernommen: Viele Zustände sind \emph{nicht konstruierbar}, wenn sie inkonsistent wären (z.\,B.\ falsche Schlüsseltypen in Transitionstabellen, unzulässige AST-Knotenform). Der Compiler wird damit zu einem Hilfsmittel, das ganze Fehlerklassen ausschließt.
-Dieses Prinzip entspricht der Idee, dass gut-typisierte Terme nicht ``schiefgehen'' (``do not go wrong''), da bestimmte fehlerhafte Zustände syntaktisch/typologisch nicht erreichbar sind. \autocite[S.1ff]{pierce2002tapl}
-
-\subsection{Grenzen und typische Stolperstellen}
-Trotz der strukturerhaltenden Übersetzung ergeben sich Grenzen aus den Unterschieden zwischen Python und TypeScript:
-
-\begin{itemize}
-  \item \textbf{Gleichheit und Hashing komplexer Schlüssel:} Python erlaubt \texttt{tuple}/\texttt{frozenset} als \texttt{dict}-Keys mit inhaltlicher Gleichheit. In TypeScript erfordert dies projektspezifische Container (\texttt{RecursiveSet}/\texttt{RecursiveMap} bzw.\ \texttt{Tuple}-Wrapper), da \texttt{Map}/\texttt{Set} referenzbasiert arbeiten.
-  \item \textbf{Zahlenmodell:} Python unterscheidet \texttt{int} und \texttt{float}, während TypeScript beide in \texttt{number} abbildet. Dadurch können sehr große Integer oder exakte Ganzzahlarithmetik nicht 1:1 garantiert werden.
-  \item \textbf{Truthiness und implizite Konversionen:} Python erlaubt Bedingungen über beliebige Objekte; TypeScript verlangt typisch explizitere Konversionen bzw.\ Guards, um Narrowing zuverlässig zu erhalten. \autocite[S.73ff]{vanderkam2019effective}
-  \item \textbf{Lesbarkeit:} Im gegensatz zu Python lässt sich die Grammatik in TypScript leichter lesen. In gewissen Funktionen ist der Code in Python schlanker als in TypeScript, dafür lässt sich der Code in TypeScript besser wiederverwenden.
-\end{itemize}
-
-\subsection{Zusammenfassung Kapitel 5}
-Die Portierung wird durch eine Kombination aus statischer Typprüfung und dynamischen Tests abgesichert. Der TypeScript-Compiler schließt große Teile typischer Python-Fehlerklassen bereits vor der Ausführung aus, während Unit-/Integrations- und Differentialtests die semantische Äquivalenz der übersetzten Beispiele praktisch validieren. Grenzen ergeben sich vor allem aus Laufzeitunterschieden (Equality/Hashing, Zahlenmodell, Konversionen), die im Projekt durch spezifische Datenstrukturen und explizite Guards adressiert werden.
+Alle Ergebnisse (Quellcode, Notebooks, Hilfsbibliotheken) werden versioniert in einem öffentlichen Repository bereitgestellt. Die Nachvollziehbarkeit entsteht dabei nicht nur durch Veröffentlichung, sondern durch den beschriebenen Workflow: klare Artefaktabgrenzung, iteratives Vorgehen, systematische Checks und konsistente Dokumentation. Die Methodik ist damit selbst Teil des Ergebnisses: Sie zeigt, wie sich Lehrmaterial aus einer dynamischen Notebook-Welt in eine statisch überprüfbare, langfristig wartbare Codebasis überführen lässt.
