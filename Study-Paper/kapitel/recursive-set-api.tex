@@ -1,0 +1,195 @@
+% !TEX root = ../master.tex
+
+\section{RecursiveSet: API und fachliche Modellierung}
+\label{sec:recursive-set-api}
+
+\subsection{Ziel des Kapitels}
+\label{subsec:rs-api-ziel}
+
+% Dieses Kapitel erklärt RecursiveSet aus Anwendersicht.
+% Im Mittelpunkt steht das fachliche Verhalten, nicht die interne Implementierung.
+% Die Leitfrage lautet:
+% Wie lässt sich das aus den Python-Notebooks bekannte Mengenverhalten
+% in TypeScript so nachbilden, dass die Lehrinhalte erhalten bleiben?
+
+\subsection{Das Mengenproblem beim Übergang von Python nach TypeScript}
+\label{subsec:rs-api-mengenproblem}
+
+% Einstieg mit:
+% - Python set mit Tupeln
+% - dein vorbereitetes TypeScript-Set<Tuple>-Beispiel
+%
+% Ziel:
+% - einmal klar zeigen, warum das eingebaute Set für Leser "komisch" wirkt
+% - noch keine tiefe Theorie
+% - noch keine Hashing-Erklärung
+%
+% Kernaussage:
+% In Python wirkt Mengenverhalten bei zusammengesetzten Werten natürlich,
+% im eingebauten JavaScript-/TypeScript-Set jedoch nicht. [web:208]
+
+\subsection{RecursiveSet als Mengenkompensation}
+\label{subsec:rs-api-kompensation}
+
+% Hier RecursiveSet als gezielte Antwort einführen.
+% Nicht als "weitere Collection", sondern als bewusste Wiederherstellung
+% des aus Python bekannten fachlichen Mengenverhaltens.
+%
+% Sehr kurze Leitidee:
+% - gleiche Inhalte sollen als gleich gelten
+% - auch wenn sie nicht dasselbe Objekt im Speicher sind
+
+\subsection{Grundlegende Benutzung im Vergleich zu Python}
+\label{subsec:rs-api-grundbenutzung}
+
+% Paarweise Vergleich:
+% - Python: set(...)
+% - TypeScript: new RecursiveSet(...)
+%
+% Themen:
+% - Konstruktion
+% - add
+% - remove
+% - has
+% - size
+%
+% Stil:
+% Immer erst Python-Code, dann RecursiveSet-Code, dann kurze Erklärung.
+
+\subsection{Gleichheit und Mitgliedschaft bei zusammengesetzten Werten}
+\label{subsec:rs-api-gleichheit}
+
+% Hier wird es inhaltlich wichtig.
+% Beispiele:
+% - Tupel
+% - Mengen von Tupeln
+% - Mengen von Mengen
+%
+% Erst an den Beispielen den Effekt zeigen,
+% danach vorsichtig den Begriff "Wertsemantik" einführen.
+%
+% Rückbezug:
+% Genau dieses Verhalten war für Automatenzustände,
+% Übergangspaare und verschachtelte Mengen nötig.
+
+\subsection{Klassische Mengenoperationen im direkten Vergleich}
+\label{subsec:rs-api-mengenoperationen}
+
+% Sehr wichtiger Abschnitt.
+% Unbedingt streng nach Muster:
+% 1. mathematische Idee
+% 2. Python-Code
+% 3. RecursiveSet-Code
+% 4. kurze Erklärung
+%
+% Operationen:
+% - union
+% - intersection
+% - difference
+% - symmetricDifference
+%
+% Fokus:
+% Hier die "leider verdammt elegante" Mengenkomposition in Python sichtbar machen
+% und zeigen, wie nah RecursiveSet fachlich wieder herankommt.
+
+\subsection{Kartesisches Produkt und Potenzmenge}
+\label{subsec:rs-api-kartesisch-potenzmenge}
+
+% Direkt an die theoretische Informatik anbinden.
+% Themen:
+% - cartesianProduct
+% - powerset
+%
+% Hier schon Tuple als Ergebnisform zeigen,
+% aber noch nicht intern erklären.
+%
+% Besonders wichtig:
+% - Beispiele aus Automaten / Relationen / Zustandsräumen
+% - nicht nur abstrakte Zahlenmengen
+
+\subsection{Transformationen auf Mengen}
+\label{subsec:rs-api-transformationen}
+
+% Methoden:
+% - map
+% - filter
+% - reduce
+% - every
+% - some
+%
+% Hier zeigen:
+% - Wie werden Mengen in Algorithmen verarbeitet?
+% - Welche Muster aus den Notebooks lassen sich damit prägnant ausdrücken?
+
+\subsection{Effiziente Kombinationsschritte mit \texttt{filterMap} und \texttt{flatMap}}
+\label{subsec:rs-api-filtermap-flatmap}
+
+% Hier bewusst die neueren / projektgetriebenen Methoden bündeln.
+%
+% Zuerst filterMap:
+% - ein Durchlauf statt filter().map()
+% - fachlich: "Bilde nur die passenden Elemente ab"
+%
+% Danach flatMap:
+% - mehrere erzeugte Mengen direkt in eine Zielmenge einsammeln
+% - besonders passend für Folgezustände, Übergänge, Klauseln, Relationen
+%
+% Wichtig:
+% - erklären, warum flatMap mutierend ist
+% - und warum das hier kein Designfehler, sondern eine Leistungsentscheidung ist
+
+\subsection{Zwischen \texttt{set} und \texttt{frozenset}: Der Lebenszyklus von \texttt{RecursiveSet}}
+\label{subsec:rs-api-freeze-frozenset}
+
+% Vergleich zu Python:
+% - Python hat set und frozenset als getrennte Konstrukte
+% - RecursiveSet verbindet beide Rollen über einen Lebenszyklus
+%
+% Aufbau:
+% 1. Python set / frozenset kurz zeigen
+% 2. erklären, warum ihr nicht zwei getrennte TypeScript-Typen wolltet
+% 3. RecursiveSet ist zuerst veränderlich
+% 4. durch Hash-Nutzung / Verschachtelung wird es eingefroren
+% 5. mutableCopy als Rückweg
+%
+% Das ist kein Interna-Abschnitt, sondern eine bewusste API-Entscheidung.
+
+\subsection{Welche Werte überhaupt gespeichert werden dürfen}
+\label{subsec:rs-api-wertetypen}
+
+% Jetzt die API-Verträge aus Nutzersicht erklären:
+% - Primitive = string | number
+% - Structural für komplexe Werte
+% - warum Plain Objects ausgeschlossen sind
+%
+% Hier Rückbezug auf Kapitel 2:
+% - Vertrag statt beliebiger dynamischer Objektform
+
+\subsection{Regeln und Grenzen der Bibliothek}
+\label{subsec:rs-api-regeln}
+
+% Hier die Invarianten bündeln:
+% - nur endliche Zahlen
+% - gute Hash-Qualität nötig
+% - keine Zyklen
+% - deterministische toString-Ausgabe
+% - Hash eines eingefügten Objekts darf sich nicht ändern
+%
+% Ton:
+% nicht als "Mängelliste",
+% sondern als bewusste Voraussetzungen für Korrektheit und Performanz
+
+\subsection{Einordnung für das Projekt}
+\label{subsec:rs-api-einordnung}
+
+% Hier ganz explizit:
+% - RecursiveSet ist die zentrale Kompensation des Mengenproblems
+% - dadurch konnten die Python-Notebooks fachlich treu portiert werden
+% - die Denkweise in Mengen bleibt erhalten, obwohl die technische Grundlage neu ist
+
+\subsection{Zwischenfazit}
+\label{subsec:rs-api-fazit}
+
+% Kurz:
+% Kapitel 3 hat gezeigt, welches Verhalten RecursiveSet bereitstellt.
+% Kapitel 4 erklärt nun, wie dieses Verhalten intern umgesetzt wird.

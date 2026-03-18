@@ -1,0 +1,284 @@
+% !TEX root = ../master.tex
+
+\section{RecursiveSet: Interne Umsetzung}
+\label{sec:recursive-set-intern}
+
+\subsection{Ziel des Kapitels}
+\label{subsec:rs-intern-ziel}
+
+% Perspektivwechsel:
+% Nicht mehr API und Nutzung,
+% sondern technische Konstruktion.
+%
+% Leitfrage:
+% Wie wird mathematisch erwartetes Mengenverhalten
+% mit guter Laufzeit in TypeScript umgesetzt?
+
+\subsection{Warum eine eigene Datenstruktur notwendig war}
+\label{subsec:rs-intern-motivation}
+
+% Sehr kurzer Rückbezug:
+% - eingebautes Set reicht für referenzbasierte Gleichheit
+% - für strukturelle Gleichheit jedoch nicht
+% - deshalb ist RecursiveSet kein Wrapper, sondern eine eigene Implementierung
+
+\subsection{Welche Werte die Bibliothek überhaupt unterstützt}
+\label{subsec:rs-intern-value}
+
+% Aus dem Code:
+% - Primitive = string | number
+% - Value = Primitive | Structural
+%
+% Hier sauber und langsam erklären:
+% - Warum genau diese Einschränkung?
+% - Warum gerade keine beliebigen Plain Objects?
+%
+% Das ist die eigentliche Grundlage aller späteren Algorithmen.
+
+\subsection{Der \texttt{Structural}-Vertrag}
+\label{subsec:rs-intern-structural}
+
+% Hier die drei Bestandteile:
+% - hashCode
+% - equals(other: unknown)
+% - toString()
+%
+% Unbedingt mit Rückbezug zu Kapitel 2.
+% Das ist der Moment, in dem der typische Vertrag
+% tatsächlich algorithmisch wirksam wird.
+
+\subsection{Deterministische Darstellung mit \texttt{compareVisualLogic}}
+\label{subsec:rs-intern-visual}
+
+% Dieser Abschnitt ist wichtig und leicht zu übersehen.
+% Hier erklären:
+% - logische Mengen sind ungeordnet
+% - toString soll trotzdem stabil und lesbar sein
+% - compareVisualLogic dient nur der Darstellung
+% - nicht der eigentlichen Mengenlogik
+%
+% Das ist didaktisch sehr stark, weil es Ordnung und Gleichheit trennt.
+
+\subsection{Hashing als technische Grundlage der Wertgleichheit}
+\label{subsec:rs-intern-hashing-grundidee}
+
+% Erst das große Bild:
+% - lineare Suche wäre zu langsam
+% - daher Hash als Wegweiser
+% - gleiche Werte müssen denselben Hash haben
+% - Hash allein genügt nicht, equals bleibt notwendig
+%
+% Noch nicht sofort alle Mikrooptimierungen erklären.
+
+\subsection{Der Hash-Dispatcher \texttt{getHashCode}}
+\label{subsec:rs-intern-gethashcode}
+
+% Jetzt konkret am Code:
+% - Zahlen
+% - Strings
+% - Structural-Objekte
+%
+% Sehr schön Schritt für Schritt:
+% 1. Zahlen: int fast path vs float path
+% 2. Strings
+% 3. Objekte über ihren eigenen hashCode
+%
+% Hier kann man sehr gut erklären,
+% warum Primitive und Structural verschieden behandelt werden.
+
+\subsection{Gleichheit mit \texttt{areEqual}}
+\label{subsec:rs-intern-areequal}
+
+% Das Gegenstück zum Hashing.
+% Aufbau:
+% - schneller Gleichheitsfall a === b
+% - Typprüfung
+% - Primitive direkt
+% - Objekte über equals
+%
+% Wichtig:
+% Hash und Gleichheit zusammen denken,
+% nicht als zwei unabhängige Ideen.
+
+\subsection{Das unveränderliche \texttt{Tuple} als erster Strukturbaustein}
+\label{subsec:rs-intern-tuple}
+
+% Sehr sinnvoll vor Map und Set:
+% - Tuple ist klein, abgeschlossen und gut verständlich
+% - defensive copy
+% - sofortige Hash-Berechnung
+% - equals
+% - Iterator
+% - toString
+%
+% Didaktisch:
+% Tuple ist die einfachste komplexe Struktur,
+% an der Structural vollständig sichtbar wird.
+
+\subsection{\texttt{RecursiveMap} als Vorstufe zu \texttt{RecursiveSet}}
+\label{subsec:rs-intern-recursivemap-einstieg}
+
+% Das ist strategisch klug:
+% RecursiveMap ist algorithmisch expliziter,
+% weil man Schlüssel und Werte getrennt sieht.
+%
+% Themen:
+% - _keys, _values, _hashes
+% - _indices als Hashtabelle
+% - 1-basierte Indizes
+% - mutableCopy
+%
+% Dadurch versteht man später RecursiveSet leichter.
+
+\subsection{Interne Speicherstruktur: dichte Arrays und Indextabelle}
+\label{subsec:rs-intern-speicherlayout}
+
+% Hier SoA wirklich anschaulich erklären:
+% - keine Sammlung vieler kleiner Objekte
+% - stattdessen parallele Arrays
+% - dazu eine Indextabelle
+%
+% Am besten mit kleiner Abbildung oder Tabelle:
+% Index | Hash | Wert | Bucket-Eintrag
+
+\subsection{Einfügen und Nachschlagen mit Open Addressing}
+\label{subsec:rs-intern-open-addressing}
+
+% Jetzt der algorithmische Kern:
+% - Startindex aus hash & mask
+% - linear probing
+% - leerer Slot -> Einfügen
+% - gleicher Hash + equals -> Treffer
+% - sonst weiterlaufen
+%
+% Das zuerst an RecursiveMap erklären,
+% danach auf RecursiveSet übertragen.
+
+\subsection{Löschen mit Backshift Deletion}
+\label{subsec:rs-intern-backshift}
+
+% Einer der wichtigsten Abschnitte des ganzen Kapitels.
+% Unbedingt sehr ausführlich.
+%
+% Aufbau:
+% 1. Warum einfaches Leeren falsch wäre
+% 2. Warum "gelöscht"-Marker langfristig schlecht sind
+% 3. removeIndex Schritt für Schritt
+% 4. Beispiel mit konkreter Tabelle
+% 5. danach dense-array-Swap erklären
+%
+% Hier sollte wirklich eine ausführliche Tabelle oder Abbildung rein.
+
+\subsection{Warum nach dem Löschen zusätzlich getauscht wird}
+\label{subsec:rs-intern-dense-swap}
+
+% Wichtig, weil es leicht übersehen wird:
+% - Nach removeIndex wird auch aus _values/_keys/_hashes entfernt
+% - letzte Position wird nach vorne geholt
+% - updateIndexForValue / updateIndexForKey repariert die Referenz
+%
+% Das ist ein eigener didaktischer Schritt
+% und sollte nicht im Backshift-Abschnitt untergehen.
+
+\subsection{Wachstum, Lastfaktor und Verkleinerung}
+\label{subsec:rs-intern-resize-shrink}
+
+% Hier:
+% - MIN_BUCKETS
+% - LOAD_FACTOR 0.75
+% - ensureCapacity
+% - resize
+% - shrink
+% - mask
+%
+% Ganz langsam erklären,
+% warum Tabellen nie vollständig gefüllt werden sollten.
+
+\subsection{\texttt{RecursiveSet} als spezialisierte Mengenvariante}
+\label{subsec:rs-intern-recursiveset}
+
+% Jetzt erst die Set-spezifische Klasse selbst komplett erklären.
+% Themen:
+% - _values, _hashes, _indices
+% - _xorHash
+% - add, has, remove
+% - equals
+% - union, intersection, difference, symmetricDifference
+%
+% Hier deutlich machen:
+% Die Kernlogik stammt aus derselben Hash-Architektur,
+% ist aber auf reine Mengen zugeschnitten.
+
+\subsection{Warum der Mengen-Hash per XOR gebildet wird}
+\label{subsec:rs-intern-xorhash}
+
+% Sehr schöner eigener Abschnitt.
+% Hier erklären:
+% - Menge ist ungeordnet
+% - Hash darf also nicht von Einfügereihenfolge abhängen
+% - XOR ist deshalb naheliegend
+%
+% Danach aber auch klar sagen:
+% - Hash ist nur Vorsortierung
+% - echte Gleichheit prüft equals/has zusätzlich
+
+\subsection{Einfrieren und verschachtelte Strukturen}
+\label{subsec:rs-intern-freeze}
+
+% Jetzt technisch:
+% - hashCode friert Set/Map ein
+% - beim Hashen werden Kindstrukturen ebenfalls berührt
+% - dadurch entsteht tiefe Stabilität
+%
+% Rückbezug zu Kapitel 3:
+% - API-seitig war das der Vergleich zu set/frozenset
+% - hier wird die technische Notwendigkeit erklärt
+
+\subsection{Funktionale Methoden und projektgetriebene Erweiterungen}
+\label{subsec:rs-intern-functional-methods}
+
+% Hier bündeln:
+% - every
+% - some
+% - map
+% - filter
+% - reduce
+% - filterMap
+% - flatMap
+%
+% Fokus:
+% - warum direkte Array-Iteration verwendet wird
+% - warum filterMap Zwischenstrukturen vermeidet
+% - warum flatMap mutierend implementiert ist
+
+\subsection{Grenzen der Implementierung}
+\label{subsec:rs-intern-grenzen}
+
+% Hier die Verträge noch einmal technisch zuspitzen:
+% - NaN / Infinity
+% - schlechte hashCode-Qualität
+% - keine Zyklen
+% - Plain Objects ausgeschlossen
+% - toString muss deterministisch bleiben
+%
+% Diese Stelle ist eher technisch als API-orientiert.
+
+\subsection{Zusammenspiel von \texttt{RecursiveSet}, \texttt{RecursiveMap} und \texttt{Tuple}}
+\label{subsec:rs-intern-zusammenspiel}
+
+% Abschluss der Architektur:
+% - Tuple als zusammengesetzter, unveränderlicher Wert
+% - RecursiveMap für wertsemantische Zuordnungen
+% - RecursiveSet für Mengenoperationen
+%
+% Zeigen:
+% Das ist keine Einzelfunktion, sondern eine kleine Infrastruktur.
+
+\subsection{Zwischenfazit}
+\label{subsec:rs-intern-fazit}
+
+% Kurz:
+% RecursiveSet erreicht das gewünschte Mengenverhalten
+% durch eine eigene hashbasierte Datenstruktur
+% mit expliziter Gleichheitslogik, offener Adressierung,
+% Backshift Deletion und kontrollierter Unveränderlichkeit.
