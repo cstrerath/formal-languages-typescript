@@ -3,193 +3,1489 @@
 \section{RecursiveSet: API und fachliche Modellierung}
 \label{sec:recursive-set-api}
 
+Nachdem im vorigen Kapitel die typseitigen Grundlagen von TypeScript
+eingeführt wurden, wendet sich die Arbeit nun dem zentralen technischen
+Baustein der Portierung zu: \mintinline{text}{RecursiveSet}. Dabei geht es
+zunächst noch nicht um die interne Implementierung, sondern um die Frage,
+welches fachliche Verhalten diese Datenstruktur bereitstellt und warum sie für
+die Übertragung der Lehrnotebooks notwendig wurde.
+
+Der Ausgangspunkt ist dabei ein sehr konkretes Problem. In den ursprünglichen
+Python-Notebooks wird mit Mengen so gearbeitet, wie man es aus der
+mathematischen Sicht erwarten würde. Python beschreibt \mintinline{python}{set}
+als ungeordnete Sammlung ohne Duplikate und nennt ausdrücklich
+Mitgliedschaftstests sowie Operationen wie Vereinigung, Schnitt, Differenz und
+symmetrische Differenz als typische Einsatzfälle \autocite{python_datastructures}.
+Genau dieses Verhalten wird in den Lehrmaterialien an vielen Stellen
+vorausgesetzt.
+
+Bei einer direkten Übertragung nach TypeScript tritt jedoch ein Bruch auf.
+Zwar besitzt auch JavaScript mit \mintinline{text}{Set} eine eingebaute
+Mengenstruktur, diese vergleicht Objekte jedoch nicht nach ihrem Inhalt,
+sondern nach ihrer Identität, also danach, ob es sich um exakt dieselbe
+Referenz handelt \autocite{mdn_set}. Für primitive Werte fällt dieser
+Unterschied kaum auf. Bei Tupeln, Mengen von Tupeln oder Mengen von Mengen
+wird er jedoch zum zentralen Problem der gesamten Portierung.
+
+Dieses Kapitel erklärt deshalb \mintinline{text}{RecursiveSet} bewusst aus
+Anwendersicht. Im Mittelpunkt steht nicht, wie Hashing, Einfügen oder Löschen
+intern funktionieren, sondern wie sich die Datenstruktur im Code benutzen
+lässt und wie sie das aus Python bekannte Mengenverhalten wiederherstellt.
+Die technische Umsetzung folgt erst im nächsten Kapitel.
+
 \subsection{Ziel des Kapitels}
 \label{subsec:rs-api-ziel}
 
-% Dieses Kapitel erklärt RecursiveSet aus Anwendersicht.
-% Im Mittelpunkt steht das fachliche Verhalten, nicht die interne Implementierung.
-% Die Leitfrage lautet:
-% Wie lässt sich das aus den Python-Notebooks bekannte Mengenverhalten
-% in TypeScript so nachbilden, dass die Lehrinhalte erhalten bleiben?
+Ziel dieses Kapitels ist es, \mintinline{text}{RecursiveSet} als fachliche
+Arbeitsoberfläche für Mengen in der TypeScript-Portierung einzuführen. Die
+Datenstruktur soll nicht einfach eine weitere Sammlung neben Array,
+\mintinline{text}{Set} oder Map sein. Ihre eigentliche Aufgabe besteht darin,
+die aus den Python-Notebooks vertraute Denkweise in Mengen für TypeScript
+wieder verfügbar zu machen.
+
+Für die Leserinnen und Leser ist dabei ein Perspektivwechsel wichtig. In
+Kapitel~2 stand im Vordergrund, wie TypeScript Typen beschreibt und wie
+dadurch Programmfehler früher sichtbar werden. In diesem Kapitel geht es nun
+um eine konkrete Datenstruktur, die auf diesen Typideen aufbaut und ein sehr
+spezifisches fachliches Problem löst: zusammengesetzte Werte sollen in Mengen
+so behandelt werden, wie es in der theoretischen Informatik erwartet wird.
+
+Das Kapitel verfolgt daher drei eng zusammenhängende Teilziele. Erstens wird
+gezeigt, an welcher Stelle sich das eingebaute \mintinline{text}{Set} für
+unsere Zwecke unerwartet verhält. Zweitens wird \mintinline{text}{RecursiveSet}
+als gezielte Antwort auf dieses Problem eingeführt. Drittens wird damit die
+Grundlage für die späteren API-Abschnitte gelegt, in denen Mengenoperationen,
+Transformationen und verschachtelte Mengen schrittweise erklärt werden.
+
+Didaktisch ist dabei besonders wichtig, zunächst beim beobachtbaren Verhalten
+zu bleiben. Leserinnen und Leser sollen zuerst verstehen, \emph{welches}
+Problem auftritt und \emph{welches} Verhalten \mintinline{text}{RecursiveSet}
+bereitstellt. Erst danach ist es sinnvoll zu untersuchen, \emph{wie} dieses
+Verhalten intern technisch erreicht wird.
 
 \subsection{Das Mengenproblem beim Übergang von Python nach TypeScript}
 \label{subsec:rs-api-mengenproblem}
 
-% Einstieg mit:
-% - Python set mit Tupeln
-% - dein vorbereitetes TypeScript-Set<Tuple>-Beispiel
-%
-% Ziel:
-% - einmal klar zeigen, warum das eingebaute Set für Leser "komisch" wirkt
-% - noch keine tiefe Theorie
-% - noch keine Hashing-Erklärung
-%
-% Kernaussage:
-% In Python wirkt Mengenverhalten bei zusammengesetzten Werten natürlich,
-% im eingebauten JavaScript-/TypeScript-Set jedoch nicht. [web:208]
+In den Python-Notebooks wirken Mengen zunächst vollkommen unproblematisch.
+Python beschreibt Mengen als Datenstruktur für eindeutige Elemente,
+Mitgliedschaftstests und mathematische Mengenoperationen \autocite{python_datastructures}.
+Gerade für die theoretische Informatik ist das äußerst passend, weil Zustände,
+Übergänge oder Symbolmengen direkt als Mengen modelliert werden können.
+
+Ein einfaches Beispiel mit Tupeln zeigt dieses erwartete Verhalten:
+
+\begin{listing}[H]
+	\caption{Mengen in Python: Das erwartete Verhalten bei Tupeln}
+	\label{lst:set_python_tuple}
+	\begin{minted}{python}
+		menge = set()
+		menge.add((1, 2))
+		
+		print(menge)           # {(1, 2)}
+		print((1, 2) in menge) # True
+	\end{minted}
+\end{listing}
+
+Das Ergebnis entspricht hier genau der mathematischen Intuition. Das Tupel
+\mintinline{python}{(1, 2)} wurde eingefügt und wird bei einer späteren
+Mitgliedschaftsabfrage auch wieder erkannt. Für die Arbeit mit Mengen in den
+Lehrnotebooks ist dieses Verhalten so selbstverständlich, dass es meist gar
+nicht eigens thematisiert werden muss.
+
+Bei der Übertragung nach TypeScript entsteht an genau dieser Stelle jedoch ein
+unerwarteter Bruch. Das eingebaute JavaScript-\mintinline{text}{Set} speichert
+zwar ebenfalls nur eindeutige Werte, bei Objekten basiert Gleichheit jedoch
+auf Identität, also auf derselben Referenz, nicht auf gleichem Inhalt
+\autocite{mdn_set}. Für zusammengesetzte Werte führt das zu einem Ergebnis,
+das aus fachlicher Sicht überraschend wirkt:
+
+\begin{listing}[H]
+	\caption{Mengen in TypeScript: Das fehlerhafte Verhalten bei Tupeln}
+	\label{lst:set_ts}
+	\begin{minted}{typescript}
+		// Wir definieren den Typ Tuple, der zwei Zahlen akzeptiert.
+		type Tuple = [number, number];
+		
+		// Die Menge soll nur diese Tupel akzeptieren
+		const menge = new Set<Tuple>();
+		menge.add([1, 2]);
+		
+		// Die Menge enthält das Element sichtbar
+		console.log(menge);             // Ausgabe: Set(1) { [ 1, 2 ] }
+		
+		// Die Abfrage liefert ein ungewöhnliches Ergebnis
+		console.log(menge.has([1, 2])); // Ausgabe: false
+	\end{minted}
+\end{listing}
+
+Gerade dieses Beispiel ist für den weiteren Verlauf der Arbeit entscheidend.
+Das Problem besteht nicht darin, dass \mintinline{text}{Set} \enquote{falsch}
+implementiert wäre. Das Problem besteht vielmehr darin, dass sich das
+Standardverhalten von JavaScript-\mintinline{text}{Set} nicht mit der
+fachlichen Erwartung deckt, die in den Python-Notebooks stillschweigend
+vorausgesetzt wird.
+
+Für einfache Demo-Programme mag dieser Unterschied noch harmlos erscheinen.
+In Algorithmen der theoretischen Informatik hat er jedoch unmittelbare Folgen.
+Wenn Mengen von Zuständen, Zustandspaaren oder Teilmengen verwendet werden,
+dann hängt die Korrektheit ganzer Berechnungen davon ab, dass logisch gleiche
+Werte in der Menge auch wirklich als gleich erkannt werden. Geschieht das
+nicht, schlagen Mitgliedschaftsabfragen fehl, Duplikate werden nicht erkannt
+und algorithmische Invarianten gehen verloren.
+
+Genau an dieser Stelle zeigt sich also, dass die Portierung nicht durch eine
+reine Syntaxübersetzung gelöst werden kann. Die Sprache TypeScript ist nicht
+das eigentliche Problem. Entscheidend ist vielmehr, dass ihre eingebaute
+Mengenstruktur für zusammengesetzte Werte ein anderes Gleichheitsverständnis
+besitzt als dasjenige, auf dem die Python-Notebooks fachlich aufbauen.
 
 \subsection{RecursiveSet als Mengenkompensation}
 \label{subsec:rs-api-kompensation}
 
-% Hier RecursiveSet als gezielte Antwort einführen.
-% Nicht als "weitere Collection", sondern als bewusste Wiederherstellung
-% des aus Python bekannten fachlichen Mengenverhaltens.
-%
-% Sehr kurze Leitidee:
-% - gleiche Inhalte sollen als gleich gelten
-% - auch wenn sie nicht dasselbe Objekt im Speicher sind
+Um diesen Bruch zu beheben, wurde \mintinline{text}{RecursiveSet} entwickelt.
+Die Datenstruktur verfolgt nicht das Ziel, das eingebaute
+\mintinline{text}{Set} vollständig zu ersetzen. Ihre Aufgabe ist viel
+spezifischer: Sie soll für die Portierung genau das Mengenverhalten
+bereitstellen, das in den ursprünglichen Python-Notebooks bereits vorausgesetzt
+wird.
+
+Man kann \mintinline{text}{RecursiveSet} daher am besten als
+\enquote{Mengenkompensation} verstehen. Der Begriff meint hier nicht bloß eine
+kleine technische Korrektur, sondern den bewussten Ausgleich eines
+sprachbedingten Unterschieds. Python und JavaScript stellen beide eine
+Mengenstruktur bereit, aber sie behandeln zusammengesetzte Werte nicht in
+derselben Weise. \mintinline{text}{RecursiveSet} gleicht genau diesen
+Unterschied aus.
+
+Für die Nutzung im Projekt bedeutet das: Wenn zwei Werte fachlich dieselbe
+Struktur besitzen, dann sollen sie auch in einer Menge als gleich gelten.
+Gerade bei Tupeln, Mengen von Tupeln oder Mengen von Mengen ist das die
+entscheidende Eigenschaft. Nicht die zufällige Identität eines konkreten
+Objekts im Speicher soll maßgeblich sein, sondern der Inhalt, den dieser Wert
+repräsentiert.
+
+Das lässt sich bereits an einem einfachen Gegenbeispiel zum vorherigen
+\mintinline{text}{Set}-Beispiel andeuten:
+
+\begin{listing}[H]
+	\caption{\texttt{RecursiveSet} als fachlich passende Mengenstruktur}
+	\label{lst:recursive_set_tuple_intro}
+	\begin{minted}{typescript}
+		const menge = new RecursiveSet<Tuple<[number, number]>>();
+		menge.add(new Tuple(1, 2));
+		
+		console.log(menge.has(new Tuple(1, 2))); // true
+	\end{minted}
+\end{listing}
+
+An diesem Beispiel ist zunächst nur die fachliche Wirkung wichtig. Obwohl bei
+der Abfrage ein neues Objekt erzeugt wird, erkennt die Menge, dass es sich
+inhaltlich um denselben Wert handelt. Genau dieses Verhalten macht
+\mintinline{text}{RecursiveSet} für die Portierung der Lehrnotebooks so
+zentral.
+
+Damit ist zugleich die Perspektive für die nächsten Abschnitte festgelegt.
+Im weiteren Verlauf von Kapitel~3 wird nicht mehr gefragt, ob
+\mintinline{text}{RecursiveSet} \enquote{auch eine Collection} ist. Stattdessen
+wird untersucht, wie sich mit dieser Datenstruktur die aus Python vertrauten
+Mengenoperationen, verschachtelten Mengen und projektbezogenen Algorithmen
+wieder präzise formulieren lassen. Erst wenn dieses API-Verhalten klar ist,
+lohnt sich der Blick auf die interne technische Umsetzung in Kapitel~4.
 
 \subsection{Grundlegende Benutzung im Vergleich zu Python}
 \label{subsec:rs-api-grundbenutzung}
 
-% Paarweise Vergleich:
-% - Python: set(...)
-% - TypeScript: new RecursiveSet(...)
-%
-% Themen:
-% - Konstruktion
-% - add
-% - remove
-% - has
-% - size
-%
-% Stil:
-% Immer erst Python-Code, dann RecursiveSet-Code, dann kurze Erklärung.
+Nachdem im vorigen Abschnitt geklärt wurde, warum das eingebaute
+\mintinline{text}{Set} für unsere Portierung nicht ausreicht, kann nun die
+eigentliche Benutzung von \mintinline{text}{RecursiveSet} betrachtet werden.
+Dabei ist der Vergleich zu Python besonders wichtig, weil die Lehrnotebooks
+bereits eine sehr natürliche und fachlich passende Arbeitsweise mit Mengen
+etabliert haben.
+
+Python beschreibt Mengen als Datenstruktur für eindeutige Elemente und hebt
+insbesondere Mitgliedschaftstests sowie typische Mengenoperationen hervor
+\autocite{python_datastructures}. Genau an dieser vertrauten Arbeitsweise
+orientiert sich auch \mintinline{text}{RecursiveSet}. Ziel ist also nicht, eine
+möglichst originelle neue API zu entwerfen, sondern eine Benutzung
+bereitzustellen, die für die Portierung fachlich denselben Zweck erfüllt.
+
+Ein erster Vergleich zeigt bereits, dass sich die grundlegenden Operationen
+sehr ähnlich lesen lassen. In Python wird eine Menge erzeugt, anschließend
+werden Elemente hinzugefügt, entfernt und auf Mitgliedschaft geprüft:
+
+\begin{listing}[H]
+	\caption{Grundlegende Mengenbenutzung in Python}
+	\label{lst:python_set_basic_usage}
+	\begin{minted}{python}
+		numbers = set()
+		
+		numbers.add(1)
+		numbers.add(2)
+		numbers.add(2)
+		
+		print(numbers)        # {1, 2}
+		print(1 in numbers)   # True
+		
+		numbers.remove(1)
+		print(numbers)        # {2}
+		print(len(numbers))   # 1
+	\end{minted}
+\end{listing}
+
+Dasselbe Grundmuster lässt sich mit \mintinline{text}{RecursiveSet} in
+TypeScript formulieren:
+
+\begin{listing}[H]
+	\caption{Grundlegende Mengenbenutzung mit \texttt{RecursiveSet}}
+	\label{lst:ts_recursive_set_basic_usage}
+	\begin{minted}{typescript}
+		const numbers = new RecursiveSet<number>();
+		
+		numbers.add(1);
+		numbers.add(2);
+		numbers.add(2);
+		
+		console.log(numbers);        // {1, 2}
+		console.log(numbers.has(1)); // true
+		
+		numbers.remove(1);
+		console.log(numbers);        // {2}
+		console.log(numbers.size);   // 1
+	\end{minted}
+\end{listing}
+
+Gerade an diesem einfachen Beispiel ist die eigentliche Stärke von
+\mintinline{text}{RecursiveSet} noch gar nicht spektakulär. Bei primitiven
+Werten wie Zahlen verhält sich die Datenstruktur zunächst genau so, wie man es
+von einer Menge erwartet. Das ist didaktisch sogar ein Vorteil: Die API soll
+an dieser Stelle bewusst vertraut wirken und keine unnötige zusätzliche
+Komplexität einführen.
+
+Zugleich werden hier bereits die wichtigsten Grundoperationen sichtbar.
+\mintinline{text}{new RecursiveSet(...)} übernimmt die Rolle der Konstruktion,
+\mintinline{text}{add} fügt ein Element ein, \mintinline{text}{remove} entfernt
+ein Element, \mintinline{text}{has} prüft die Mitgliedschaft und
+\mintinline{text}{size} liefert die Anzahl der gespeicherten Werte. Damit
+entsteht eine Arbeitsoberfläche, die aus Sicht der Notebook-Portierung sehr
+nahe an der bisherigen Python-Nutzung liegt.
+
+Für die Lehrnotebooks ist diese Nähe entscheidend. Studierende sollen beim
+Lesen eines portierten Algorithmus nicht zuerst eine vollkommen neue
+Collections-Bibliothek erlernen müssen. Vielmehr soll die Mengenidee aus der
+theoretischen Informatik im Vordergrund bleiben, während sich die konkrete
+Benutzung in TypeScript möglichst natürlich anfühlt.
+
+Der eigentliche Unterschied zu Python zeigt sich daher noch nicht bei Zahlen
+oder Strings, sondern erst bei zusammengesetzten Werten. Genau dort wird
+sichtbar, warum \mintinline{text}{RecursiveSet} mehr ist als nur eine weitere
+Mengenklasse mit bekannten Methoden. Dieser Punkt wird im folgenden Abschnitt
+schrittweise aufgebaut.
 
 \subsection{Gleichheit und Mitgliedschaft bei zusammengesetzten Werten}
 \label{subsec:rs-api-gleichheit}
 
-% Hier wird es inhaltlich wichtig.
-% Beispiele:
-% - Tupel
-% - Mengen von Tupeln
-% - Mengen von Mengen
-%
-% Erst an den Beispielen den Effekt zeigen,
-% danach vorsichtig den Begriff "Wertsemantik" einführen.
-%
-% Rückbezug:
-% Genau dieses Verhalten war für Automatenzustände,
-% Übergangspaare und verschachtelte Mengen nötig.
+Die grundlegende Benutzung mit primitiven Werten ist wichtig, aber sie erklärt
+noch nicht, warum \mintinline{text}{RecursiveSet} für die Portierung überhaupt
+notwendig wurde. Der entscheidende Unterschied zeigt sich erst bei
+zusammengesetzten Werten, also bei Werten, die selbst wieder aus mehreren
+Bestandteilen bestehen. Gerade solche Strukturen treten in den Lehrnotebooks
+ständig auf, etwa als Zustandspaare, Kanten, Übergänge oder Mengen von
+Zuständen.
+
+In Python wirkt diese Art der Mengenbenutzung sehr natürlich. Ein Tupel kann
+direkt in einer Menge gespeichert und später über eine logisch gleiche
+Tupelstruktur wiedergefunden werden:
+
+\begin{listing}[H]
+	\caption{Mitgliedschaft bei zusammengesetzten Werten in Python}
+	\label{lst:python_set_tuple_membership}
+	\begin{minted}{python}
+		pairs = set()
+		pairs.add((1, 2))
+		
+		print((1, 2) in pairs)  # True
+	\end{minted}
+\end{listing}
+
+Gerade diese Kürze macht die Python-Lösung so elegant. Ein Tupel kann direkt
+als zusammengesetzter Wert verwendet werden, und die Mengenabfrage orientiert
+sich an der fachlichen Struktur des Werts. Für die Notebooks ist das äußerst
+angenehm, weil die mathematische Idee fast ohne zusätzlichen technischen
+Aufwand im Code erscheint.
+
+Mit \mintinline{text}{RecursiveSet} lässt sich dieselbe Grundidee auch in
+TypeScript wieder präzise ausdrücken. Dabei übernimmt die Klasse
+\mintinline{text}{Tuple} die Rolle eines strukturell vergleichbaren
+zusammengesetzten Werts:
+
+\begin{listing}[H]
+	\caption{Mitgliedschaft bei zusammengesetzten Werten mit \texttt{RecursiveSet}}
+	\label{lst:ts_recursive_set_tuple_membership}
+	\begin{minted}{typescript}
+		const pairs = new RecursiveSet<Tuple<[number, number]>>();
+		pairs.add(new Tuple(1, 2));
+		
+		console.log(pairs.has(new Tuple(1, 2))); // true
+	\end{minted}
+\end{listing}
+
+Dieses Beispiel ist inhaltlich sehr wichtig. Bei der Abfrage wird nicht
+dieselbe Instanz wiederverwendet, sondern ein neues Objekt erzeugt. Trotzdem
+liefert die Mitgliedschaftsabfrage \mintinline{text}{true}. Genau daran zeigt
+sich, dass für \mintinline{text}{RecursiveSet} nicht die zufällige Identität
+eines Objekts entscheidend ist, sondern seine fachliche Struktur.
+
+An dieser Stelle kann nun auch der zentrale Begriff dieses Kapitels eingeführt
+werden: \textit{Wertsemantik}. Damit ist gemeint, dass zwei Werte dann als
+gleich behandelt werden, wenn sie inhaltlich dieselbe Struktur besitzen. Für
+unsere Portierung ist genau dieses Verhalten entscheidend. Ein Zustandspaar
+soll nicht nur dann erkannt werden, wenn zufällig exakt dasselbe Objekt erneut
+verwendet wird, sondern auch dann, wenn an anderer Stelle ein logisch gleiches
+Paar neu erzeugt wurde.
+
+Der Unterschied wird besonders deutlich, wenn man mehrere logisch gleiche
+Werte in dieselbe Menge einfügt. In Python entsteht daraus weiterhin nur ein
+einziger Mengeneintrag:
+
+\begin{listing}[H]
+	\caption{Python erkennt logisch gleiche Tupel als gleich}
+	\label{lst:python_set_tuple_dedup}
+	\begin{minted}{python}
+		pairs = set()
+		pairs.add((1, 2))
+		pairs.add((1, 2))
+		
+		print(pairs)      # {(1, 2)}
+		print(len(pairs)) # 1
+	\end{minted}
+\end{listing}
+
+Dasselbe Verhalten stellt \mintinline{text}{RecursiveSet} auch in TypeScript
+wieder her:
+
+\begin{listing}[H]
+	\caption{\texttt{RecursiveSet} erkennt logisch gleiche Tupel als gleich}
+	\label{lst:ts_recursive_set_tuple_dedup}
+	\begin{minted}{typescript}
+		const pairs = new RecursiveSet<Tuple<[number, number]>>();
+		pairs.add(new Tuple(1, 2));
+		pairs.add(new Tuple(1, 2));
+		
+		console.log(pairs.toString()); // {(1, 2)}
+		console.log(pairs.size);       // 1
+	\end{minted}
+\end{listing}
+
+Damit wird aus einer bloß ähnlichen API nun tatsächlich eine fachlich passende
+Mengenstruktur. \mintinline{text}{RecursiveSet} übernimmt also nicht nur
+Methodennamen wie \mintinline{text}{add} oder \mintinline{text}{has}, sondern
+stellt genau das Gleichheitsverständnis bereit, das für die Python-Notebooks
+bereits selbstverständlich war.
+
+Für die theoretische Informatik ist das von zentraler Bedeutung. Viele
+Algorithmen arbeiten mit Mengen von Zuständen, Paaren oder Teilmengen. Wenn
+logisch gleiche Werte dabei nicht zuverlässig als gleich erkannt würden,
+wären Duplikaterkennung, Mitgliedschaftsabfragen und zahlreiche
+Korrektheitsargumente gefährdet. Erst durch diese strukturbezogene
+Gleichheit wird die Mengenmodellierung in TypeScript wieder fachlich belastbar.
+
+Zugleich bereitet dieser Abschnitt den nächsten Schritt vor. Wenn schon ein
+einzelnes Zustandspaar als zusammengesetzter Wert sinnvoll in einer Menge
+gespeichert werden kann, dann liegt der Übergang zu eigentlichen
+Mengenoperationen nahe. Im folgenden Abschnitt wird daher gezeigt, wie
+\mintinline{text}{RecursiveSet} die aus Python vertrauten Operationen wie
+Vereinigung, Schnitt und Differenz wieder als direkte Arbeitsmittel verfügbar
+macht.
+
 
 \subsection{Klassische Mengenoperationen im direkten Vergleich}
 \label{subsec:rs-api-mengenoperationen}
 
-% Sehr wichtiger Abschnitt.
-% Unbedingt streng nach Muster:
-% 1. mathematische Idee
-% 2. Python-Code
-% 3. RecursiveSet-Code
-% 4. kurze Erklärung
-%
-% Operationen:
-% - union
-% - intersection
-% - difference
-% - symmetricDifference
-%
-% Fokus:
-% Hier die "leider verdammt elegante" Mengenkomposition in Python sichtbar machen
-% und zeigen, wie nah RecursiveSet fachlich wieder herankommt.
+Nachdem die grundlegende Benutzung von \mintinline{text}{RecursiveSet}
+eingeführt wurde, kann nun der eigentliche fachliche Kern betrachtet werden:
+die klassischen Mengenoperationen. Gerade an dieser Stelle war die Arbeit mit
+Python in den ursprünglichen Lehrnotebooks besonders elegant. Die
+Python-Dokumentation nennt für Mengen ausdrücklich die mathematischen
+Operationen Vereinigung, Schnitt, Differenz und symmetrische Differenz
+\autocite{python_datastructures}. Genau diese Denkweise sollte in der
+TypeScript-Portierung erhalten bleiben.
 
-\subsection{Kartesisches Produkt und Potenzmenge}
-\label{subsec:rs-api-kartesisch-potenzmenge}
+Für dieses Kapitel ist dabei ein didaktischer Punkt wichtig. Es geht nicht
+darum, die Syntax von Python möglichst exakt nachzuahmen. Entscheidend ist
+vielmehr, dass dieselben fachlichen Aussagen weiterhin direkt im Code
+ausgedrückt werden können. \mintinline{text}{RecursiveSet} soll also nicht wie
+Python aussehen, sondern sich bei Mengenoperationen fachlich so verhalten,
+dass dieselben mathematischen Überlegungen weiterhin natürlich formulierbar
+bleiben.
 
-% Direkt an die theoretische Informatik anbinden.
-% Themen:
-% - cartesianProduct
-% - powerset
-%
-% Hier schon Tuple als Ergebnisform zeigen,
-% aber noch nicht intern erklären.
-%
-% Besonders wichtig:
-% - Beispiele aus Automaten / Relationen / Zustandsräumen
-% - nicht nur abstrakte Zahlenmengen
+\paragraph*{Vereinigung}
+Die Vereinigung zweier Mengen enthält alle Elemente, die in mindestens einer
+der beiden Mengen vorkommen. In Python lässt sich diese Idee besonders knapp
+mit dem Operator \mintinline{python}{|} ausdrücken; die Python-Dokumentation
+zeigt genau diese Schreibweise als Standardbeispiel für Mengenoperationen
+\autocite{python_datastructures}.
+
+\begin{listing}[H]
+	\caption{Vereinigung in Python und mit \texttt{RecursiveSet}}
+	\label{lst:union_python_ts}
+	\begin{minted}{python}
+		A = {1, 2, 3}
+		B = {3, 4, 5}
+		
+		print(A | B)   # {1, 2, 3, 4, 5}
+	\end{minted}
+	
+	\vspace{0.5em}
+	
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2, 3);
+		const B = new RecursiveSet(3, 4, 5);
+		
+		console.log(A.union(B)); // {1, 2, 3, 4, 5}
+	\end{minted}
+\end{listing}
+
+Der Unterschied liegt hier vor allem in der Oberflächensyntax. Python benutzt
+einen sehr kompakten Operator, während \mintinline{text}{RecursiveSet} eine
+explizite Methode bereitstellt. Fachlich bleibt die Aussage jedoch dieselbe:
+Das Ergebnis enthält alle Werte, die in mindestens einer der beiden Mengen
+enthalten sind.
+
+\paragraph*{Schnitt}
+Der Schnitt zweier Mengen enthält genau die Werte, die in beiden Mengen
+zugleich vorkommen. Auch hierfür verwendet Python eine knappe Operatorsyntax,
+nämlich \mintinline{python}{&} \autocite{python_datastructures}.
+
+\begin{listing}[H]
+	\caption{Schnitt in Python und mit \texttt{RecursiveSet}}
+	\label{lst:intersection_python_ts}
+	\begin{minted}{python}
+		A = {1, 2, 3}
+		B = {2, 3, 4}
+		
+		print(A & B)   # {2, 3}
+	\end{minted}
+	
+	\vspace{0.5em}
+	
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2, 3);
+		const B = new RecursiveSet(2, 3, 4);
+		
+		console.log(A.intersection(B)); // {2, 3}
+	\end{minted}
+\end{listing}
+
+Gerade diese Operation ist für die theoretische Informatik besonders wichtig,
+weil sie häufig beim Vergleich von Zustandsmengen, Symbolmengen oder
+Ergebnismengen verwendet wird. Für die Portierung war daher entscheidend, dass
+der Schnitt nicht nur für primitive Werte, sondern auch für zusammengesetzte
+Werte fachlich zuverlässig funktioniert.
+
+\paragraph*{Differenz}
+Die Differenz \(A \setminus B\) enthält alle Elemente, die in \(A\), aber nicht
+in \(B\) vorkommen. Die Python-Dokumentation demonstriert diese Operation mit
+dem Operator \mintinline{python}{-} \autocite{python_datastructures}.
+
+\begin{listing}[H]
+	\caption{Differenz in Python und mit \texttt{RecursiveSet}}
+	\label{lst:difference_python_ts}
+	\begin{minted}{python}
+		A = {1, 2, 3}
+		B = {2, 4}
+		
+		print(A - B)   # {1, 3}
+	\end{minted}
+	
+	\vspace{0.5em}
+	
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2, 3);
+		const B = new RecursiveSet(2, 4);
+		
+		console.log(A.difference(B)); // {1, 3}
+	\end{minted}
+\end{listing}
+
+Auch hier zeigt sich sehr schön, was mit Mengenkompensation gemeint ist. Die
+Schreibweise ist in TypeScript etwas ausführlicher, aber die fachliche Idee
+bleibt vollständig erhalten. Wer die Mengendifferenz aus Python oder aus der
+Mathematik kennt, erkennt dieselbe Operation unmittelbar wieder.
+
+\paragraph*{Symmetrische Differenz}
+Die symmetrische Differenz enthält alle Werte, die in genau einer der beiden
+Mengen vorkommen, also nicht in beiden gleichzeitig. Python verwendet dafür
+den Operator \mintinline{python}{^}; auch dieses Beispiel erscheint direkt in
+der Python-Dokumentation zu Mengen \autocite{python_datastructures}.
+
+\begin{listing}[H]
+	\caption{Symmetrische Differenz in Python und mit \texttt{RecursiveSet}}
+	\label{lst:symmetric_difference_python_ts}
+	\begin{minted}{python}
+		A = {1, 2, 3}
+		B = {3, 4, 5}
+		
+		print(A ^ B)   # {1, 2, 4, 5}
+	\end{minted}
+	
+	\vspace{0.5em}
+	
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2, 3);
+		const B = new RecursiveSet(3, 4, 5);
+		
+		console.log(A.symmetricDifference(B)); // {1, 2, 4, 5}
+	\end{minted}
+\end{listing}
+
+Gerade diese Operation wirkt im ersten Moment oft etwas weniger vertraut als
+Vereinigung oder Schnitt. Für viele Algorithmen ist sie jedoch äußerst
+nützlich, weil sie genau die Werte sichtbar macht, bei denen sich zwei Mengen
+unterscheiden.
+
+\paragraph*{Warum dieser Vergleich für die Portierung so wichtig ist}
+An den vier Beispielen wird sehr deutlich, weshalb der Vergleich mit Python in
+diesem Kapitel im Vordergrund steht. Die ursprünglichen Lehrnotebooks konnten
+Mengenoperationen äußerst knapp und fachlich direkt formulieren, weil Python
+für Mengen genau diese mathematischen Grundoperationen bereits als natürliche
+Sprachmittel bereitstellt \autocite{python_datastructures}.
+
+\mintinline{text}{RecursiveSet} übernimmt diese Eleganz nicht auf Ebene der
+Syntax, wohl aber auf Ebene der fachlichen Modellierung. Die Operationen
+heißen nun \mintinline{text}{union}, \mintinline{text}{intersection},
+\mintinline{text}{difference} und \mintinline{text}{symmetricDifference}, aber
+sie stellen genau dieselben mathematischen Zusammenhänge bereit. Für die
+Portierung der Lehrinhalte war das entscheidend: Die Denkweise in Mengen
+konnte erhalten bleiben, obwohl die technische Grundlage der Datenstruktur neu
+aufgebaut werden musste.
+
+Zugleich bereiten diese Operationen bereits die späteren, fachlich noch
+wichtigeren Konstruktionen vor. Sobald Mengen zuverlässig vereinigt,
+geschnitten oder voneinander abgezogen werden können, liegt der nächste Schritt
+nahe: die Arbeit mit kartesischen Produkten, Potenzmengen und verschachtelten
+Mengenstrukturen. Genau diesen Übergang behandelt der folgende Abschnitt.
+
+\subsection{Kartesisches Produkt als direkte Mengenkonstruktion}
+\label{subsec:rs-api-kartesisches-produkt}
+
+Nachdem die klassischen Mengenoperationen betrachtet wurden, folgt nun eine
+weitere Konstruktion, die in den Lehrnotebooks regelmäßig benötigt wird: das
+kartesische Produkt. Für die theoretische Informatik ist diese Operation
+besonders wichtig, weil sie auf natürliche Weise Mengen von Paaren erzeugt.
+Solche Paare treten etwa bei Relationen, Übergängen oder Zustandskombinationen
+auf.
+
+Gerade hier zeigt sich erneut die Eleganz der ursprünglichen Python-Lösung.
+Das kartesische Produkt wird in den Notebooks nicht über eine zusätzliche
+Bibliothek konstruiert, sondern direkt als Mengenkomprehension formuliert. Das
+passt sehr gut zur mathematischen Idee, weil die Zielmenge unmittelbar über
+alle Paare beschrieben wird, die aus den beiden Ausgangsmengen gebildet werden
+können. Python unterstützt genau diese Form der Set-Comprehension als direkte
+Konstruktion einer Menge aus Iterationen und optionalen Bedingungen
+\autocite{python_expressions,python_set_comprehension}.
+
+Ein typisches Beispiel aus den Notebooks lautet:
+
+\begin{listing}[H]
+	\caption{Kartesisches Produkt in Python als Mengenkomprehension}
+	\label{lst:python_cart_prod}
+	\begin{minted}{python}
+		def cart_prod[S, T](A: set[S], B: set[T]) -> set[tuple[S, T]]:
+		return { (x, y) for x in A for y in B }
+	\end{minted}
+\end{listing}
+
+Didaktisch ist diese Schreibweise besonders gelungen. Die mathematische
+Definition des kartesischen Produkts wird fast direkt in Code übersetzt:
+Für jedes \(x\) aus \(A\) und jedes \(y\) aus \(B\) wird das Paar \((x, y)\)
+gebildet, und alle diese Paare werden zu einer Menge zusammengefasst. Gerade
+deshalb war es für die Portierung wichtig, auch in TypeScript wieder eine
+Mengenoperation bereitzustellen, die genau diesen fachlichen Schritt direkt
+ausdrückt.
+
+Mit \mintinline{text}{RecursiveSet} wird das kartesische Produkt deshalb nicht
+über verschachtelte Schleifen in Arrays oder über Hilfskonstruktionen
+formuliert, sondern als eigene Mengenoperation angeboten:
+
+\begin{listing}[H]
+	\caption{Kartesisches Produkt mit \texttt{RecursiveSet}}
+	\label{lst:ts_cartesian_product}
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2);
+		const B = new RecursiveSet("a", "b");
+		
+		const result = A.cartesianProduct(B);
+		console.log(result); // {(1, a), (1, b), (2, a), (2, b)}
+	\end{minted}
+\end{listing}
+
+Die Oberflächensyntax unterscheidet sich hier sichtbar von Python. Während
+Python die Konstruktion über eine Mengenkomprehension beschreibt, verwendet
+\mintinline{text}{RecursiveSet} die explizite Methode
+\mintinline{text}{cartesianProduct}. Fachlich bleibt der Ausdruck jedoch
+derselbe: Das Ergebnis ist eine Menge aller geordneten Paare aus den beiden
+Ausgangsmengen.
+
+Zugleich zeigt dieses Beispiel sehr deutlich, warum \mintinline{text}{Tuple}
+in der Bibliothek benötigt wird. Das Ergebnis des kartesischen Produkts ist
+nicht einfach eine lose Sammlung beliebiger Zweiergruppen, sondern eine Menge
+strukturell vergleichbarer Paare. Genau dafür dient \mintinline{text}{Tuple}
+als stabiler, hashbarer und strukturell vergleichbarer Baustein.
+
+Für die Portierung der Notebooks ist das ein wichtiger Gewinn. Die Python-
+Version formuliert das kartesische Produkt direkt auf Mengenebene. Mit
+\mintinline{text}{RecursiveSet} kann dieselbe fachliche Idee auch in
+TypeScript wieder unmittelbar auf Mengenebene ausgedrückt werden. Damit bleibt
+die mathematische Denkweise des Lehrmaterials erhalten, obwohl die technische
+Umsetzung im Hintergrund vollständig neu aufgebaut werden musste.
+
+Gerade an diesem Beispiel wird außerdem sichtbar, dass
+\mintinline{text}{RecursiveSet} nicht nur einfache Mengenoperationen wie
+Vereinigung oder Differenz unterstützt, sondern auch neue Mengen aus
+zusammengesetzten Werten erzeugen kann. Das ist für die weiteren Kapitel
+wichtig, weil viele Algorithmen der theoretischen Informatik nicht nur mit
+einzelnen Werten, sondern mit Mengen von Paaren und anderen strukturierten
+Objekten arbeiten.
+
 
 \subsection{Transformationen auf Mengen}
 \label{subsec:rs-api-transformationen}
 
-% Methoden:
-% - map
-% - filter
-% - reduce
-% - every
-% - some
-%
-% Hier zeigen:
-% - Wie werden Mengen in Algorithmen verarbeitet?
-% - Welche Muster aus den Notebooks lassen sich damit prägnant ausdrücken?
+Die bisher betrachteten Operationen wie Vereinigung, Schnitt oder kartesisches
+Produkt sind unmittelbare mathematische Mengenkonstruktionen. Daneben bietet
+\mintinline{text}{RecursiveSet} jedoch noch eine zweite, eher funktionale
+Arbeitsweise an. Diese war in den ursprünglichen Python-Notebooks nicht der
+zentrale Stil, eröffnet in der TypeScript-Portierung aber zusätzliche
+Möglichkeiten, Mengen elegant und prägnant weiterzuverarbeiten.
+
+Didaktisch ist dieser Abschnitt deshalb wichtig, weil hier nicht mehr nur
+gefragt wird, \enquote{Welche Menge entsteht aus zwei anderen Mengen?}, sondern
+auch: \enquote{Wie lässt sich eine vorhandene Menge systematisch
+	transformieren, filtern oder auswerten?} Gerade bei Algorithmen, die viele
+Zwischenschritte auf Mengen ausführen, kann diese Arbeitsweise den Code
+deutlich lesbarer machen.
+
+Im Unterschied zu den bisherigen Beispielen steht der Python-Vergleich hier
+etwas weniger im Vordergrund. In Python wurden solche Schritte in den
+Notebooks eher über Schleifen oder Mengenkomprehensionen formuliert. Mit
+\mintinline{text}{RecursiveSet} werden dafür nun bewusst eigene Methoden
+bereitgestellt. Die Datenstruktur nähert sich damit in ihrer Benutzung an
+funktionale Collection-APIs an, ohne ihre eigentliche Rolle als Menge zu
+verlieren.
+
+\paragraph*{\texttt{map}: Werte einer Menge abbilden}
+Mit \mintinline{text}{map} wird jedes Element einer Menge durch eine Funktion
+auf einen neuen Wert abgebildet. Das Ergebnis ist wiederum eine Menge. Diese
+Operation ist besonders dann nützlich, wenn aus einer Menge von Werten eine
+Menge strukturell verwandter Werte erzeugt werden soll.
+
+\begin{listing}[H]
+	\caption{Abbildung einer Menge mit \texttt{map}}
+	\label{lst:rs-map}
+	\begin{minted}{typescript}
+		const states = new RecursiveSet("q0", "q1", "q2");
+		
+		const labeled = states.map(state => `State:${state}`);
+		console.log(labeled); // {State:q0, State:q1, State:q2}
+	\end{minted}
+\end{listing}
+
+Wichtig ist hier, dass das Ergebnis wieder eine Menge ist. Dadurch bleiben die
+Eigenschaften einer Mengenstruktur erhalten. Entstehen bei der Abbildung
+mehrfach dieselben Zielwerte, so werden diese nicht mehrfach gespeichert,
+sondern wie gewohnt zusammengefasst.
+
+\paragraph*{\texttt{filter}: eine Teilmenge auswählen}
+Mit \mintinline{text}{filter} wird aus einer vorhandenen Menge genau die
+Teilmenge ausgewählt, deren Elemente eine Bedingung erfüllen. Fachlich ist das
+eng verwandt mit der mathematischen Mengenschreibweise
+\enquote{alle \(x \in M\) mit Eigenschaft \(P(x)\)}.
+
+\begin{listing}[H]
+\caption{Auswahl einer Teilmenge mit \texttt{filter}}
+\label{lst:rs-filter}
+\begin{minted}{typescript}
+	const numbers = new RecursiveSet(1, 2, 3, 4, 5, 6);
+	
+	const even = numbers.filter(n => n % 2 === 0);
+	console.log(even); // {2, 4, 6}
+\end{minted}
+\end{listing}
+
+Gerade diese Operation passt sehr gut zur Denkweise der theoretischen
+Informatik. Häufig interessiert nicht die gesamte Menge, sondern nur die
+Teilmenge erreichbarer, akzeptierender oder anderweitig relevanter Elemente.
+\mintinline{text}{filter} macht genau diesen Schritt unmittelbar sichtbar.
+
+\paragraph*{\texttt{reduce}: eine Menge zu einem einzelnen Wert zusammenfassen}
+Während \mintinline{text}{map} und \mintinline{text}{filter} wieder Mengen
+erzeugen, führt \mintinline{text}{reduce} aus der Mengenwelt heraus. Alle
+Elemente werden schrittweise zu einem einzelnen Ergebniswert zusammengeführt.
+Das ist besonders nützlich, wenn aus einer Menge etwa eine Zählung, eine
+Zeichenkette oder eine aggregierte Kennzahl gebildet werden soll.
+
+\begin{listing}[H]
+\caption{Zusammenfassung einer Menge mit \texttt{reduce}}
+\label{lst:rs-reduce}
+\begin{minted}{typescript}
+const numbers = new RecursiveSet(1, 2, 3, 4);
+
+const sum = numbers.reduce((acc, n) => acc + n, 0);
+console.log(sum); // 10
+\end{minted}
+\end{listing}
+
+Für die Portierung ist diese Methode vor allem deshalb interessant, weil sie
+eine strukturierte Alternative zu handgeschriebenen Schleifen bietet. Wenn
+eine Menge nur noch ausgewertet und nicht mehr als Menge weiterverwendet wird,
+ist \mintinline{text}{reduce} oft die prägnanteste Formulierung.
+
+\paragraph*{\texttt{every} und \texttt{some}: Eigenschaften ganzer Mengen prüfen}
+Mit \mintinline{text}{every} und \mintinline{text}{some} lässt sich prüfen, ob
+alle beziehungsweise mindestens ein Element einer Menge eine Bedingung
+erfüllen. Diese beiden Methoden sind besonders dann praktisch, wenn eine
+Mengenstruktur nicht transformiert, sondern nur logisch bewertet werden soll.
+
+\begin{listing}[H]
+\caption{Logische Prüfungen mit \texttt{every} und \texttt{some}}
+\label{lst:rs-every-some}
+\begin{minted}{typescript}
+const numbers = new RecursiveSet(2, 4, 6, 7);
+
+console.log(numbers.every(n => n % 2 === 0)); // false
+console.log(numbers.some(n => n % 2 !== 0));  // true
+\end{minted}
+\end{listing}
+
+Solche Prüfungen wirken auf den ersten Blick unscheinbar, sind im praktischen
+Code aber sehr hilfreich. Statt eine Schleife mit manueller Abbruchlogik zu
+schreiben, kann direkt ausgedrückt werden, welche Eigenschaft die Menge als
+Ganzes erfüllen soll.
+
+\paragraph*{Warum diese Methoden für die Portierung nützlich sind}
+Gerade dieser funktionale Stil war nicht der dominierende Ausgangspunkt der
+ursprünglichen Python-Notebooks. Dennoch erweitert er die Portierung in einer
+sinnvollen Weise. Viele wiederkehrende Verarbeitungsschritte auf Mengen lassen
+sich dadurch kompakter und klarer formulieren als mit expliziten Schleifen.
+
+Für die Studienarbeit ist das ein wichtiger Unterschied zu den bisherigen
+Abschnitten. Bei Vereinigung, Schnitt oder kartesischem Produkt stand vor
+allem die mathematische Mengenlehre im Vordergrund. Bei
+\mintinline{text}{map}, \mintinline{text}{filter} oder \mintinline{text}{reduce}
+kommt nun zusätzlich ein moderner Collection-Stil hinzu, der in TypeScript
+besonders gut zur restlichen Umgebung passt.
+
+Gleichzeitig bleibt die zentrale Eigenschaft von \mintinline{text}{RecursiveSet}
+erhalten: Auch diese Methoden arbeiten nicht mit beliebigen Listen, sondern
+mit Mengen. Die Ergebnisse bleiben also weiterhin duplikatfrei und für
+zusammengesetzte Werte strukturell vergleichbar. Genau dadurch verbinden diese
+Transformationen funktionale Eleganz mit der fachlichen Präzision, die für die
+Portierung der Lehrinhalte benötigt wird.
+
+Im nächsten Abschnitt wird diese Linie noch weitergeführt. Dort geht es mit
+\mintinline{text}{filterMap} und \mintinline{text}{flatMap} um zwei Methoden,
+die mehrere Verarbeitungsschritte bewusst zusammenfassen und gerade für
+größere Algorithmen besonders interessant sind.
+
 
 \subsection{Effiziente Kombinationsschritte mit \texttt{filterMap} und \texttt{flatMap}}
 \label{subsec:rs-api-filtermap-flatmap}
 
-% Hier bewusst die neueren / projektgetriebenen Methoden bündeln.
-%
-% Zuerst filterMap:
-% - ein Durchlauf statt filter().map()
-% - fachlich: "Bilde nur die passenden Elemente ab"
-%
-% Danach flatMap:
-% - mehrere erzeugte Mengen direkt in eine Zielmenge einsammeln
-% - besonders passend für Folgezustände, Übergänge, Klauseln, Relationen
-%
-% Wichtig:
-% - erklären, warum flatMap mutierend ist
-% - und warum das hier kein Designfehler, sondern eine Leistungsentscheidung ist
+Die bisher betrachteten Methoden \mintinline{text}{map}, \mintinline{text}{filter}
+und \mintinline{text}{reduce} decken bereits viele typische Verarbeitungsschritte
+ab. In der Praxis treten jedoch häufig zwei wiederkehrende Muster auf. Zum einen
+sollen nur bestimmte Elemente berücksichtigt und diese anschließend direkt in
+eine neue Form überführt werden. Zum anderen wird für viele Eingabewerte jeweils
+eine neue Teilmenge erzeugt, deren Inhalte am Ende in einer gemeinsamen Zielmenge
+landen sollen.
+
+Genau für diese beiden Muster stellt \mintinline{text}{RecursiveSet} die
+Methoden \mintinline{text}{filterMap} und \mintinline{text}{flatMap} bereit.
+Beide Methoden sind nicht nur bequeme Kurzschreibweisen, sondern fassen
+häufige Kombinationen von Verarbeitungsschritten direkt zu einer eigenen
+Operation zusammen.
+
+Didaktisch ist dabei wichtig, dass dieser Abschnitt stärker von den bisherigen
+Python-Vergleichen abweicht. In Python werden vergleichbare Schritte häufig
+über Schleifen oder Mengenkomprehensionen formuliert. Python kennt gerade für
+Mengen eine sehr kompakte Schreibweise der Form
+\mintinline{python}{{expression for x in iterable if condition}}
+\autocite{python_expressions,python_set_comprehension}. Mit
+\mintinline{text}{RecursiveSet} wird dieselbe Grundidee nun zusätzlich in
+Methodenform angeboten.
+
+\paragraph*{\texttt{filterMap}: Auswählen und direkt umformen}
+Die Methode \mintinline{text}{filterMap} verbindet zwei gedanklich aufeinander
+folgende Schritte: Zuerst wird geprüft, welche Elemente einer Menge überhaupt
+relevant sind, danach werden genau diese Elemente in eine neue Form
+überführt.
+
+Ein einfaches Beispiel zeigt das Prinzip. Aus einer Menge von Zahlen sollen
+nur die geraden Werte übernommen und direkt in beschreibende Strings
+umgewandelt werden:
+
+\begin{listing}[H]
+	\caption{Filtern und Abbilden mit \texttt{filterMap}}
+	\label{lst:rs-filtermap-generic}
+	\begin{minted}{typescript}
+		const numbers = new RecursiveSet(1, 2, 3, 4, 5, 6);
+		
+		const labels = numbers.filterMap(
+		n => n % 2 === 0,
+		n => `even:${n}`
+		);
+		
+		console.log(labels); // {even:2, even:4, even:6}
+	\end{minted}
+\end{listing}
+
+Natürlich ließe sich dieselbe Idee auch als
+\mintinline{text}{numbers.filter(...).map(...)} schreiben. Der Vorteil von
+\mintinline{text}{filterMap} besteht jedoch darin, dass kein zusätzliches
+Zwischenergebnis aufgebaut werden muss. Die Auswahl und die Umformung werden
+bewusst zu einem einzigen Verarbeitungsschritt zusammengezogen.
+
+\paragraph*{\texttt{flatMap}: Viele Teilmengen direkt zusammenführen}
+Noch interessanter ist \mintinline{text}{flatMap}. Die Grundidee ist hier:
+Für jedes Element einer Eingabe wird eine neue Menge erzeugt, und alle diese
+Teilmengen werden anschließend direkt in eine gemeinsame Zielmenge übernommen.
+Diese Idee ist eng verwandt mit der bekannten JavaScript-Intuition von
+\mintinline{text}{flatMap}, die sich als \mintinline{text}{map(...).flat()}
+mit einer Ebene des Zusammenführens verstehen lässt \autocite{mdn_array_flatmap}.
+
+Ein generisches Beispiel dafür ist die Erzeugung aller Präfixe einer Menge von
+Wörtern. Für jedes Wort entsteht zunächst eine eigene Menge seiner Präfixe.
+Diese Teilmengen sollen danach zu einer einzigen Ergebnismenge vereinigt
+werden.
+
+Zunächst kann man das noch mit wiederholten Vereinigungen formulieren:
+
+\begin{listing}[H]
+	\caption{Wiederholte Vereinigungen als Ausgangspunkt}
+	\label{lst:rs-flatmap-union-generic}
+	\begin{minted}{typescript}
+		function prefixes(word: string): RecursiveSet<string> {
+			const result = new RecursiveSet<string>();
+			
+			for (let i = 1; i <= word.length; i++) {
+				result.add(word.slice(0, i));
+			}
+			
+			return result;
+		}
+		
+		function allPrefixes(words: string[]): RecursiveSet<string> {
+			let result = new RecursiveSet<string>();
+			
+			for (const word of words) {
+				result = result.union(prefixes(word));
+			}
+			
+			return result;
+		}
+		
+		console.log(allPrefixes(["cat", "car"]));
+		// {c, ca, cat, car}
+	\end{minted}
+\end{listing}
+
+Diese Variante ist leicht verständlich und fachlich korrekt. Gleichzeitig
+zeigt sie aber bereits das wiederkehrende Muster: Für jedes Eingabewort wird
+eine Teilmenge erzeugt, und danach wird diese Teilmenge mit der bisherigen
+Gesamtmenge vereinigt.
+
+Genau dieses Muster lässt sich mit \mintinline{text}{flatMap} direkter
+ausdrücken:
+
+\begin{listing}[H]
+	\caption{Direktes Einsammeln mit \texttt{flatMap}}
+	\label{lst:rs-flatmap-generic}
+	\begin{minted}{typescript}
+		function prefixes(word: string): RecursiveSet<string> {
+			const result = new RecursiveSet<string>();
+			
+			for (let i = 1; i <= word.length; i++) {
+				result.add(word.slice(0, i));
+			}
+			
+			return result;
+		}
+		
+		function allPrefixes(words: string[]): RecursiveSet<string> {
+			const result = new RecursiveSet<string>();
+			result.flatMap(words, prefixes);
+			return result;
+		}
+		
+		console.log(allPrefixes(["cat", "car"]));
+		// {c, ca, cat, car}
+	\end{minted}
+\end{listing}
+
+Der Vorteil dieser Formulierung liegt nicht nur in kürzerem Code. Viel
+wichtiger ist, dass die eigentliche Struktur des Verfahrens nun klarer
+sichtbar wird: Es gibt eine Quelle von Eingabewerten, eine Funktion, die aus
+jedem Eingabewert eine Teilmenge erzeugt, und eine Zielmenge, in die alle
+Ergebnisse direkt eingesammelt werden.
+
+Gerade deshalb ist \mintinline{text}{flatMap} in \mintinline{text}{RecursiveSet}
+mutierend implementiert. Die Methode arbeitet auf einer bereits vorhandenen
+Zielmenge und erweitert diese Schritt für Schritt. Das unterscheidet sie
+bewusst von rein funktionalen Varianten, die nach jedem Verarbeitungsschritt
+wieder eine neue Gesamtstruktur erzeugen würden.
+
+Für die Portierung ist das ein sinnvoller Mittelweg. Einerseits bleibt die
+Idee sehr nah an einem funktionalen Transformationsstil. Andererseits wird ein
+häufiger Aufbau unnötiger Zwischenmengen vermieden. Genau dadurch eignet sich
+\mintinline{text}{flatMap} besonders gut für größere Konstruktionsschritte, bei
+denen viele kleine Ergebnismengen zu einer einzigen Gesamtmenge zusammengeführt
+werden müssen.
+
+Zusammen zeigen \mintinline{text}{filterMap} und \mintinline{text}{flatMap},
+dass \mintinline{text}{RecursiveSet} nicht nur das vertraute Mengenverhalten
+aus Python wiederherstellt, sondern darüber hinaus auch eine moderne und für
+TypeScript gut passende Arbeitsoberfläche anbietet. Die mathematische Idee der
+Menge bleibt erhalten, wird aber um prägnante Verarbeitungsschritte ergänzt,
+die den Code an vielen Stellen klarer und direkter machen.
+
 
 \subsection{Zwischen \texttt{set} und \texttt{frozenset}: Der Lebenszyklus von \texttt{RecursiveSet}}
 \label{subsec:rs-api-freeze-frozenset}
 
-% Vergleich zu Python:
-% - Python hat set und frozenset als getrennte Konstrukte
-% - RecursiveSet verbindet beide Rollen über einen Lebenszyklus
-%
-% Aufbau:
-% 1. Python set / frozenset kurz zeigen
-% 2. erklären, warum ihr nicht zwei getrennte TypeScript-Typen wolltet
-% 3. RecursiveSet ist zuerst veränderlich
-% 4. durch Hash-Nutzung / Verschachtelung wird es eingefroren
-% 5. mutableCopy als Rückweg
-%
-% Das ist kein Interna-Abschnitt, sondern eine bewusste API-Entscheidung.
+Die bisher betrachteten Beispiele haben \mintinline{text}{RecursiveSet}
+zunächst wie eine gewöhnliche veränderliche Menge erscheinen lassen. Elemente
+konnten mit \mintinline{text}{add} eingefügt und mit \mintinline{text}{remove}
+wieder entfernt werden. Für viele Nutzungssituationen ist genau dieses
+Verhalten auch erwünscht. Gleichzeitig benötigt die Bibliothek jedoch an
+bestimmten Stellen eine stabile, unveränderliche Mengenstruktur, etwa wenn
+eine Menge selbst wieder als Wert in einer anderen Menge gespeichert wird.
+
+Gerade hier lohnt sich der Vergleich mit Python. Python unterscheidet zwischen
+\mintinline{python}{set} und \mintinline{python}{frozenset}. Während
+\mintinline{python}{set} veränderlich ist, ist \mintinline{python}{frozenset}
+unveränderlich und hashbar \autocite{python_frozenset_builtin,python_set_objects}.
+Genau deshalb kann ein \mintinline{python}{frozenset} als Element einer
+anderen Menge oder als Schlüssel in einem Dictionary verwendet werden
+\autocite{python_set_objects,python_set_types_legacy}.
+
+Ein kleines Python-Beispiel zeigt diesen Unterschied unmittelbar:
+
+\begin{listing}[H]
+	\caption{Python unterscheidet zwischen \texttt{set} und \texttt{frozenset}}
+	\label{lst:python_set_frozenset}
+	\begin{minted}{python}
+		A = {1, 2}
+		B = frozenset({1, 2})
+		
+		A.add(3)
+		print(A)  # {1, 2, 3}
+		
+		# B.add(3) wäre nicht erlaubt
+	\end{minted}
+\end{listing}
+
+Didaktisch ist diese Trennung in Python sehr klar. Schon am verwendeten Typ
+ist erkennbar, ob eine Menge später noch verändert werden darf oder nicht.
+Gerade für verschachtelte Mengen ist \mintinline{python}{frozenset} deshalb
+eine naheliegende Lösung.
+
+Für die TypeScript-Portierung wäre eine direkte Nachbildung mit zwei
+vollständig getrennten Konstrukten jedoch unhandlich gewesen. Die Benutzung
+der Bibliothek sollte sich möglichst einheitlich anfühlen und nicht ständig
+zwischen einer \enquote{aufbaubaren} und einer \enquote{fertigen} Mengenform
+wechseln. Deshalb verfolgt \mintinline{text}{RecursiveSet} einen anderen
+Ansatz: Statt zwei verschiedene Typen bereitzustellen, arbeitet die
+Bibliothek mit einem Lebenszyklus derselben Datenstruktur.
+
+Eine \mintinline{text}{RecursiveSet}-Instanz ist zunächst veränderlich. Sie
+kann normal aufgebaut, erweitert und reduziert werden. Erst dann, wenn ihre
+Struktur stabil sein muss, wird sie eingefroren. Genau dieser Übergang macht
+aus einer zunächst bearbeitbaren Menge eine unveränderliche Struktur, die
+sicher in anderen rekursiven Strukturen verwendet werden kann.
+
+Das folgende Beispiel zeigt dieses Verhalten:
+
+\begin{listing}[H]
+	\caption{\texttt{RecursiveSet} verbindet beide Rollen über Einfrieren}
+	\label{lst:ts_recursive_set_freeze}
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2);
+		A.add(3);
+		
+		const B = new RecursiveSet(A);
+		
+		// Ab hier ist A eingefroren und darf nicht mehr verändert werden.
+		// A.add(4); // Fehler: Frozen Set modified.
+	\end{minted}
+\end{listing}
+
+An diesem Beispiel ist die fachliche Idee besonders wichtig. Die Menge
+\mintinline{text}{A} beginnt als gewöhnliche veränderliche Menge. Sobald sie
+jedoch selbst als Element einer anderen Menge verwendet wird, muss ihre
+Struktur stabil bleiben. Genau an dieser Stelle wird sie eingefroren. Damit
+übernimmt \mintinline{text}{RecursiveSet} gewissermaßen die Rolle, die in
+Python von \mintinline{python}{frozenset} erfüllt wird, ohne dafür einen
+eigenen zweiten Nutzertyp einzuführen.
+
+Diese Designentscheidung war für die Portierung besonders vorteilhaft.
+Einerseits bleibt die API einfach, weil überall dieselbe Datenstruktur
+verwendet wird. Andererseits geht die fachlich wichtige Unveränderlichkeit
+nicht verloren. Die Bibliothek verbindet also die Flexibilität einer
+aufbaubaren Menge mit der Stabilität einer unveränderlichen Mengenstruktur.
+
+Falls eine eingefrorene Menge später doch noch verändert werden soll, stellt
+die Bibliothek mit \mintinline{text}{mutableCopy()} einen bewussten Rückweg
+bereit. Anstatt ein einmal eingefrorenes Objekt wieder direkt veränderlich zu
+machen, wird eine neue, bearbeitbare Kopie erzeugt:
+
+\begin{listing}[H]
+	\caption{Weiterarbeiten mit einer veränderlichen Kopie}
+	\label{lst:ts_recursive_set_mutable_copy}
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2);
+		const B = new RecursiveSet(A);
+		
+		// A ist nun eingefroren
+		const C = A.mutableCopy();
+		C.add(3);
+		
+		console.log(C); // {1, 2, 3}
+	\end{minted}
+\end{listing}
+
+Gerade dieser Mechanismus zeigt, dass das Einfrieren nicht als lästige
+Einschränkung verstanden werden sollte. Es handelt sich vielmehr um eine
+bewusste Sicherheitsregel, die stabil macht, was stabil sein muss, ohne den
+praktischen Arbeitsfluss unnötig zu erschweren. Wer weiter an einer Menge
+arbeiten möchte, erhält mit \mintinline{text}{mutableCopy()} eine klare und
+kontrollierte Möglichkeit dazu.
+
+Damit verbindet \mintinline{text}{RecursiveSet} zwei Anforderungen, die in
+Python auf zwei getrennte Konstrukte verteilt sind. Die Menge kann zunächst
+wie ein \mintinline{python}{set} aufgebaut werden, übernimmt bei Bedarf aber
+die Rolle eines \mintinline{python}{frozenset}. Für die Portierung erwies
+sich genau dieser Lebenszyklus als die elegantere Lösung, weil er die
+Benutzung vereinheitlicht und zugleich die für rekursive Mengenstrukturen
+notwendige Stabilität sichert.
+
+Im nächsten Abschnitt wird dieser API-Blick noch einmal von einer anderen
+Seite ergänzt. Dort geht es nicht mehr um den Lebenszyklus der Menge, sondern
+um die Frage, welche Arten von Werten überhaupt in \mintinline{text}{RecursiveSet}
+gespeichert werden dürfen und welche Verträge diese Werte erfüllen müssen.
+
 
 \subsection{Welche Werte überhaupt gespeichert werden dürfen}
 \label{subsec:rs-api-wertetypen}
 
-% Jetzt die API-Verträge aus Nutzersicht erklären:
-% - Primitive = string | number
-% - Structural für komplexe Werte
-% - warum Plain Objects ausgeschlossen sind
-%
-% Hier Rückbezug auf Kapitel 2:
-% - Vertrag statt beliebiger dynamischer Objektform
+Bisher wurde \mintinline{text}{RecursiveSet} vor allem als Mengenstruktur mit
+fachlich passendem Verhalten betrachtet. Für die praktische Nutzung stellt sich
+nun jedoch eine naheliegende Frage: Welche Arten von Werten dürfen überhaupt in
+einer solchen Menge gespeichert werden?
+
+Diese Frage ist für unsere Bibliothek besonders wichtig, weil
+\mintinline{text}{RecursiveSet} nicht einfach beliebige JavaScript-Werte
+akzeptiert. Die Datenstruktur soll nicht nur irgendetwas speichern, sondern
+Werte, deren Gleichheit und Hash-Verhalten zuverlässig bestimmt werden können.
+Gerade deshalb arbeitet die Bibliothek mit einem klaren Wertevertrag.
+
+Im Kern unterscheidet die API zwei Gruppen erlaubter Werte. Zum einen dürfen
+primitive Werte gespeichert werden, in unserem Fall also Zahlen und Strings.
+Zum anderen dürfen komplexere Werte gespeichert werden, sofern sie den
+Vertrag \mintinline{text}{Structural} erfüllen. Dieser Vertrag verlangt, dass
+ein Wert strukturelle Gleichheit, einen stabilen Hash-Wert und eine
+deterministische Textdarstellung bereitstellt.
+
+Die zugehörigen Typdefinitionen lauten:
+
+\begin{listing}[H]
+	\caption{Erlaubte Wertarten in \texttt{RecursiveSet}}
+	\label{lst:rs-value-types}
+	\begin{minted}{typescript}
+		type Primitive = string | number;
+		type Value = Primitive | Structural;
+		
+		interface Structural {
+			readonly hashCode: number;
+			equals(other: unknown): boolean;
+			toString(): string;
+		}
+	\end{minted}
+\end{listing}
+
+Didaktisch ist hier vor allem wichtig, dass nicht \enquote{komplex} gegen
+\enquote{einfach} unterschieden wird, sondern \enquote{direkt verständlich}
+gegen \enquote{explizit beschrieben}. Zahlen und Strings kann die Bibliothek
+selbst unmittelbar behandeln. Bei komplexeren Strukturen muss dagegen klar
+festgelegt sein, wie Gleichheit und Hashing funktionieren. Genau dafür dient
+das Interface \mintinline{text}{Structural}. TypeScript verwendet Interfaces
+gerade dazu, Verträge über die Form eines Werts zu beschreiben; entscheidend
+ist also nicht der Name einer Klasse, sondern ob die geforderten Mitglieder
+vorhanden sind \autocite{ts_interfaces,ts_type_compatibility}.
+
+\paragraph*{Primitive Werte}
+Am einfachsten ist die Benutzung bei primitiven Werten. Zahlen und Strings
+können ohne weitere Vorbereitung direkt gespeichert werden:
+
+\begin{listing}[H]
+	\caption{Primitive Werte in \texttt{RecursiveSet}}
+	\label{lst:rs-primitive-values}
+	\begin{minted}{typescript}
+		const numbers = new RecursiveSet(1, 2, 3);
+		const states  = new RecursiveSet("q0", "q1", "q2");
+		
+		console.log(numbers); // {1, 2, 3}
+		console.log(states);  // {q0, q1, q2}
+	\end{minted}
+\end{listing}
+
+Diese Fälle wirken zunächst unspektakulär, sind aber didaktisch wichtig. Sie
+zeigen, dass \mintinline{text}{RecursiveSet} nicht nur für komplizierte
+Spezialstrukturen gedacht ist. Auch gewöhnliche Mengen aus Zahlen oder
+Bezeichnern lassen sich direkt und ohne zusätzlichen Aufwand formulieren.
+
+\paragraph*{Strukturelle Werte}
+Interessant wird die Datenstruktur bei Werten, die selbst aus mehreren
+Bestandteilen bestehen. Genau dafür genügt ein primitiver Typ nicht mehr. Ein
+solcher Wert muss dann den Vertrag \mintinline{text}{Structural} erfüllen.
+
+Ein typisches Beispiel ist \mintinline{text}{Tuple}. Das Tupel ist kein
+eingebauter primitiver Wert, besitzt aber genau die benötigten Eigenschaften:
+Es kann Gleichheit strukturell prüfen, einen Hash-Wert liefern und eine
+stabile Darstellung erzeugen.
+
+\begin{listing}[H]
+	\caption{Ein struktureller Wert mit \texttt{Tuple}}
+	\label{lst:rs-structural-tuple}
+	\begin{minted}{typescript}
+		const edges = new RecursiveSet<Tuple<[string, string]>>();
+		edges.add(new Tuple("q0", "q1"));
+		edges.add(new Tuple("q1", "q2"));
+		
+		console.log(edges); // {(q0, q1), (q1, q2)}
+	\end{minted}
+\end{listing}
+
+Gerade an solchen Beispielen wird sichtbar, warum die Bibliothek nicht einfach
+beliebige Objekte zulässt. Bei einem Tupel ist präzise definiert, wann zwei
+Tupel gleich sind. Dasselbe gilt für ihren Hash-Wert und ihre Darstellung.
+Damit wird aus einem zusammengesetzten Wert ein sauber beschriebener
+Mengenbaustein.
+
+\paragraph*{Rekursive Werte}
+Eine besondere Stärke von \mintinline{text}{RecursiveSet} besteht darin, dass
+auch rekursive Strukturen unterstützt werden. Eine Menge kann also selbst
+wieder andere Mengen enthalten, sofern diese die nötigen Bedingungen
+erfüllen.
+
+\begin{listing}[H]
+	\caption{Mengen von Mengen}
+	\label{lst:rs-set-of-sets}
+	\begin{minted}{typescript}
+		const A = new RecursiveSet(1, 2);
+		const B = new RecursiveSet(2, 1);
+		
+		const meta = new RecursiveSet<RecursiveSet<number>>();
+		meta.add(A);
+		meta.add(B);
+		
+		console.log(meta);      // {{1, 2}}
+		console.log(meta.size); // 1
+	\end{minted}
+\end{listing}
+
+Dieses Beispiel ist für die Arbeit besonders aufschlussreich. Die innere Menge
+ist hier selbst wieder ein struktureller Wert. Dadurch kann sie in einer
+äußeren Menge gespeichert und dort nach ihrem Inhalt statt nach ihrer
+bloßen Identität behandelt werden.
+
+\paragraph*{Warum Plain Objects ausgeschlossen sind}
+Besonders wichtig ist nun die Frage, warum gewöhnliche JavaScript-Objekte der
+Form \mintinline{text}{{ key: value }} nicht einfach ebenfalls zugelassen
+werden. Auf den ersten Blick wirken solche Objekte sehr flexibel. Für unsere
+Bibliothek wäre diese Offenheit jedoch gerade problematisch.
+
+JavaScript vergleicht nicht-primitive Objekte nicht nach ihrer inhaltlichen
+Struktur, sondern nach ihrer Identität. Zwei verschiedene Objekte mit
+denselben Feldern gelten daher ohne zusätzliche Logik nicht automatisch als
+gleich \autocite{mdn_equality_sameness}. Genau deshalb würde ein beliebiges
+Plain Object noch nicht die Informationen mitbringen, die
+\mintinline{text}{RecursiveSet} für Wertsemantik benötigt.
+
+Das Problem ist also nicht, dass Plain Objects \enquote{zu komplex} wären.
+Das Problem ist vielmehr, dass für sie in unserer Bibliothek nicht von selbst
+klar ist, wie Gleichheit, Hashing und stabile Darstellung funktionieren
+sollen. Diese Entscheidungen müssen explizit beschrieben werden. Genau
+deshalb fordert die API für komplexe Werte den Vertrag
+\mintinline{text}{Structural}.
+
+Ein absichtlich nicht unterstütztes Beispiel sieht daher so aus:
+
+\begin{listing}[H]
+	\caption{Ein gewöhnliches Objekt ist kein zulässiger struktureller Wert}
+	\label{lst:rs-plain-object-not-supported}
+	\begin{minted}{typescript}
+		// Nicht vorgesehen:
+		const wrong = new RecursiveSet<{ left: number; right: number }>();
+		
+		// Für Plain Objects ist in der Bibliothek nicht festgelegt,
+		// wie hashCode, equals und eine stabile Darstellung aussehen sollen.
+	\end{minted}
+\end{listing}
+
+Für die Portierung ist genau diese Einschränkung kein Nachteil, sondern eine
+bewusste Vereinfachung. Die Bibliothek akzeptiert nicht beliebige dynamische
+Objektformen, sondern nur solche Werte, deren Verhalten als Mengenelement
+sauber beschrieben ist. Das macht die Benutzung zwar etwas strenger, erhöht
+aber die fachliche Verlässlichkeit der gesamten Datenstruktur.
+
+\paragraph*{Einordnung für die Studienarbeit}
+Gerade dieser Abschnitt zeigt noch einmal sehr deutlich den Unterschied
+zwischen der bisherigen Python-Welt und der neuen TypeScript-Lösung. In den
+Python-Notebooks konnten viele Datenformen sehr frei entstehen. In der
+TypeScript-Portierung wird nun bewusster entschieden, welche Werte als echte
+Mengenelemente geeignet sind.
+
+Für unsere Studienarbeit ist das ein klarer Vorteil. Primitive Werte wie
+Zahlen und Strings bleiben unkompliziert nutzbar. Zusammengesetzte Werte wie
+Tupel, Mengen oder spätere Spezialstrukturen können ebenfalls gespeichert
+werden, müssen ihr Verhalten jedoch explizit über \mintinline{text}{Structural}
+beschreiben. Dadurch bleibt die Bibliothek offen für fachlich sinnvolle
+Strukturen, ohne in beliebige und schwer kontrollierbare Objektformen
+abzugleiten.
+
+Im nächsten Abschnitt werden diese erlaubten Wertarten noch um eine weitere
+Perspektive ergänzt. Dort geht es nicht mehr darum, \emph{welche} Werte
+gespeichert werden dürfen, sondern um die Regeln und Grenzen, die für die
+korrekte Benutzung der Bibliothek insgesamt gelten.
+
 
 \subsection{Regeln und Grenzen der Bibliothek}
 \label{subsec:rs-api-regeln}
 
-% Hier die Invarianten bündeln:
-% - nur endliche Zahlen
-% - gute Hash-Qualität nötig
-% - keine Zyklen
-% - deterministische toString-Ausgabe
-% - Hash eines eingefügten Objekts darf sich nicht ändern
-%
-% Ton:
-% nicht als "Mängelliste",
-% sondern als bewusste Voraussetzungen für Korrektheit und Performanz
+Die bisherigen Abschnitte haben \mintinline{text}{RecursiveSet} vor allem als
+leistungsfähige und fachlich passende Mengenstruktur eingeführt. Damit diese
+Eigenschaften in der Praxis tatsächlich erhalten bleiben, arbeitet die
+Bibliothek jedoch nicht völlig voraussetzungslos. Bestimmte Nutzungsregeln
+müssen eingehalten werden, damit Gleichheit, Hashing und verschachtelte
+Strukturen zuverlässig funktionieren.
 
-\subsection{Einordnung für das Projekt}
-\label{subsec:rs-api-einordnung}
+Didaktisch ist an dieser Stelle ein wichtiger Perspektivwechsel nötig. Die
+folgenden Punkte sind nicht als bloße Verbotsliste zu verstehen. Sie machen
+vielmehr sichtbar, welche Annahmen die Datenstruktur über ihre Elemente trifft.
+Gerade weil \mintinline{text}{RecursiveSet} nicht nur primitive Werte, sondern
+auch zusammengesetzte und rekursive Strukturen unterstützt, müssen einige
+Grundbedingungen klar festgelegt werden.
 
-% Hier ganz explizit:
-% - RecursiveSet ist die zentrale Kompensation des Mengenproblems
-% - dadurch konnten die Python-Notebooks fachlich treu portiert werden
-% - die Denkweise in Mengen bleibt erhalten, obwohl die technische Grundlage neu ist
+\paragraph*{Nur endliche Zahlen}
+Die Bibliothek erlaubt als primitive numerische Werte nur endliche Zahlen.
+Werte wie \mintinline{text}{NaN}, \mintinline{text}{Infinity} oder
+\mintinline{text}{-Infinity} sind bewusst ausgeschlossen. JavaScript behandelt
+\mintinline{text}{NaN} in Vergleichen besonders, denn \mintinline{text}{NaN}
+ist nicht einmal zu sich selbst gleich, und \mintinline{text}{Number.isFinite}
+liefert für \mintinline{text}{NaN} sowie für positive und negative
+Unendlichkeit jeweils \mintinline{text}{false} \autocite{mdn_nan,mdn_number_isfinite}.
 
-\subsection{Zwischenfazit}
-\label{subsec:rs-api-fazit}
+Für die Bibliothek wäre dies problematisch, weil numerische Werte in Hashing
+und Gleichheitsprüfungen möglichst stabil und eindeutig behandelbar sein
+müssen. Endliche Zahlen erfüllen diese Erwartung. Spezialwerte wie
+\mintinline{text}{NaN} oder Unendlichkeiten würden dagegen Sonderfälle in die
+Mengenlogik hineintragen, die dem Ziel einer klaren und performanten
+Wertsemantik widersprechen.
 
-% Kurz:
-% Kapitel 3 hat gezeigt, welches Verhalten RecursiveSet bereitstellt.
-% Kapitel 4 erklärt nun, wie dieses Verhalten intern umgesetzt wird.
+\begin{listing}[H]
+	\caption{Zulässige und unzulässige numerische Werte}
+	\label{lst:rs-finite-numbers-only}
+	\begin{minted}{typescript}
+		const ok = new RecursiveSet(1, 2, 3);
+		
+		// Nicht vorgesehen:
+		// const wrong = new RecursiveSet(NaN, Infinity);
+	\end{minted}
+\end{listing}
+
+\paragraph*{Keine beliebigen Plain Objects}
+Wie bereits im vorigen Abschnitt vorbereitet, akzeptiert die Bibliothek
+komplexe Werte nicht in beliebiger Form. Gewöhnliche JavaScript-Objekte der
+Form \mintinline{text}{{ key: value }} sind nicht automatisch geeignete
+Mengenelemente. JavaScript vergleicht verschiedene nicht-primitive Objekte
+auch dann nicht als gleich, wenn sie dieselbe Struktur besitzen, solange sie
+nicht dieselbe Objektidentität haben \autocite{mdn_equality_sameness}.
+
+Für \mintinline{text}{RecursiveSet} reicht eine solche Referenzgleichheit
+gerade nicht aus. Die Bibliothek benötigt für komplexe Werte ein explizit
+beschriebenes Verhalten für Gleichheit, Hashing und Darstellung. Genau
+deshalb müssen zusammengesetzte Werte den Vertrag
+\mintinline{text}{Structural} erfüllen.
+
+\begin{listing}[H]
+	\caption{Plain Objects sind nicht als Mengenelemente vorgesehen}
+	\label{lst:rs-no-plain-objects}
+	\begin{minted}{typescript}
+		// Nicht vorgesehen:
+		const wrong = new RecursiveSet<{ left: number; right: number }>();
+		
+		// Stattdessen sollte ein eigener struktureller Typ verwendet werden.
+	\end{minted}
+\end{listing}
+
+\paragraph*{Die Qualität von \texttt{hashCode} ist wichtig}
+Für strukturelle Werte genügt es nicht, irgendeinen Hash-Wert bereitzustellen.
+Der Hash sollte die Werte möglichst gut verteilen. Wenn sehr viele
+verschiedene Elemente denselben \mintinline{text}{hashCode} liefern, dann
+landen sie intern immer wieder in denselben Bereichen der Hashtabelle. Die
+Bibliothek bleibt damit zwar fachlich korrekt, verliert jedoch einen Teil
+ihrer erwarteten Leistungsfähigkeit.
+
+Didaktisch ist hier vor allem wichtig, Hashing nicht als magische Zahl zu
+missverstehen. Der Hash-Wert dient nicht nur als irgendein Zusatzmerkmal,
+sondern als Wegweiser für Einfügen, Suchen und Löschen. Eine schlechte
+Verteilung verschlechtert deshalb nicht die inhaltliche Korrektheit, aber die
+Effizienz des gesamten Verfahrens.
+
+\begin{listing}[H]
+	\caption{Ein schlechter Hash-Wert ist fachlich möglich, aber ungünstig}
+	\label{lst:rs-bad-hashcode}
+	\begin{minted}{typescript}
+		class BadValue implements Structural {
+			get hashCode(): number { return 42; }
+			
+			equals(other: unknown): boolean {
+				return other instanceof BadValue;
+			}
+			
+			toString(): string {
+				return "BadValue";
+			}
+		}
+	\end{minted}
+\end{listing}
+
+\paragraph*{Die Darstellung muss deterministisch bleiben}
+Neben Gleichheit und Hashing spielt auch die Textdarstellung eine wichtige
+Rolle. \mintinline{text}{RecursiveSet} stellt Mengen bewusst so dar, dass sie
+in Ausgaben und Fehlersituationen lesbar bleiben. Damit diese Darstellung bei
+verschachtelten Strukturen stabil ist, müssen benutzerdefinierte
+\mintinline{text}{toString()}-Implementierungen dieselbe visuelle
+Vergleichslogik respektieren wie die Bibliothek selbst.
+
+Gerade dieser Punkt ist leicht zu unterschätzen. Für die eigentliche
+Mengenlogik ist die Reihenfolge von Elementen nicht entscheidend, denn Mengen
+sind fachlich ungeordnet. Für die Darstellung ist eine stabile Reihenfolge
+jedoch äußerst hilfreich, weil gleiche Strukturen dann auch gleich aussehen.
+Die Regel dient also nicht der mathematischen Bedeutung der Menge, sondern der
+Nachvollziehbarkeit ihrer Ausgabe.
+
+\paragraph*{Eingefügte Werte dürfen sich nicht nachträglich verändern}
+Sobald ein struktureller Wert in einer Menge gespeichert wurde, darf sich sein
+\mintinline{text}{hashCode} nicht mehr ändern. Andernfalls würde die
+Bibliothek einen Wert unter einer alten Hash-Struktur verwalten, obwohl seine
+neue inhaltliche Form eigentlich an einer anderen Stelle gesucht werden
+müsste. Genau deshalb ist Stabilität nach dem Einfügen keine bloße Empfehlung,
+sondern eine zentrale Voraussetzung für korrektes Verhalten.
+
+An dieser Stelle knüpft die Bibliothek an den vorigen Abschnitt zum
+Einfrieren an. Dort wurde bereits aus Anwendersicht erklärt, warum eine Menge
+später unveränderlich werden kann. Hier wird nun sichtbar, warum diese Regel
+fachlich notwendig ist: Hash-basierte Strukturen setzen voraus, dass einmal
+einsortierte Werte ihre Einordnung nicht heimlich ändern.
+
+\paragraph*{Keine Zyklen in rekursiven Strukturen}
+\mintinline{text}{RecursiveSet} unterstützt rekursive Strukturen, etwa Mengen
+von Mengen. Diese Unterstützung hat jedoch eine wichtige Grenze: Zyklen sind
+nicht vorgesehen. Eine Menge darf also nicht direkt oder indirekt sich selbst
+enthalten.
+
+Der Grund dafür liegt nicht in einer mathematischen Spitzfindigkeit, sondern
+in der praktischen Verarbeitung. Hashing und Darstellung laufen rekursiv durch
+verschachtelte Strukturen. Würde eine Menge schließlich wieder auf sich selbst
+verweisen, gäbe es keinen natürlichen Endpunkt mehr für diese Verarbeitung.
+Die Bibliothek prüft diesen Fall aus Leistungsgründen nicht bei jeder
+Operation, sondern setzt voraus, dass solche Zyklen gar nicht erst erzeugt
+werden.
+
+\begin{listing}[H]
+	\caption{Rekursive Mengen sind erlaubt, zyklische Mengen nicht}
+	\label{lst:rs-no-cycles}
+	\begin{minted}{typescript}
+		const A = new RecursiveSet<number>(1, 2);
+		const B = new RecursiveSet(A);
+		
+		// Nicht vorgesehen wäre eine Struktur, in der A direkt oder indirekt
+		// wieder sich selbst enthält.
+	\end{minted}
+\end{listing}
+
+\paragraph*{Einordnung der Regeln}
+Zusammengenommen zeigen diese Regeln sehr deutlich, dass
+\mintinline{text}{RecursiveSet} eine bewusst entworfene Fachstruktur ist und
+kein beliebiger Container für alle möglichen JavaScript-Werte. Gerade diese
+Strenge ist jedoch ein Vorteil für die Studienarbeit. Die Bibliothek macht
+klar sichtbar, welche Voraussetzungen erfüllt sein müssen, damit Mengen mit
+Wertsemantik zuverlässig und performant funktionieren.
+
+Für die Portierung der Lehrnotebooks ist das ein wichtiger Gewinn. Die Regeln
+engen die Bibliothek nicht willkürlich ein, sondern schaffen einen Rahmen, in
+dem Gleichheit, Hashing und rekursive Mengenkonstruktionen tatsächlich
+zusammenpassen. Dadurch bleibt das fachliche Verhalten der Mengen nicht nur
+beobachtbar korrekt, sondern auch langfristig belastbar.
+
+Im nächsten Abschnitt wird diese API-Perspektive noch einmal auf das gesamte
+Projekt zurückgeführt. Dort geht es um die Frage, welche Rolle
+\mintinline{text}{RecursiveSet} innerhalb der Portierung insgesamt spielt und
+warum gerade diese Datenstruktur zum zentralen Baustein der TypeScript-Lösung
+wurde.
+
+
+\subsection{Einordnung für das Projekt und Zwischenfazit}
+\label{subsec:rs-api-einordnung-fazit}
+
+Mit \mintinline{text}{RecursiveSet} wurde in diesem Kapitel nicht einfach eine
+weitere Collection-Klasse eingeführt. Die Datenstruktur erfüllt vielmehr eine
+zentrale Funktion innerhalb der gesamten Portierung: Sie stellt genau das
+Mengenverhalten bereit, das in den ursprünglichen Python-Notebooks fachlich
+vorausgesetzt wurde, im eingebauten JavaScript-\mintinline{text}{Set} für
+zusammengesetzte Werte jedoch nicht in derselben Form verfügbar ist.
+
+Gerade darin liegt ihre Bedeutung für das Projekt. Die Portierung sollte nicht
+nur einzelne Python-Programme syntaktisch nach TypeScript übertragen, sondern
+die zugrunde liegende Denkweise erhalten. In vielen Notebook-Beispielen wird
+mit Mengen von Zuständen, Paaren, Teilmengen oder anderen zusammengesetzten
+Werten gearbeitet. Damit solche Konstruktionen in TypeScript ebenso natürlich
+formulierbar bleiben, musste eine Datenstruktur bereitgestellt werden, die
+nicht bloß Referenzen verwaltet, sondern Werte nach ihrer inhaltlichen
+Struktur behandelt.
+
+Dieses Kapitel hat deshalb zunächst die Benutzung von
+\mintinline{text}{RecursiveSet} aus Anwendersicht aufgebaut. Ausgehend vom
+Mengenproblem beim Übergang von Python nach TypeScript wurde gezeigt, wie die
+Bibliothek grundlegende Mengenoperationen, strukturbezogene Mitgliedschaft,
+kartesische Produkte sowie funktionale Transformationen auf Mengen
+bereitstellt. Dadurch wurde sichtbar, dass \mintinline{text}{RecursiveSet}
+nicht nur einzelne Hilfsmethoden bündelt, sondern eine konsistente
+Arbeitsoberfläche für die Mengenmodellierung schafft.
+
+Zugleich wurde deutlich, dass diese Arbeitsoberfläche nicht voraussetzungslos
+ist. Die Bibliothek erlaubt nicht beliebige Werte, sondern verlangt bei
+komplexeren Strukturen einen klaren Vertrag über Gleichheit, Hashing und
+Darstellung. Auch der Lebenszyklus zwischen veränderlicher und eingefrorener
+Menge gehört zu dieser bewussten API-Gestaltung. Gerade diese Regeln machen
+die Datenstruktur für das Projekt fachlich belastbar, statt sie nur bequem
+wirken zu lassen.
+
+Für die Studienarbeit ergibt sich daraus eine klare Einordnung:
+\mintinline{text}{RecursiveSet} ist die zentrale Kompensation des
+Mengenproblems in der TypeScript-Portierung. Erst durch diese Datenstruktur
+konnte die aus den Python-Notebooks bekannte Arbeit mit Mengen nicht nur
+oberflächlich, sondern auch semantisch überzeugend übernommen werden. Die
+Bibliothek bildet damit eine wesentliche Brücke zwischen der mathematischen
+Denkweise der Lehrmaterialien und ihrer technischen Realisierung in
+TypeScript.
+
+Damit ist zugleich die Grenze dieses Kapitels erreicht. Bisher stand im
+Vordergrund, \emph{welches} Verhalten \mintinline{text}{RecursiveSet}
+bereitstellt und \emph{warum} dieses Verhalten für das Projekt notwendig ist.
+Im folgenden Kapitel wechselt die Perspektive nun von der Benutzung zur
+internen Konstruktion. Dort wird Schritt für Schritt untersucht, wie Hashing,
+strukturelle Gleichheit, Speicherlayout und die Algorithmen für Einfügen,
+Suchen und Löschen dieses Verhalten technisch umsetzen.
+
