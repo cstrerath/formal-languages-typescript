@@ -26,11 +26,11 @@ In Python funktioniert das exakt so, wie man es intuitiv erwartet. Fügen wir ei
 	\caption{Mengen in Python: Das erwartete Verhalten}
 	\label{lst:set_python}
 	\begin{minted}{python}
-		menge = set()
-		menge.add((1, 2))
-		
-		# Die Abfrage liefert das erwartete Ergebnis
-		print((1, 2) in menge)  # Ausgabe: True
+menge = set()
+menge.add((1, 2))
+
+# Die Abfrage liefert das erwartete Ergebnis
+print((1, 2) in menge)  # Ausgabe: True
 	\end{minted}
 \end{listing}
 
@@ -38,13 +38,13 @@ Ein naiver Übersetzungsversuch nach TypeScript führt hier jedoch zu einem fund
 
 \begin{listing}[H]
 	\caption{Mengen in TypeScript: Das fehlerhafte Verhalten}
-	\label{lst:set_ts}
+	\label{lst:set_ts_untyped}
 	\begin{minted}{typescript}
-		const menge = new Set();
-		menge.add([1, 2]);
-		
-		// TypeScript findet das Array überraschenderweise nicht
-		console.log(menge.has([1, 2])); // Ausgabe: false
+const menge = new Set();
+menge.add([1, 2]);
+
+// TypeScript findet das Array überraschenderweise nicht
+console.log(menge.has([1, 2])); // Ausgabe: false
 	\end{minted}
 \end{listing}
 
