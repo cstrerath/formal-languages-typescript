@@ -3,52 +3,127 @@
 \section{\texttt{RecursiveSet}: Interne Architektur und Implementierung}
 \label{sec:recursive-set-intern}
 
-Während Kapitel 3 die fachliche API und die konzeptionelle Notwendigkeit einer wertsemantischen Mengenstruktur behandelte, fokussiert dieses Kapitel die zugrunde liegende technische Architektur. Da das native JavaScript-\mintinline{typescript}{Set} keine strukturelle Gleichheit für komplexe Objekte unterstützt und sich nicht durch einfache Wrapper modifizieren lässt, erfordert \mintinline{typescript}{RecursiveSet} eine vollständige Eigenimplementierung als Hash-Tabelle. 
+Während Kapitel~\ref{sec:recursive-set-api} die fachliche API und die konzeptionelle Notwendigkeit einer wertsemantischen Mengenstruktur behandelte, fokussiert dieses Kapitel die zugrunde liegende technische Architektur. Da das native JavaScript-\mintinline{typescript}{Set} keine strukturelle Gleichheit für komplexe Objekte unterstützt und sich nicht durch einfache Wrapper modifizieren lässt, erfordert \mintinline{typescript}{RecursiveSet} eine vollständige Eigenimplementierung als \gls{hashtabelle}.
 
-Die zentrale Herausforderung besteht darin, strukturelle Gleichheitsprüfungen (\(O(1)\) amortisiert), effiziente Speicherverwaltung und Unveränderlichkeitsgarantien in einer hochperformanten, Garbage-Collection-freundlichen Architektur zu vereinen.
+Eine Hashtabelle ist im Kern ein Array, bei dem der Speicherort eines Elements direkt aus seinem Wert berechnet wird. Diese direkte Berechnung ermöglicht das eigentliche Hauptziel der Architektur: eine Suchzeit von amortisiert $\mathcal{O}(1)$. Die $\mathcal{O}$-Notation beschreibt in der Informatik das Laufzeitverhalten eines Algorithmus \autocite[S.~50f]{cormen2022introduction}. $\mathcal{O}(1)$ bedeutet \enquote{konstante Zeit}, egal ob die Menge zehn oder zehn Millionen Elemente enthält, das Finden eines Elements dauert im Durchschnitt immer exakt gleich lang. Diese Effizienz, gepaart mit einer schonenden Speicherverwaltung für die \gls{garbage_collection}, bildet die zentrale Herausforderung dieses Kapitels.
 
 \subsection{Hash-Dispatcher und Gleichheitsprüfung}
 \label{subsec:rs-intern-hashing}
 
-Die technische Basis für den amortisierten \(O(1)\)-Zugriff bildet die strikte Trennung von Hash-Berechnung (zur Reduktion des Suchraums) und der tatsächlichen strukturellen Gleichheitsprüfung.
+Die technische Basis für diesen extrem schnellen $\mathcal{O}(1)$-Zugriff bildet die strikte Trennung von Hash-Berechnung und der tatsächlichen strukturellen Gleichheitsprüfung. Man kann sich den Hash-Wert wie die Postleitzahl und den Straßennamen auf einem Brief vorstellen: Er grenzt das Suchgebiet (den Suchraum) massiv ein. Die Gleichheitsprüfung ist dann der genaue Blick auf das Klingelschild, um sicherzustellen, dass man wirklich beim richtigen Empfänger gelandet ist.
 
-Die Funktion \mintinline{typescript}{getHashCode} agiert als Dispatcher, der für jeden nach dem \mintinline{typescript}{Value}-Vertrag (siehe Abschnitt \ref{subsec:rs-api-wertetypen}) zulässigen Typ eine spezialisierte Hash-Strategie wählt:
+Die Funktion \mintinline{typescript}{getHashCode} agiert als Dispatcher (Verteiler). Sie untersucht den Datentyp und wählt die passende Hash-Strategie. 
 
 \begin{listing}[H]
-	\caption{Optimierte Hash-Berechnung für numerische Typen}
-	\label{lst:rs-gethashcode-number}
+	\caption{Der vollständige Hash-Dispatcher der Bibliothek}
+	\label{lst:rs-gethashcode-full}
 	\begin{minted}{typescript}
-		if (typeof val === 'number') {
-			// Fast Path: 32-Bit Integers (Smis)
-			if ((val | 0) === val) {
-				let h = val | 0;
-				h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
-				h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-				return (h ^ (h >>> 16)) >>> 0;
-			}
-			// Slow Path: IEEE 754 Doubles (via ArrayBuffer)
-			_f64[0] = val;
-			return (Math.imul(_i32[0], 0xcc9e2d51) ^ Math.imul(_i32[1], 0x1b873593)) >>> 0;
+const HASH_C1 = 0xcc9e2d51;
+const HASH_C2 = 0x1b873593;		
+		
+function getHashCode(val: Value): number {
+	// --- FALL A: ZAHLEN ---
+	if (typeof val === 'number') {
+		// Fast Path: 32-Bit Integers
+		if ((val | 0) === val) {
+			let h = val | 0;
+			h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+			h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+			return (h ^ (h >>> 16)) >>> 0;
 		}
+		
+		// Slow Path: IEEE 754 Doubles
+		_f64[0] = val;
+		const low = _i32[0];
+		const high = _i32[1];
+		return (Math.imul(low, HASH_C1) ^ Math.imul(high, HASH_C2)) >>> 0;
+	}
+	
+	// --- FALL B: STRINGS ---
+	if (typeof val === 'string') {
+		let h = 0x811c9dc5;
+		const len = val.length;
+		for (let i = 0; i < len; i++) {
+			h ^= val.charCodeAt(i);
+			h = Math.imul(h, 0x01000193);
+		}
+		return h >>> 0;
+	}
+	
+	// --- FALL C: STRUKTURELLE OBJEKTE ---
+	if (val && typeof val === 'object') {
+		return val.hashCode;
+	}
+	
+	return 0;
+}
 	\end{minted}
 \end{listing}
 
-Um Kollisionen bei sequenziellen Ganzzahlen zu vermeiden, wird der Wert durch Bit-Mixing (ähnlich zu MurmurHash3) gestreut. Fließkommazahlen werden über einen \mintinline{typescript}{ArrayBuffer} in ihre binäre IEEE-754-Repräsentation zerlegt, um FPU-Overhead zu vermeiden. Strings verwenden eine Jenkins-One-at-a-Time-Variante, während bei strukturellen Objekten direkt auf die vertraglich zugesicherte Eigenschaft \mintinline{typescript}{val.hashCode} delegiert wird.
+Dieser Code mag auf den ersten Blick einschüchternd wirken, lässt sich aber sehr logisch in drei Fälle zerlegen:
 
-Die finale Gleichheitsprüfung erfolgt in \mintinline{typescript}{areEqual}. Nach einem \mintinline{typescript}{===} Kurzschluss (Fast Path) greift die Methode für Zahlen auf \mintinline{typescript}{Object.is} zurück, um Edge-Cases wie \mintinline{typescript}{-0} und \mintinline{typescript}{NaN} sprachkonform zu isolieren, und delegiert bei komplexen Typen an \mintinline{typescript}{val.equals()}.
+\paragraph{Fall A: Zahlen (Numbers)}
+JavaScript besitzt historisch keinen reinen Ganzzahl-Datentyp (Integer), sondern verarbeitet jede \mintinline{typescript}{number} unter der Haube als 64-Bit-Fließkommazahl nach dem IEEE-754-Standard \autocite{ieee754_2019}. Der Code teilt sich zur Optimierung in zwei Pfade auf:
+\begin{itemize}
+	\item \textbf{Fast Path (Ganzzahlen):} Die Operation \mintinline{typescript}{(val | 0)} schneidet eventuelle Nachkommastellen ab. Ist das Ergebnis identisch mit dem Ursprungswert, haben wir eine saubere Ganzzahl. Würden wir die nackten Zahlen $1, 2$ und $3$ einfach direkt als Hash-Werte (also als "Parkplatznummern") nutzen, entstünden in der Tabelle sofort Klumpen. Um \glspl{kollision} zu vermeiden, wird der Wert stattdessen durch sogenanntes \textit{Avalanche-Mixing} (Bit-Streuung) vermischt. So landen auch dicht beieinanderliegende Zahlen auf völlig unterschiedlichen Plätzen in der Tabelle.
+	\item \textbf{Slow Path (Fließkommazahlen):} Handelt es sich um eine Kommazahl (z.\,B. $3.14$), wird sie über einen \mintinline{typescript}{ArrayBuffer} in ihre tatsächlichen Nullen und Einsen im Arbeitsspeicher zerlegt. Aus diesen zwei 32-Bit-Hälften (\mintinline{typescript}{low} und \mintinline{typescript}{high}) wird der Hash berechnet. 
+\end{itemize}
+
+In beiden Pfaden tauchen \enquote{Magic Numbers} (wie \mintinline{typescript}{0x85ebca6b}) und die Funktion \mintinline{typescript}{Math.imul} auf. Das Präfix \mintinline{typescript}{0x} kennzeichnet Hexadezimalzahlen. Diese speziellen Werte wurden von Mathematikern so berechnet, dass ihre Bits beim Mischen (\mintinline{typescript}{^}) eine optimale Streuung ergeben. \mintinline{typescript}{Math.imul} wiederum zwingt die JavaScript-Engine (V8) zu einer echten, hardwarenahen 32-Bit-Ganzzahl-Multiplikation, um ungenaue Rundungsfehler bei Kommazahlen zu vermeiden.
+
+\paragraph{Fall B: Strings (Zeichenketten)}
+Für Strings verwendet der Dispatcher eine Variante des bekannten \textit{Jenkins One-at-a-Time} Hash-Algorithmus. Dabei wird der String nicht als Ganzes betrachtet, sondern Zeichen für Zeichen in einer \mintinline{typescript}{for}-Schleife durchlaufen. 
+
+Der numerische Wert jedes Zeichens (\mintinline{typescript}{charCodeAt}) wird in den bisherigen Zwischen-Hash eingemischt (\mintinline{typescript}{^=}) und anschließend multipliziert. Dieses Vorgehen ist essenziell, denn es garantiert, dass nicht nur die Art der Buchstaben, sondern auch ihre \textit{Reihenfolge} den Hash bestimmt. Die Strings \mintinline{typescript}{"ab"} und \mintinline{typescript}{"ba"} enthalten zwar dieselben Buchstaben, führen durch die schrittweise Einmischung aber korrekterweise zu völlig unterschiedlichen Hash-Werten.
+
+\paragraph{Fall C: Strukturelle Objekte}
+Handelt es sich bei dem Wert um ein komplexes Objekt (wie etwa unser \mintinline{typescript}{Tuple} aus dem vorherigen Kapitel), versucht die Bibliothek nicht, das Objekt mühsam von außen zu analysieren. Sie delegiert die Verantwortung einfach an das Objekt selbst, indem sie die vertraglich zugesicherte Eigenschaft \mintinline{typescript}{val.hashCode} abruft.
+
+\paragraph{Die finale Prüfung mit \texttt{areEqual}}
+Der mühsam berechnete Hash-Wert führt uns nun lediglich zum richtigen \enquote{Parkplatz} in der Hashtabelle. Ob das dort liegende Element wirklich exakt das gesuchte ist, entscheidet abschließend die Funktion \mintinline{typescript}{areEqual}:
+
+\begin{listing}[H]
+	\caption{Die Gleichheitsfunktion \texttt{areEqual}}
+	\label{lst:rs-areequal}
+	\begin{minted}{typescript}
+function areEqual(a: Value, b: Value): boolean {
+	if (a === b) return true;
+	if (typeof a !== typeof b) return false;
+	
+	if (typeof a === 'number' || typeof a === 'string') return a === b;
+	
+	if (typeof a === 'object' && a !== null && b !== null) {
+		return a.equals(b);
+	}
+	return false;
+}
+	\end{minted}
+\end{listing}
+
+Auch diese Funktion ist kurz und extrem effizient:
+\begin{enumerate}
+	\item \textbf{Identitäts-Kurzschluss:} Der einfache \mintinline{typescript}{a === b} Vergleich ganz oben fängt identische Speicherreferenzen sofort ab. Das erspart teure Tiefenprüfungen, wenn wir aus Versehen zweimal exakt dasselbe Objekt vergleichen.
+	\item \textbf{Primitive Werte:} Sind beide Werte einfache Zahlen oder Strings, greift der native JavaScript-Vergleich (\mintinline{typescript}{a === b}). Wir haben den Hash-Wert vorab nur gebraucht, um sie in der Tabelle zu finden – für den finalen inhaltlichen Beweis reicht das primitive Gleichheitszeichen.
+	\item \textbf{Strukturelle Objekte:} Handelt es sich um komplexe Typen, wird die finale Entscheidung an die vertraglich zugesicherte \mintinline{typescript}{equals()}-Methode des jeweiligen Objekts delegiert.
+\end{enumerate}
+
+Erst durch das Zusammenspiel dieser beiden Funktionen – \mintinline{typescript}{getHashCode} für das schnelle Eingrenzen des Suchraums und \mintinline{typescript}{areEqual} für den beweisenden Strukturabgleich – wird die effiziente Wertsemantik der Bibliothek überhaupt erst möglich.
 
 
 \subsection{Speicherlayout: Structure of Arrays (SoA)}
 \label{subsec:rs-intern-speicherlayout}
+[Image comparing Structure of Arrays (SoA) vs Array of Structures (AoS) memory layout]
 
-Eine naive Implementierung einer Hash-Map würde Bucket-Objekte der Form \mintinline{typescript}{{ key, value, hash, next }} allozieren. Dies führt in der V8-Engine jedoch zu Speicherfragmentierung und hohen Latenzen durch die Garbage Collection. \mintinline{typescript}{RecursiveMap} (als architektonische Basis für \mintinline{typescript}{RecursiveSet}) nutzt stattdessen das \textit{Structure of Arrays} (SoA) Pattern.
+Ein intuitiver, objektorientierter Entwurf für eine Hash-Map würde sogenannte Bucket-Objekte der Form \mintinline{typescript}{{ key, value, hash }} anlegen. Dies nennt man *Array of Structures* (AoS). In der V8-Engine von JavaScript führt dies bei tausenden kleinen Objekten jedoch zu \gls{speicherfragmentierung} und Latenzen durch das ständige Aufräumen des Speichers. 
+
+\mintinline{typescript}{RecursiveMap} (die architektonische Basis für \mintinline{typescript}{RecursiveSet}) nutzt stattdessen das *Structure of Arrays* (SoA) Pattern. Statt viele kleine Objekte zu bauen, werden die Eigenschaften in parallelen, einfachen Listen (Arrays) gespeichert. Der Schlüssel an Index $5$ gehört exakt zum Wert an Index $5$. Dies schont den \gls{cpu_cache}.
 
 \begin{listing}[H]
 	\caption{Speicherarchitektur von \texttt{RecursiveMap}}
 	\label{lst:recursivemap-storage-layout}
 	\begin{minted}{typescript}
 		class RecursiveMap<K extends Value, V extends Value> {
-			// Dichte Arrays (Nutzdaten)
+			// Dichte Arrays (Nutzdaten liegen direkt nebeneinander)
 			protected readonly _keys: K[] = [];
 			protected readonly _values: V[] = [];
 			protected readonly _hashes: number[] = [];
@@ -59,15 +134,16 @@ Eine naive Implementierung einer Hash-Map würde Bucket-Objekte der Form \mintin
 	\end{minted}
 \end{listing}
 
-Die Nutzdaten wachsen dicht (ohne Lücken) in den Arrays \texttt{\_keys}, \texttt{\_values} und \texttt{\_hashes}. Die eigentliche Hash-Tabelle ist das \mintinline{typescript}{Uint32Array} namens \texttt{\_indices}. Es enthält keine Objekte, sondern \textbf{1-basierte Zeiger} auf die dichten Arrays. Ein Wert von \texttt{0} markiert einen leeren Slot. Ein Wert \(n > 0\) verweist auf den Index \(n - 1\) in den dichten Arrays.
+Die Nutzdaten wachsen dicht (ohne Lücken) in den Arrays \texttt{\_keys}, \texttt{\_values} und \texttt{\_hashes}. Die eigentliche Hash-Tabelle ist das \mintinline{typescript}{Uint32Array} namens \texttt{\_indices}. Es enthält keine Objekte, sondern \textbf{1-basierte Zeiger} auf die dichten Arrays. Ein Wert von \texttt{0} markiert einen leeren Slot. Ein Wert $n > 0$ verweist auf den Index $n - 1$ in den dichten Arrays.
 
 
 \subsection{Kollisionsauflösung via Open Addressing}
 \label{subsec:rs-intern-open-addressing}
+[Image illustrating Open Addressing with Linear Probing in Hash Tables]
 
-Das Nachschlagen und Einfügen erfolgt über \textit{Open Addressing} mit \textit{Linear Probing}. Kollidieren Hash-Werte auf demselben Bucket-Slot, wird linear der nächste freie Slot gesucht. 
+Das Nachschlagen und Einfügen erfolgt über \gls{open_addressing} mit \gls{linear_probing}. Man kann sich das wie einen Parkplatz vorstellen: Der Hash-Wert berechnet Ihren zugewiesenen Parkplatz. Ist dieser bereits von einem anderen Auto belegt (Kollision), fahren Sie einfach zum nächstmöglichen freien Parkplatz weiter. Standardwerke der Algorithmik zeigen, dass diese Methode bei gut dimensionierten Tabellen hochgradig Cache-effizient ist \autocite[vgl.][Kap. 11.4]{cormen2022introduction}.
 
-Der Suchalgorithmus profitiert maßgeblich vom SoA-Layout: Bevor die teure strukturelle Methode \mintinline{typescript}{areEqual} aufgerufen wird, vergleicht die Schleife den vorberechneten Hash aus \texttt{\_hashes}.
+Der Suchalgorithmus profitiert hier maßgeblich vom SoA-Layout: Bevor die teure Methode \mintinline{typescript}{areEqual} aufgerufen wird, vergleicht die Schleife blitzschnell den vorberechneten Hash.
 
 \begin{listing}[H]
 	\caption{Lookup-Algorithmus mit linearem Sondieren}
@@ -75,11 +151,11 @@ Der Suchalgorithmus profitiert maßgeblich vom SoA-Layout: Bevor die teure struk
 	\begin{minted}{typescript}
 		get(key: K): V | undefined {
 			const h = getHashCode(key);
-			let idx = h & this._mask; // Start-Bucket berechnen
+			let idx = h & this._mask; // Start-Parkplatz (Bucket) berechnen
 			
 			while (true) {
 				const entry = this._indices[idx];
-				if (entry === 0) return undefined; // Slot leer -> Nicht gefunden
+				if (entry === 0) return undefined; // Slot leer -> Element existiert nicht
 				
 				const ptr = entry - 1;
 				// 1. Hash vergleichen (schnell), 2. equals vergleichen (teuer)
@@ -95,13 +171,14 @@ Der Suchalgorithmus profitiert maßgeblich vom SoA-Layout: Bevor die teure struk
 
 \subsection{Löschvorgang: Backshift Deletion und Dense-Swap}
 \label{subsec:rs-intern-backshift}
+[Image illustrating Backshift Deletion or Robin Hood Hashing in Hash Tables]
 
-Das Entfernen von Elementen aus Hash-Tabellen mit Open Addressing ist komplex, da das einfache Leeren eines Slots die Suchketten (Probe Chains) nachfolgender Elemente durchtrennen würde. Die übliche Lösung – das Setzen von "Tombstones" (als gelöscht markierte Slots) – führt langfristig zu verschmutzten Tabellen und Performanceverlust. 
+Das Entfernen von Elementen aus Hash-Tabellen mit Open Addressing ist tückisch. Wenn ein Auto den Parkplatz verlässt und wir den Platz einfach leeren, reißt die Suchkette für alle Autos ab, die wegen einer Kollision weiter hinten parken mussten. Die simple Lösung – das Aufstellen eines "Gesperrt"-Schildes (\gls{tombstone}) – führt langfristig zu verschmutzten Tabellen.
 
-Die Bibliothek verwendet stattdessen \textbf{Backshift Deletion} (auch Robin Hood Deletion genannt). Die Lücke im \texttt{\_indices}-Array wird durch nachfolgende Elemente aufgefüllt, sofern deren idealer Hash-Bucket weiter vorne liegt.
+Die Bibliothek verwendet stattdessen die elegante \gls{backshift_deletion} (eng verwandt mit Robin Hood Hashing). Die entstandene Lücke wird intelligent durch nachfolgende Elemente aufgefüllt, sofern diese dadurch näher an ihren idealen Ursprungs-Hash-Slot heranrücken können \autocite[vgl.][]{cormen2022introduction}.
 
 \begin{listing}[H]
-	\caption{Reparatur der Probe Chain (Backshifting)}
+	\caption{Reparatur der Suchkette (Backshifting)}
 	\label{lst:rs-backshift}
 	\begin{minted}{typescript}
 		private removeIndex(holeIdx: number): void {
@@ -114,55 +191,57 @@ Die Bibliothek verwendet stattdessen \textbf{Backshift Deletion} (auch Robin Hoo
 				const distToHole = (holeIdx - idealIdx + this._bucketCount) & this._mask;
 				const distToI = (i - idealIdx + this._bucketCount) & this._mask;
 				
-				// Element i ist näher an seinem idealen Slot, wenn es nach holeIdx rückt
+				// Element i ist näher an seinem idealen Slot, wenn es in die Lücke rückt
 				if (distToHole < distToI) {
-					this._indices[holeIdx] = entry;
-					holeIdx = i;
+					this._indices[holeIdx] = entry; // Lücke füllen
+					holeIdx = i;                    // Lücke wandert weiter nach hinten
 				}
 				i = (i + 1) & this._mask;
 			}
-			this._indices[holeIdx] = 0; // Lücke ans Ende der Chain verschoben und geleert
+			this._indices[holeIdx] = 0; // Lücke ans Ende der Kette verschoben und geleert
 		}
 	\end{minted}
 \end{listing}
 
-Nachdem die Suchstruktur repariert ist, muss das Element aus den dichten Nutzdaten (\texttt{\_keys}, \texttt{\_values}, \texttt{\_hashes}) entfernt werden. Ein \mintinline{typescript}{Array.prototype.splice()} würde ein \(\mathcal{O}(N)\)-Verschieben aller nachfolgenden Elemente erzwingen. Stattdessen nutzt die Implementierung den \textbf{Dense-Swap}: Das zu löschende Element wird mit dem \textit{letzten} Element der dichten Arrays überschrieben. Anschließend wird der Eintrag des verschobenen letzten Elements in der \texttt{\_indices}-Tabelle auf die neue Position aktualisiert. Dies garantiert eine \(O(1)\)-Löschung ohne Array-Reallokation.
+Nachdem die Suchstruktur repariert ist, muss das Element aus den dichten Nutzdaten (\texttt{\_keys}, \texttt{\_values}) entfernt werden. Ein \mintinline{typescript}{Array.splice()} würde ein teures Verschieben aller nachfolgenden Elemente in $\mathcal{O}(N)$ erzwingen (wie das Zusammenrücken von Büchern im Regal). 
+
+Stattdessen nutzt die Implementierung den \textbf{Dense-Swap}: Das zu löschende Element wird mit dem \textit{allerletzten} Element im Array überschrieben (das letzte Buch wird einfach in die Lücke gestellt). Anschließend wird das letzte Element mit \mintinline{typescript}{pop()} in $\mathcal{O}(1)$ entfernt und der Zeiger in der Indextabelle aktualisiert. Dies garantiert rasend schnelles Löschen ohne Speicher-Neuzuweisung.
 
 
 \subsection{Kapazitätsverwaltung und Hashing-Metadaten}
 \label{subsec:rs-intern-resize-shrink}
 
-Um die O(1)-Performance aufrechtzuerhalten, wird der Auslastungsgrad (Load Factor) strikt bei \(0.75\) (\(75\%\)) abgeriegelt. Wird dieser überschritten, verdoppelt \mintinline{typescript}{ensureCapacity} die Tabellengröße (wobei die Kapazität stets eine Potenz von 2 bleibt, um Modulo-Operationen durch bitweises UND \mintinline{typescript}{& this._mask} zu ersetzen).
+Um die Zugriffszeit von $O(1)$ aufrechtzuerhalten, darf eine Hash-Tabelle nie komplett voll werden. Der Auslastungsgrad (\gls{load_factor}) wird daher strikt bei $0.75$ ($75\%$) abgeriegelt. Wird dieser überschritten, verdoppelt \mintinline{typescript}{ensureCapacity} die Tabellengröße. Die Kapazität bleibt dabei stets eine Potenz von 2 (z. B. 16, 32, 64). Dies ist ein bekannter Trick, um langsame Modulo-Divisionen durch eine extrem schnelle bitweise UND-Operation (\mintinline{typescript}{& this._mask}) zu ersetzen \autocite[vgl.][Kap. 11]{cormen2022introduction}.
 
-Um Speicherlecks in stark fluktuierenden Datenstrukturen zu vermeiden, greift bei Deletionen der \textit{Cold Path} (\mintinline{typescript}{shrink()}): Fällt die Auslastung unter \(25\%\) bei einer Mindestgröße von \texttt{MIN\_BUCKETS = 16}, wird die Indextabelle halbiert und re-hasht.
+Um Speicherlecks bei häufigen Löschvorgängen zu vermeiden, greift ein *Shrink*-Mechanismus: Fällt die Auslastung unter $25\%$, wird die Indextabelle halbiert und neu gehasht.
 
 
 \subsection{\texttt{RecursiveSet}: Architektonische Spezialisierung}
 \label{subsec:rs-intern-recursiveset}
 
-\mintinline{typescript}{RecursiveSet} verwendet dieselbe Speicher- und Sondierungsarchitektur wie die Map, eliminiert jedoch das \texttt{\_keys}-Array, da die gespeicherten Werte zeitgleich ihre eigenen Suchschlüssel sind. 
+Das \mintinline{typescript}{RecursiveSet} verwendet exakt dieselbe Speicherarchitektur wie die Map, eliminiert jedoch das \texttt{\_keys}-Array, da in einer reinen Menge die gespeicherten Werte zeitgleich ihre eigenen Suchschlüssel sind. 
 
-Die Besonderheit des \mintinline{typescript}{RecursiveSet} liegt in seiner eigenen \mintinline{typescript}{hashCode}-Generierung. Da Mengen in der Theorie ungeordnet sind, muss ihr Hash unabhängig von der Einfügereihenfolge sein. Dies wird durch die kumulative bitweise Exklusiv-Oder-Verknüpfung (\mintinline{typescript}{^=}) der Element-Hashes im Feld \mintinline{typescript}{this._xorHash} erreicht.
+Eine Besonderheit liegt in der \mintinline{typescript}{hashCode}-Generierung der Menge selbst. Da Mengen mathematisch ungeordnet sind (die Menge $\{A, B\}$ ist gleich $\{B, A\}$), muss ihr berechneter Hash unabhängig von der Einfügereihenfolge sein. Dies wird durch die kumulative \gls{xor}-Verknüpfung (\mintinline{typescript}{^=}) der Element-Hashes im Feld \mintinline{typescript}{this._xorHash} erreicht, da XOR kommutativ ist.
 
 \paragraph{Immutabilität und der Freeze-Zyklus}
 \label{subsec:rs-intern-freeze}
 
-Wie in Abschnitt \ref{subsec:rs-api-freeze-frozenset} erläutert, verbindet das Set die Phasen der Mutabilität und Immutabilität. Technisch wird dies durch den Getter \mintinline{typescript}{get hashCode()} erzwungen. Sobald eine Menge (z. B. als Element einer anderen Menge) gehasht wird, setzt sie intern \mintinline{typescript}{this._isFrozen = true}. 
+Wie in Abschnitt \ref{subsec:rs-api-freeze-frozenset} erläutert, muss eine Menge eingefroren werden, sobald sie in eine andere Struktur eingebettet wird. Technisch wird dies durch den Aufruf von \mintinline{typescript}{get hashCode()} erzwungen. 
 
-Zudem greift ein kaskadierender Freeze: Der Getter iteriert über alle gespeicherten komplexen Objekte und ruft deren \mintinline{typescript}{hashCode} auf. Dies garantiert, dass auch tief verschachtelte Mengenstrukturen (\mintinline{typescript}{RecursiveSet<RecursiveSet<T>>}) iterativ bis in die unterste Ebene eingefroren und versiegelt werden.
+Sobald das Set gehasht wird, setzt es intern \mintinline{typescript}{this._isFrozen = true}. Zudem greift ein kaskadierender Freeze: Der Algorithmus iteriert über alle gespeicherten Objekte und ruft deren \mintinline{typescript}{hashCode} auf. Dies garantiert, dass auch tief verschachtelte Strukturen iterativ bis in die unterste Ebene versiegelt werden.
 
 
 \subsection{Performance-Optimierung funktionaler Methoden}
 \label{subsec:rs-intern-functional-methods}
 
-Die in Kapitel 3 eingeführten Transformationen (\mintinline{typescript}{map}, \mintinline{typescript}{filterMap}, \mintinline{typescript}{flatMap}) basieren technisch nicht auf Iteratoren oder generischen JavaScript-Array-Methoden. Um den Overhead von Generator-Funktionen und Callbacks zu minimieren, iterieren diese Methoden imperativ direkt über das dichte \texttt{\_values}-Array.
+Die funktionalen Methoden (\mintinline{typescript}{map}, \mintinline{typescript}{filterMap}, \mintinline{typescript}{flatMap}) basieren technisch nicht auf den langsameren JavaScript-Iteratoren. Um den \gls{overhead} von Generator-Funktionen zu vermeiden, iterieren diese Methoden imperativ über klassische \mintinline{typescript}{for}-Schleifen direkt über das dichte \texttt{\_values}-Array.
 
-Zudem wird bei \mintinline{typescript}{map} und \mintinline{typescript}{filterMap} eine optimistische Prä-Allokation durchgeführt: \mintinline{typescript}{result.ensureCapacity(this.size)}. Unter der Annahme, dass die transformierte Menge ähnlich groß wird wie die Ursprungsmenge, werden teure \mintinline{typescript}{resize()}-Zyklen während der Iteration vollständig eliminiert.
+Zudem wird bei Transformationen eine optimistische Prä-Allokation durchgeführt: \mintinline{typescript}{result.ensureCapacity(this.size)}. Unter der Annahme, dass die Zielmenge ähnlich groß wird wie die Ursprungsmenge, wird der benötigte Speicher direkt am Stück reserviert, was teure Tabellenvergrößerungen während der Schleife eliminiert.
 
 
 \subsection{Fazit der internen Architektur}
 \label{subsec:rs-intern-fazit}
 
-Die interne Umsetzung demonstriert, dass Wertsemantik in TypeScript nicht durch bloße Typ-Deklarationen, sondern nur durch eine tiefgreifende Modifikation der Speicher- und Zugriffsstrukturen erreicht werden kann. 
+Die interne Umsetzung demonstriert, dass strukturelle Wertsemantik in TypeScript nicht durch einfache Typ-Deklarationen erreicht werden kann. Es bedarf einer vollständigen, auf die Hardware-Architektur abgestimmten Datenstruktur. 
 
-Durch das Structure of Arrays-Paradigma (SoA), die Trennung von Hash-Wegweiser und Gleichheitsprüfung, sowie Algorithmen wie Backshift-Deletion und Dense-Swapping wird \mintinline{typescript}{RecursiveSet} zu einer hochperformanten Infrastruktur. Sie bietet die formale Strenge unveränderlicher mathematischer Mengen und liefert gleichzeitig die notwendige Ausführungsgeschwindigkeit, um komplexe deterministische Algorithmen der theoretischen Informatik in Laufzeitumgebungen wie V8 abzubilden.
+Durch das SoA-Paradigma, die intelligente Trennung von Hash-Wegweiser und inhaltlicher Gleichheitsprüfung sowie Algorithmen wie Backshift-Deletion und Dense-Swapping wird \mintinline{typescript}{RecursiveSet} zu einer hochperformanten Infrastruktur. Sie bietet die formale Strenge mathematischer Mengen und liefert gleichzeitig die Ausführungsgeschwindigkeit, die Studierende benötigen, um komplexe Automaten-Algorithmen ressourcenschonend zu implementieren.

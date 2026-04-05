@@ -7,3 +7,95 @@
     plural={Repositories},
     description={Ein zentraler, oft versionierter Speicherort für Quellcode und digitale Dokumente, der es ermöglicht, Änderungen am Code historisch nachzuvollziehen und gemeinsam an Projekten zu arbeiten}
 }
+
+\newglossaryentry{wertsemantik}{
+	name={Wertsemantik},
+	description={Ein Paradigma in der Programmierung, bei dem Variablen und Objekte anhand ihres inhaltlichen Wertes und ihrer Struktur verglichen werden. Zwei verschiedene Objekte im Arbeitsspeicher gelten als gleich, wenn ihre Eigenschaften und Daten exakt übereinstimmen.}
+}
+
+\newglossaryentry{referenzsemantik}{
+	name={Referenzsemantik},
+	description={Auch als Identität bezeichnet. Ein Paradigma, bei dem Variablen anhand ihres Speicherortes im Arbeitsspeicher verglichen werden. Zwei Objekte gelten nur dann als gleich, wenn sie physisch exakt dasselbe Objekt (dieselbe Instanz) im Speicher sind, selbst wenn ihre Inhalte identisch sind.}
+}
+
+\newglossaryentry{immutabilitat}{
+	name={Immutabilität},
+	description={Die Unveränderlichkeit eines Datensatzes oder Objekts nach seiner Erstellung. Ein immutables Objekt kann nicht mehr modifiziert werden. Will man den Zustand ändern, muss eine neue, modifizierte Kopie des Objekts erzeugt werden. Dies garantiert Datensicherheit in rekursiven Strukturen oder nebenläufigen Prozessen.}
+}
+
+\newglossaryentry{kartesisches_produkt}{
+	name={Kartesisches Produkt},
+	description={Eine grundlegende Operation aus der Mengenlehre. Das kartesische Produkt zweier Mengen $A$ und $B$ (geschrieben $A \times B$) ist die Menge aller möglichen geordneten Paare, bei denen das erste Element aus $A$ und das zweite Element aus $B$ stammt.}
+}
+
+\newglossaryentry{set_comprehension}{
+	name={Set-Comprehension},
+	description={Eine syntaktische Kurzschreibweise in Sprachen wie Python, um Mengen (Sets) basierend auf iterierbaren Objekten und Bedingungen in einer einzigen, leicht lesbaren Code-Zeile zu erzeugen. Sie orientiert sich stark an der mathematischen Mengenschreibweise.}
+}
+
+\newglossaryentry{hash_wert}{
+	name={Hash-Wert},
+	description={Ein numerischer Wert (häufig ein Integer), der durch eine mathematische Funktion (Hash-Funktion) aus einer beliebig großen Datenmenge berechnet wird. Er dient in Hash-Tabellen als eine Art "Hausnummer" oder Index, um Daten in konstanter Zeit ($O(1)$) extrem schnell wiederzufinden.}
+}
+
+% --- GLOSSAR-EINTRÄGE KAPITEL 4 ---
+
+\newglossaryentry{hashtabelle}{
+	name={Hash-Tabelle},
+	description={Eine extrem schnelle Datenstruktur, die Daten in einem Array speichert. Ein Hash-Wert berechnet dabei direkt den Array-Index (den Speicherort), wodurch Elemente in idealerweise konstanter Zeit ($O(1)$) gefunden werden können.}
+}
+
+\newglossaryentry{garbage_collection}{
+	name={Garbage Collection},
+	description={Eine automatische Speicherverwaltung (z.B. in JavaScript oder Java), die den Arbeitsspeicher nach nicht mehr benötigten Objekten durchsucht und diese löscht. Das Erzeugen vieler winziger Objekte zwingt die Garbage Collection zu häufigem "Aufräumen", was Programme stark ausbremst.}
+}
+
+\newglossaryentry{kollision}{
+	name={Kollision (Hashing)},
+	description={Tritt in einer Hash-Tabelle auf, wenn zwei unterschiedliche Eingabedaten zufällig denselben Hash-Wert generieren und somit auf denselben Speicher-Slot zugewiesen werden. Die Datenstruktur muss Mechanismen wie Open Addressing besitzen, um dies aufzulösen.}
+}
+
+\newglossaryentry{speicherfragmentierung}{
+	name={Speicherfragmentierung},
+	description={Ein Zustand im Arbeitsspeicher, bei dem Daten stark verstreut in kleinen Lücken liegen statt in einem zusammenhängenden Block. Dies verschlechtert die Zugriffszeiten der CPU enorm.}
+}
+
+\newglossaryentry{cpu_cache}{
+	name={CPU-Cache},
+	description={Ein extrem schneller, aber kleiner Zwischenspeicher direkt im Prozessor. Die CPU lädt Daten bevorzugt in zusammenhängenden Blöcken (Arrays) in den Cache. Verstreute Objekte zwingen die CPU, Daten langsam aus dem Hauptspeicher (RAM) zu holen (Cache Miss).}
+}
+
+\newglossaryentry{open_addressing}{
+	name={Open Addressing},
+	description={Eine Methode zur Auflösung von Hash-Kollisionen. Alle Elemente werden direkt im Array der Hash-Tabelle gespeichert. Ist ein errechneter Platz belegt, wird nach einem festgelegten Muster (z.B. Linear Probing) ein anderer freier Platz gesucht.}
+}
+
+\newglossaryentry{linear_probing}{
+	name={Linear Probing},
+	description={Die einfachste Form des Open Addressing. Ist der Ziel-Slot in der Tabelle belegt, wird einfach der unmittelbar nächste Slot (Index + 1) geprüft, bis ein leerer Platz gefunden wird.}
+}
+
+\newglossaryentry{tombstone}{
+	name={Tombstone (Grabstein)},
+	description={Ein spezieller Marker-Wert in Hash-Tabellen mit Open Addressing. Er markiert einen Slot als "gelöscht", damit Suchketten von Elementen, die wegen einer Kollision nach hinten verschoben wurden, beim Nachschlagen nicht abreißen.}
+}
+
+\newglossaryentry{backshift_deletion}{
+	name={Backshift Deletion},
+	description={Ein intelligenter Löschalgorithmus für Hash-Tabellen (oft in Kombination mit Robin Hood Hashing genutzt). Statt Tombstones zu setzen, rücken nachfolgende kollidierte Elemente in die entstandene Lücke auf, was die Suchketten verkürzt und die Tabelle sauber hält.}
+}
+
+\newglossaryentry{load_factor}{
+	name={Load Factor (Auslastungsgrad)},
+	description={Das Verhältnis von gespeicherten Elementen zur Gesamtanzahl der verfügbaren Slots in einer Hash-Tabelle. Ein Load Factor von $0.75$ bedeutet, dass die Tabelle bei $75\%$ Füllung vergrößert werden muss, da sonst zu viele Kollisionen entstehen.}
+}
+
+\newglossaryentry{xor}{
+	name={XOR (Exklusives Oder)},
+	description={Eine bitweise logische Operation. Sie liefert wahr (1), wenn genau eins der Bits 1 ist, und falsch (0), wenn beide gleich sind. Da XOR kommutativ ($A \oplus B = B \oplus A$) ist, eignet es sich hervorragend, um reihenfolgeunabhängige Hash-Werte (z.B. für Mengen) zu berechnen.}
+}
+
+\newglossaryentry{overhead}{
+	name={Overhead},
+	description={Der zusätzliche Rechen- oder Speicheraufwand, der durch die Verwaltung, Hilfsfunktionen oder Abstraktionsschichten einer Programmiersprache entsteht und nicht direkt zur Lösung des eigentlichen Problems beiträgt.}
+}
