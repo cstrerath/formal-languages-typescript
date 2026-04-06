@@ -1,81 +1,246 @@
+% !TEX root = ../master.tex
+
 \section{RecursiveSet: API und fachliche Modellierung}
 \label{sec:recursive-set-api}
 
-Wie im Kapitel~\ref{sec:einleitung} (siehe Listing~\ref{lst:set_python} und Listing~\ref{lst:set_ts_untyped}) ersichtlich, gibt es zwischen der Mengenverarbeitung in Python und TypeScript fundamentale Unterschiede. Dieses Kapitel erläutert zunächst die theoretischen Ursachen für dieses abweichende Verhalten. Darauf aufbauend wird gezeigt, wie diese Diskrepanzen mithilfe der speziell entwickelten Bibliothek \mintinline{text}{RecursiveSet} mitigiert werden können, um die aus Python vertraute Arbeitsweise wiederherzustellen.
+Wie bereits in Kapitel~\ref{sec:einleitung} anhand von Listing~\ref{lst:set_python} und Listing~\ref{lst:set_ts_untyped} zu sehen war, verhalten sich Mengen in Python und TypeScript nicht gleich. Dieses Kapitel erklärt zunächst, worauf diese Unterschiede fachlich und technisch zurückzuführen sind. Anschließend wird gezeigt, wie die Bibliothek \mintinline{text}{RecursiveSet} diese Unterschiede für die Arbeit mit mathematischen Mengenstrukturen ausgleicht und dadurch eine an Python angelehnte Arbeitsweise in TypeScript ermöglicht.
 
-\subsection{Mathematische Mengen und der Begriff der Wohlunterscheidbarkeit}
-\label{subsec:rs-api-mathematische-mengen}
+\subsection{Mathematische Mengen und Wohlunterscheidbarkeit}
+\label{subsec:rs-api-wohlunterscheidbarkeit}
 
-Was ist überhaupt eine Menge im mathematischen Sinne? Konsultiert man die gängige Fachliteratur, stößt man unweigerlich auf die klassische Definition von Georg Cantor: \enquote{Eine Menge ist eine Zusammenfassung bestimmter wohlunterschiedener Objekte unserer Anschauung oder unseres Denkens [...] zu einem Ganzen.} Die zentrale Frage für die Übertragung von Algorithmen in eine Programmiersprache lautet dabei: Wie genau ist \enquote{wohlunterscheidbar} definiert?
+Was ist überhaupt eine Menge im mathematischen Sinn? Georg Cantor beschreibt eine Menge als \enquote{Zusammenfassung bestimmter wohlunterschiedener Objekte [...] zu einem Ganzen} \autocite[481]{Cantor1895}. Für die Umsetzung mengenbasierter Algorithmen in einer Programmiersprache ergibt sich daraus unmittelbar eine praktische Frage: Wann gelten zwei Elemente als gleich?
 
-Genau in der Interpretation dieses Begriffs unterscheiden sich Python und TypeScript (bzw. die zugrunde liegende Laufzeitumgebung JavaScript) diametral. Es stehen sich zwei grundverschiedene Paradigmen gegenüber: die Unterscheidung nach dem inhaltlichen Wert (Wertsemantik) und die Unterscheidung nach der physischen Speicheradresse (Referenzsemantik).
+Python und TypeScript beziehungsweise JavaScript beantworten diese Frage unterschiedlich. In Python können unveränderliche, hashbare Werte wie Tupel als Elemente einer Menge verwendet werden. Zwei Tupel gelten dabei als gleich, wenn sie denselben Inhalt haben. In JavaScript werden Objekte wie Arrays in einem \mintinline{typescript}{Set} dagegen über ihre Referenzidentität unterschieden. Zwei Arrays mit gleichem Inhalt gelten also nur dann als gleich, wenn es sich um dieselbe Array-Instanz handelt.
 
-\paragraph{Semantik-Bruch: Inhalt vs. Speicheradresse}
-\label{par:rs-api-semantik-bruch}
-
-In Python werden zusammengesetzte Datenstrukturen wie Tupel nach ihrem tatsächlichen Inhalt unterschieden. Fügen wir die Tupel \mintinline{python}{(1, 2)} und \mintinline{python}{(2, 1)} in eine Menge ein, erhalten wir mathematisch korrekt eine Menge mit zwei Elementen. Fragen wir die Menge anschließend, ob das Tupel \mintinline{python}{(2, 1)} enthalten ist, so lautet die Antwort \mintinline{python}{True}. Python erkennt, dass die Struktur und die inneren Werte identisch sind.
-
-JavaScript hingegen geht deutlich maschinennäher vor. Erschaffen wir ein Array \mintinline{typescript}{[1, 2]}, so wird dieses zur Laufzeit an einer bestimmten Speicheradresse (beispielsweise \texttt{0xABCD}) abgelegt. Fügen wir dieses Array in ein natives \mintinline{typescript}{Set} ein, speichert JavaScript unter der Haube faktisch nur diese konkrete Speicheradresse ab. 
-
-Der folgende direkte Code-Vergleich macht diesen Unterschied und seine Folgen deutlich:
+Listing~\ref{lst:set_wohlunterscheidbar_python} zeigt zunächst das Verhalten in Python:
 
 \begin{listing}[H]
-	\caption{Wohlunterscheidbarkeit bei Tupeln/Arrays: Python vs. TypeScript}
-	\label{lst:set_wohlunterscheidbar_comparison}
+	\caption{Mengenverhalten in Python}
+	\label{lst:set_wohlunterscheidbar_python}
 	\begin{minted}{python}
-# Python (mit mypy): Wertsemantik (Structural Equality)
-# Mengen unterscheiden Elemente nach ihrem Inhalt.
+# Python: Tupel sind unveränderlich und als Set-Elemente geeignet
 zahlen_menge: set[tuple[int, int]] = set()
 
 zahlen_menge.add((1, 2))
 zahlen_menge.add((2, 1))
 
-print(zahlen_menge)          # {(1, 2), (2, 1)}
-
-# Eine neu erzeugte Instanz mit gleichem Inhalt wird als identisch erkannt:
+print(zahlen_menge)           # {(1, 2), (2, 1)}
 print((2, 1) in zahlen_menge) # True
+	\end{minted}
+\end{listing}
+
+Die Mitgliedschaftsabfrage funktioniert hier, weil Tupel unveränderlich sind und in Mengen anhand ihrer Gleichheit berücksichtigt werden können.
+
+Anders verhält es sich in TypeScript, wie Listing~\ref{lst:set_wohlunterscheidbar_ts} zeigt. Dieselbe Modellierungsidee führt zu einem anderen Ergebnis:
+
+\begin{listing}[H]
+	\caption{Mengenverhalten in TypeScript}
+	\label{lst:set_wohlunterscheidbar_ts}
+	\begin{minted}{typescript}
+type ZahlenTupel = [number, number];
+const zahlenMenge = new Set<ZahlenTupel>();
+
+zahlenMenge.add([1, 2]);
+zahlenMenge.add([2, 1]);
+
+console.log(zahlenMenge.has([2, 1])); // false
+	\end{minted}
+\end{listing}
+
+Hier schlägt die Abfrage fehl, weil das neu erzeugte Array \mintinline{typescript}{[2, 1]} nicht dieselbe Referenz besitzt wie das zuvor eingefügte Array.
+
+Für Algorithmen aus der diskreten Mathematik und theoretischen Informatik ist dieser Unterschied wesentlich. Python erlaubt mit unveränderlichen Werten wie Tupeln eine deutlich natürlichere Modellierung mathematischer Strukturen. In TypeScript ist für inhaltsbasierte Mengen zusammengesetzter Werte in der Regel eine zusätzliche Repräsentation oder eine eigene Datenstruktur erforderlich.
+
+\subsection{Die Datenstruktur \texttt{RecursiveSet}}
+\label{subsec:rs-api-datenstruktur}
+
+Um die Lehrnotebooks funktionsfähig nach TypeScript portieren zu können, muss die Laufzeitumgebung wieder dazu gezwungen werden, Mengen nach ihrem mathematischen Inhalt zu bewerten. Genau hier setzt die Bibliothek \mintinline{text}{RecursiveSet} an. 
+
+% TODO: Hier fügen wir noch den kurzen Teil zu den Basis-Operationen ein
+% (Verhalten wie ein Python Set: add, remove, has)
+
+\subsection{Strukturierte Elemente: Die \texttt{Tuple}-Klasse}
+\label{subsec:rs-api-tuple}
+
+Neben Mengen stützen sich theoretische Modelle häufig auf Tupel. Ein Tupel ist eine endliche, geordnete Sequenz von Elementen. Im Gegensatz zu Mengen ist die Reihenfolge hier strikt definiert und Duplikate sind erlaubt. Das bekannteste Beispiel ist ein Koordinatenpaar $(x, y)$ in einem zweidimensionalen Raum. Für zwei Punkte $P = (2, 5)$ und $Q = (5, 2)$ gilt mathematisch strikt $P \neq Q$.
+
+In Python ist dieses mathematische Konzept fest in die Sprache integriert. Ein Python-\mintinline{python}{tuple} ist strukturell vergleichbar und vor allem unveränderlich (immutable). Einmal definiert, kann die Zahl $2$ im Punkt $P$ nicht plötzlich zu einer $99$ werden. 
+
+Versucht man dies in TypeScript durch gewöhnliche Arrays abzubilden, stößt man auf zwei fatale Probleme: Arrays nutzen nicht nur Referenzidentität (wie in Abschnitt~\ref{subsec:rs-api-wohlunterscheidbarkeit} gezeigt), sondern sind zudem veränderlich (mutable). Ein Algorithmus könnte eine Koordinate nachträglich überschreiben und so die Integrität der gesamten Menge zerstören.
+
+Die Bibliothek löst dies durch die dedizierte \mintinline{typescript}{Tuple}-Klasse, die sich exakt wie ein Python-Tupel verhält: Sie ist tiefengleich (Deep Equality) und strikt unveränderlich.
+
+\begin{listing}[H]
+	\caption{Roboter-Koordinaten: Tupel in Python vs. TypeScript}
+	\label{lst:rs_tuple_comparison}
+	\begin{minted}{python}
+		# Python: Tupel sind nativ tiefengleich und unveränderlich
+		visited_coords: set[tuple[int, int]] = set()
+		visited_coords.add((2, 5))
+		
+		# Eine Abfrage mit einem neuen, inhaltlich gleichen Tupel gelingt:
+		print((2, 5) in visited_coords) # True
 	\end{minted}
 	
 	\vspace{0.5em}
 	
 	\begin{minted}{typescript}
-// TypeScript: Referenzsemantik (Reference Equality)
-// Mengen unterscheiden Objekte nach ihrer Speicheradresse.
-type ZahlenTupel = [number, number];
-const zahlenMenge = new Set<ZahlenTupel>();
-
-zahlenMenge.add([1, 2]); // Speichert z.B. Adresse 0xABCD
-zahlenMenge.add([2, 1]); // Speichert z.B. Adresse 0xABCE
-
-// Wir erzeugen ein NEUES Array mit exakt demselben Inhalt [2, 1].
-// Dieses liegt an einer neuen Speicheradresse (z.B. 0xABCF).
-// Da 0xABCF nicht in der Menge existiert, schlägt die Abfrage fehl:
-console.log(zahlenMenge.has([2, 1])); // false
+		// TypeScript: Arrays scheitern, Tuple stellt das Python-Verhalten her
+		const visitedCoords = new RecursiveSet<Tuple<[number, number]>>();
+		visitedCoords.add(new Tuple(2, 5));
+		
+		// Eine Abfrage mit einer neuen Tupel-Instanz gelingt:
+		const searchPoint = new Tuple(2, 5);
+		console.log(visitedCoords.has(searchPoint)); // true
 	\end{minted}
 \end{listing}
 
-Aus rein technischer Sicht ist die JavaScript-Herangehensweise durchaus valide und extrem schnell: Speicheradressen sind zweifellos \enquote{wohlunterscheidbar}. Für die praktische Anwendung in der theoretischen Informatik ist dieses Verhalten jedoch katastrophal. Algorithmen, die beispielsweise Zustandsübergänge (Tupel aus Zustand und Symbol) oder kartesische Produkte berechnen, generieren im Speicher fortlaufend neue Instanzen. Wenn diese von der Mengenstruktur nicht als inhaltliche Duplikate erkannt werden, schlagen Mitgliedschaftstests fehl und fundamentale Invarianten der Algorithmen brechen zusammen.
+\subsection{Assoziative Daten: Die \texttt{RecursiveMap}}
+\label{subsec:rs-api-map}
 
-\paragraph{Mitigation durch \texttt{RecursiveSet}}
-\label{par:rs-api-mitigation}
+Sobald Koordinaten oder Zustände korrekt modelliert sind, müssen diesen oft Werte zugeordnet werden. In der Informatik übernimmt dies eine Map (auch Dictionary genannt). Denkt man an ein Schachbrett, so ordnet man einer Koordinate eine Spielfigur zu. Mathematisch ist dies eine Funktion $f(x, y) \to \text{Wert}$, beispielsweise $f((2, 5)) = \text{\enquote{Queen}}$.
 
-Um die Lehrnotebooks funktionsfähig nach TypeScript portieren zu können, muss die Laufzeitumgebung wieder dazu gezwungen werden, Mengen nach ihrem mathematischen Inhalt zu bewerten. Genau hier setzt die Bibliothek \mintinline{text}{RecursiveSet} an. 
-
-Indem wir native Arrays in eine spezielle \mintinline{typescript}{Tuple}-Klasse kapseln, welche die nötigen Methoden bereitstellt, um den Inhalt sicher zu vergleichen (siehe Kapitel~\ref{sec:recursive-set-intern} zu den Interna), und \mintinline{typescript}{RecursiveSet} anstelle des nativen \mintinline{typescript}{Set} verwenden, verhält sich TypeScript wieder exakt wie Python:
+Auch hier scheitern TypeScripts native Strukturen. Eine native \mintinline{typescript}{Map<number[], string>} würde das Array \mintinline{typescript}{[2, 5]} wieder nur als Speicheradresse betrachten. In Python hingegen können Tupel problemlos als Schlüssel in einem Dictionary (Dict) verwendet werden. Als direktes Äquivalent bietet die Bibliothek daher die \mintinline{typescript}{RecursiveMap} an:
 
 \begin{listing}[H]
-	\caption{Wiederherstellung der Wertsemantik durch \texttt{RecursiveSet}}
-	\label{lst:rs_wertsemantik_loesung}
+	\caption{Dictionaries in Python vs. \texttt{RecursiveMap} in TypeScript}
+	\label{lst:rs_map_comparison}
+	\begin{minted}{python}
+		# Python: Tupel als Dictionary-Schlüssel funktionieren nativ
+		grid: dict[tuple[int, int], str] = {}
+		grid[(2, 5)] = "Queen"
+		
+		print(grid[(2, 5)]) # "Queen"
+	\end{minted}
+	
+	\vspace{0.5em}
+	
 	\begin{minted}{typescript}
-// TypeScript mit RecursiveSet: Der Inhalt ist wieder entscheidend
-const zahlenMenge = new RecursiveSet<Tuple<[number, number]>>();
-
-zahlenMenge.add(new Tuple(1, 2));
-zahlenMenge.add(new Tuple(2, 1));
-
-// Eine neue Instanz wird nun sicher anhand ihres Inhalts gefunden:
-console.log(zahlenMenge.has(new Tuple(2, 1))); // true
+		// TypeScript: RecursiveMap nutzt die Wertsemantik für Schlüssel
+		const safeGrid = new RecursiveMap<Tuple<[number, number]>, string>();
+		safeGrid.set(new Tuple(2, 5), "Queen");
+		
+		// Der Abruf über eine neue, tiefengleiche Instanz funktioniert:
+		const foundPiece = safeGrid.get(new Tuple(2, 5));
+		console.log(foundPiece); // "Queen"
 	\end{minted}
 \end{listing}
 
-Mit diesem wiederhergestellten Fundament, der inhaltlichen Wohlunterscheidbarkeit, lassen sich nun die aus den Python-Notebooks bekannten, komplexeren mathematischen Mengenoperationen direkt auf TypeScript übertragen.
+\subsection{Der Freeze-Contract: Immutabilität sichern}
+\label{subsec:rs-api-freeze}
+
+% TODO: Hier kommt der Text rein, warum ein RecursiveSet oder Tuple 
+% "einfriert", sobald es in ein anderes Set/Map gepackt wird (frozenset vs Freeze)
+
+\subsection{Von der Mengenkomprehension zu expliziten Operationen}
+\label{subsec:rs-api-komprehension-vs-explizit}
+
+% TODO: Klassische Operationen (Union, Intersection, etc.) 
+% und die Limitationen der TypeScript-Syntax (keine Set-Comprehension)
+
+\subsection{Funktionale Transformationen als Komprehensions-Ersatz}
+\label{subsec:rs-api-funktional}
+
+Der weitreichendste sprachliche Unterschied zwischen den Python-Notebooks und der TypeScript-Portierung liegt in der Transformation von Mengen. Python glänzt hier durch sogenannte Mengenkomprehensionen (Set Comprehensions), die Selektion und Transformation in einer einzigen, mathematisch äußerst prägnanten Zeile vereinen.
+
+Listing~\ref{lst:rs_comprehension_python} zeigt diesen klassischen Python-Ansatz: Aus einer Menge von Zahlen sollen alle ungeraden Zahlen herausgefiltert und das Ergebnis jeweils mit 10 multipliziert werden.
+
+\begin{listing}[H]
+	\caption{Python: Mengenkomprehension mit Selektion und Transformation}
+	\label{lst:rs_comprehension_python}
+	\begin{minted}{python}
+		mixed_numbers = {1, 2, 3, 4, 5}
+		
+		# Die Logik verschmilzt direkt mit der Syntax der Sprache
+		odd_tens = { n * 10 for n in mixed_numbers if n % 2 != 0 }
+		
+		print(odd_tens) # {10, 30, 50}
+	\end{minted}
+\end{listing}
+
+Da TypeScripts Syntax nicht durch eine externe Bibliothek um derartige Konstrukte erweitert werden kann, muss ein anderes Paradigma genutzt werden: Funktionale Programmierung. Die Bibliothek stellt Methoden bereit, die auf der Menge operieren. Doch wie übergibt man diesen Methoden die individuelle Logik, ohne für jede Kleinigkeit eine eigene benannte Funktion schreiben zu müssen? 
+
+\paragraph*{Exkurs: Lambda-Funktionen (Arrow Functions)}
+Die Lösung sind Lambda-Funktionen, in TypeScript \enquote{Arrow Functions} genannt. Eine Arrow Function ist eine anonyme (namenlose) Funktion, die direkt dort definiert wird, wo sie gebraucht wird. Die Syntax lautet \mintinline{typescript}{(parameter) => expression}. 
+Der Pfeil \mintinline{typescript}{=>} lässt sich am besten als mathematisches \enquote{wird abgebildet auf} lesen. Der Ausdruck \mintinline{typescript}{n => n * 10} bedeutet also fachlich exakt: \emph{Nimm das Element $n$ und bilde es auf $n \cdot 10$ ab.}
+
+Mit diesem Werkzeug ausgestattet, können wir die kompakte Python-Komprehension durch die Methode \mintinline{typescript}{filterMap} aus \mintinline{typescript}{RecursiveSet} nachbauen.
+
+\begin{listing}[H]
+	\caption{TypeScript: Funktionale Pipeline mit \texttt{filterMap} und Lambdas}
+	\label{lst:rs_functional_ts}
+	\begin{minted}{typescript}
+		const mixedNumbers = new RecursiveSet(1, 2, 3, 4, 5);
+		
+		const oddTens = mixedNumbers.filterMap(
+		n => n % 2 !== 0,   
+		n => n * 10         
+		);
+		
+		console.log(oddTens.toString()); // {10, 30, 50}
+	\end{minted}
+\end{listing}
+
+Um diesen Paradigmenwechsel vollständig zu durchdringen, betrachten wir den TypeScript-Code aus Listing~\ref{lst:rs_functional_ts} Zeile für Zeile:
+\begin{itemize}
+	\item \textbf{Zeile 3:} Wir rufen die Methode \mintinline{typescript}{filterMap} auf unserer Ausgangsmenge auf. Diese Methode iteriert intern über jedes einzelne Element der Menge.
+	\item \textbf{Zeile 4:} Dies ist das \emph{Prädikat} (die Filter-Bedingung). Wir übergeben die Lambda-Funktion \mintinline{typescript}{n => n % 2 !== 0}. Die Methode wendet diese Funktion auf jedes Element $n$ an. Gibt die Funktion \mintinline{typescript}{false} zurück, wird das Element verworfen.
+	\item \textbf{Zeile 5:} Dies ist die \emph{Transformation}. Für jedes Element, das den Filter passiert hat, wird nun die zweite Lambda-Funktion \mintinline{typescript}{n => n * 10} aufgerufen. Das Ergebnis wird in die neue Zielmenge eingefügt.
+\end{itemize}
+
+Das Ergebnis ist semantisch identisch zum Python-Code, es entsteht jedoch keine einzige unnötige Zwischenmenge im Speicher, da Selektion und Transformation in einem einzigen Durchlauf evaluiert werden.
+
+\subsubsection{Basis-Transformationen: \texttt{map}, \texttt{filter} und \texttt{reduce}}
+% TODO: Kurz die weiteren Basis-Funktionen abdecken
+
+\subsubsection{Komplexe Konstruktionen: Verschachtelte Iterationen auflösen mit \texttt{flatMap}}
+
+Noch deutlicher wird die Stärke der funktionalen Lambda-Konzepte, wenn in Python verschachtelte Schleifen (Nested Comprehensions) verwendet werden. Ein typisches Beispiel aus der theoretischen Informatik ist die Berechnung von Folgezuständen. Für jeden aktuellen Zustand muss hierbei oft eine ganze Teilmenge von neuen Zuständen berechnet und in einer gemeinsamen Menge gesammelt werden.
+
+In Python reiht man dafür einfach mehrere \mintinline{python}{for}-Klauseln hintereinander, wie Listing~\ref{lst:rs_nested_python} zeigt.
+
+\begin{listing}[H]
+	\caption{Python: Verschachtelte Mengenkomprehension}
+	\label{lst:rs_nested_python}
+	\begin{minted}{python}
+		integer_set = {0}
+		natural_numbers = [1, 2, 3]
+		
+		# Das äußere 'for' läuft über natural_numbers, 
+		# das innere (implizite) fügt +n und -n in die Zielmenge ein.
+		expanded_set = { val for n in natural_numbers for val in (n, -n) }
+		
+		# integer_set und expanded_set müssen manuell vereinigt werden
+		integer_set |= expanded_set 
+		print(integer_set) # {0, 1, -1, 2, -2, 3, -3}
+	\end{minted}
+\end{listing}
+
+Für genau diesen Fall der \enquote{Eins-zu-Vielen}-Abbildung (ein Eingabewert generiert eine Menge von Ausgabewerten) stellt \mintinline{typescript}{RecursiveSet} die Methode \mintinline{typescript}{flatMap} bereit. Sie iteriert über eine Eingabe, führt für jedes Element eine Lambda-Funktion aus, die eine Teilmenge zurückgibt, und \enquote{flacht} all diese Teilmengen direkt in die aufrufende Menge ab.
+
+Listing~\ref{lst:rs_flatmap_ts} zeigt die direkte TypeScript-Entsprechung.
+
+\begin{listing}[H]
+	\caption{TypeScript: Direkte Generierung und Vereinigung durch \texttt{flatMap}}
+	\label{lst:rs_flatmap_ts}
+	\begin{minted}{typescript}
+		const integerSet = new RecursiveSet<number>(0);
+		const naturalNumbers = [1, 2, 3];
+		
+		integerSet.flatMap(
+		naturalNumbers, 
+		n => new RecursiveSet<number>(n, -n)
+		);
+		
+		console.log(integerSet.toString()); // {0, 1, -1, 2, -2, 3, -3}
+	\end{minted}
+\end{listing}
+
+Auch hier hilft eine schrittweise Aufschlüsselung der funktionalen Mechanik:
+\begin{itemize}
+	\item \textbf{Zeile 4--5:} Wir rufen \mintinline{typescript}{flatMap} auf dem bereits existierenden \mintinline{typescript}{integerSet} auf und übergeben als Quelle \mintinline{typescript}{naturalNumbers}.
+	\item \textbf{Zeile 6:} Dies ist die Generator-Logik. Die Lambda-Funktion \mintinline{typescript}{n => new RecursiveSet(n, -n)} nimmt sich nacheinander jede natürliche Zahl und erschafft eine temporäre Menge, die den positiven und negativen Wert enthält.
+	\item \textbf{Die Abflachung (Flattening):} Die Methode \mintinline{typescript}{flatMap} nimmt diese zurückgegebene Teilmenge und fügt deren Inhalt direkt (in-place) in das aufrufende \mintinline{typescript}{integerSet} ein. 
+\end{itemize}
+
+Zusammenfassend lässt sich festhalten: Die TypeScript-Portierung liest sich aufgrund der fehlenden Komprehensions-Syntax grundlegend anders als das Python-Original. Die mathematische Ausdrucksstärke geht jedoch nicht verloren. Sie wird lediglich von der Syntax-Ebene (dem Compiler) auf die Daten-Ebene verlagert, indem die Algorithmen als kompakte Lambda-Funktionen verpackt und an die API übergeben werden.
