@@ -6,7 +6,7 @@
 \section{Theoretische Grundlagen der Typisierung}
 \label{sec:typisierung}
 
-Beim Übergang von den interaktiven Python-Notebooks der Vorlesung zu einer robusten TypeScript-Implementierung ändert sich nicht nur die Syntax. Der fundamentalste Unterschied liegt im Umgang mit Datentypen. Die in Python erprobten Algorithmen wurden ursprünglich in einer hochdynamischen Umgebung entwickelt. Um diese Konzepte in eine zuverlässig prüfbare, modulare Architektur zu überführen, ist ein strengeres Typkonzept unerlässlich. Typisierung ist in diesem Projekt daher kein Randthema, sondern das tragende Fundament der gesamten Codebasis.
+Beim Übergang von den interaktiven Python-Notebooks der Vorlesung zu einer TypeScript-Implementierung ändert sich nicht nur die Syntax. Der fundamentalste Unterschied liegt im Umgang mit Datentypen. Die in Python erprobten Algorithmen wurden ursprünglich in einer hochdynamischen Umgebung entwickelt und mittels \enquote{mypy} typisiert. TypeScript verwendet einen anderen Ansatz, die Typisierung ist der zentrale Aspekt der Sprache, daher ist ebenjene in diesem Projekt kein Randthema, sondern das tragende Fundament der gesamten Codebasis.
 
 \subsection{Semantik und Funktion von Datentypen}
 \label{subsec:was-ist-ein-typ}
@@ -45,7 +45,7 @@ print(value)
     \end{minted}
 \end{listing}
 
-Dasselbe Grundprinzip findet sich unverändert in JavaScript wieder (siehe Listing~\ref{lst:javascript-dynamic-simple}):
+Dasselbe Grundprinzip findet sich unverändert in JavaScript wieder (siehe Listing~\ref{lst:javascript-dynamic-simple}), wenn man das Keyword \mintinline{typescript}{let} verwendet.
 
 \begin{listing}[htbp]
     \caption{Dynamische Typisierung in JavaScript}
@@ -58,7 +58,7 @@ console.log(value);
     \end{minted}
 \end{listing}
 
-Diese Flexibilität erleichtert exploratives Arbeiten. Gleichzeitig verschiebt sie einen enormen Teil der Verantwortung auf die Entwickelnden, da sich oft erst im Moment der Ausführung zeigt, ob eine Operation zum aktuellen Wert passt. Die gravierenden Folgen dieser späten Auswertung demonstriert Listing~\ref{lst:python-runtime-type-error}.
+Diese Flexibilität erleichtert das schnelle Schreiben von Programmcode. Gleichzeitig verschiebt sie einen großen Teil der Verantwortung auf die Entwickelnden, da sich oft erst im Moment der Ausführung zeigt, ob eine Operation zum aktuellen Wert passt. Die möglichen Folgen dieser späten Auswertung demonstriert Listing~\ref{lst:python-runtime-type-error}.
 
 \begin{listing}[htbp]
     \caption{Typfehler wird erst zur Laufzeit sichtbar}
@@ -104,18 +104,18 @@ console.log(add(3, 4));
     \end{minted}
 \end{listing}
 
-Durch die expliziten Typannotationen wird die Signatur eindeutig. Ein fehlerhafter Aufruf mit zwei Zeichenketten widerspricht diesem Vertrag und wird vom Compiler beanstandet, lange bevor das Programm ausgeführt wird. Der hier verwendete Typ \mintinline{typescript}{number} ist dabei der zentrale Baustein für numerische Werte:
+Durch die expliziten Typannotationen wird die Signatur, also die formale Schnittstelle bestehend aus Funktionsnamen sowie Anzahl, Reihenfolge und Datentypen der Parameter, eindeutig. Ein fehlerhafter Aufruf mit zwei Strings widerspricht diesem Vertrag und wird vom Compiler beanstandet, lange bevor das Programm ausgeführt wird. Der hier verwendete Typ \mintinline{typescript}{number} ist dabei der zentrale Baustein für numerische Werte:
 
 \begin{definition}
 \label{def:ts-number}
-\textbf{Der Typ \texttt{number}:} Im Gegensatz zu Sprachen wie C oder Java, die streng zwischen ganzen Zahlen (\mintinline{text}{int}) und Kommazahlen (\mintinline{text}{float}) unterscheiden, fasst TypeScript alle numerischen Werte unter dem Typ \mintinline{typescript}{number} zusammen. Unter der Haube handelt es sich stets um 64-Bit-Fließkommazahlen nach dem IEEE-754-Standard \autocite{ieee754_2019}. Eine Funktion mit diesem Parameter akzeptiert folglich sowohl \mintinline{typescript}{add(3, 4)} als auch \mintinline{typescript}{add(3.14, 2.5)}.
+\textbf{Der Typ \texttt{number}:} Im Gegensatz zu Sprachen wie Python, C oder Java, die streng zwischen ganzen Zahlen (\mintinline{text}{int}) und Kommazahlen (\mintinline{text}{float}) unterscheiden, fasst TypeScript alle numerischen Werte unter dem Typ \mintinline{typescript}{number} zusammen. Programmatisch handelt es sich um 64-Bit-Fließkommazahlen nach dem IEEE-754-Standard \autocite{ieee754_2019}. Eine Funktion mit diesem Parameter akzeptiert folglich sowohl \mintinline{typescript}{add(3, 4)} als auch \mintinline{typescript}{add(3.14, 2.5)}.
 \end{definition}
 
 
 \subsubsection{Herausforderungen einer naiven Code-Migration}
 \label{subsubsec:naive-uebersetzung}
 
-Eine reine Portierung von Python-Code nach TypeScript führt nicht automatisch zu echter Typsicherheit. Da TypeScript als Obermenge von JavaScript konzipiert ist, lässt sich bestehender Python-Code oft fast unverändert übernehmen, bleibt im Kern jedoch reines JavaScript. Listing~\ref{lst:ts-naive-translation} demonstriert eine solche naive Übersetzung.
+Eine reine Portierung von Python-Code nach TypeScript führt nicht automatisch zu echter Typsicherheit. Da TypeScript als Obermenge von JavaScript konzipiert ist, lässt sich bestehender Python-Code häufig fast unverändert (lediglich mit geänderter Syntax) übernehmen, bleibt im Kern jedoch reines JavaScript. Listing~\ref{lst:ts-naive-translation} demonstriert eine solche naive Übersetzung.
 
 \begin{listing}[htbp]
     \caption{Naive Übersetzung einer Funktion nach TypeScript}
@@ -130,7 +130,7 @@ console.log(formatUserId([1, 2, 3]));
     \end{minted}
 \end{listing}
 
-Die Funktion kompiliert ohne Fehlermeldung, verarbeitet aber völlig unterschiedslos Zahlen, Strings und Arrays. Die fachliche Absicht – hier offensichtlich die Formatierung einer numerischen Nutzer-ID – geht komplett verloren. Ein solcher Code ist zwar formal TypeScript, inhaltlich bewahrt er jedoch die Fehleranfälligkeit der dynamischen Programmierung.
+Die Funktion kompiliert ohne Fehlermeldung, verarbeitet aber völlig unterschiedslos Zahlen, Strings und Arrays. Die Absicht, hier die Formatierung einer numerischen Nutzer-ID, geht komplett verloren. Ein solcher Code ist zwar formal TypeScript, inhaltlich bewahrt er jedoch die Fehleranfälligkeit der dynamischen Programmierung.
 
 \paragraph{Dynamische Typprüfung zur Laufzeit}
 \label{par:typen-zur-laufzeit-erkennen}
@@ -165,7 +165,7 @@ Werden Variablen in TypeScript nicht explizit annotiert und lässt sich ihr Typ 
 
 \begin{definition}
 \label{def:ts-any}
-\textbf{Der Typ \texttt{any}:} Das Schlüsselwort \mintinline{typescript}{any} ist der universelle Fluchtweg aus dem statischen Typsystem. Es repräsentiert einen beliebigen JavaScript-Wert ohne jegliche Einschränkungen. Der Compiler erlaubt auf einem \mintinline{typescript}{any}-Wert den Aufruf beliebiger Methoden und Eigenschaften, womit die statische Typprüfung für diese Variable faktisch vollständig deaktiviert wird.
+\textbf{Der Typ \texttt{any}:} Das Schlüsselwort \mintinline{typescript}{any} ist der universelle Fluchtweg aus dem Typsystem. Es repräsentiert einen beliebigen JavaScript-Wert ohne jegliche Einschränkungen. Der Compiler erlaubt auf einem \mintinline{typescript}{any}-Wert den Aufruf beliebiger Methoden und Eigenschaften, womit die statische Typprüfung für diese Variable faktisch vollständig deaktiviert wird.
 \end{definition}
 
 Wie Listing~\ref{lst:ts-any-loch} verdeutlicht, kann \mintinline{typescript}{any} auch explizit vergeben werden, um den Compiler bewusst \enquote{blind} zu machen.
@@ -175,13 +175,13 @@ Wie Listing~\ref{lst:ts-any-loch} verdeutlicht, kann \mintinline{typescript}{any
     \label{lst:ts-any-loch}
     \begin{minted}{typescript}
 let value: any = [1, 2, 3];
-console.log(value.toUpperCase());       // Compiler schweigt, stürzt zur Laufzeit ab
-console.log(value * 2);                 // Compiler schweigt, ergibt NaN
-console.log(value.notExistingMethod()); // Compiler schweigt, stürzt zur Laufzeit ab
+console.log(value.toUpperCase());       // stürzt zur Laufzeit ab
+console.log(value * 2);                 // ergibt NaN
+console.log(value.notExistingMethod()); // stürzt zur Laufzeit ab
     \end{minted}
 \end{listing}
 
-Ein typsicheres Programm müsste validieren, ob \mintinline{text}{value} überhaupt die Methode \mintinline{typescript}{toUpperCase()} besitzt. Bei \mintinline{typescript}{any} entfällt diese Kontrolle, was unweigerlich zu Laufzeitfehlern führt.
+Ein typsicheres Programm müsste validieren, ob \mintinline{text}{value} überhaupt die Methode \mintinline{typescript}{toUpperCase()} besitzt. Bei \mintinline{typescript}{any} entfällt diese Kontrolle, was zu Laufzeitfehlern führen kann.
 
 
 \paragraph{Gefahren der impliziten Typkonvertierung (Koerzision)}
@@ -216,14 +216,14 @@ console.log(implicitText);           // "1,2,3"
 \paragraph{Type Assertions als trügerische Compiler-Anweisung}
 \label{par:as-in-typescript}
 
-Neben \mintinline{typescript}{any} bietet TypeScript mit der Typbehauptung einen weiteren Mechanismus, der das Typsystem aufweicht und für Einsteiger oft wie eine bequeme Typumwandlung (Type Cast) wirkt. Dies ist jedoch ein fataler Trugschluss.
+Neben \mintinline{typescript}{any} bietet TypeScript mit der Typbehauptung einen weiteren Mechanismus, der das Typsystem aufweicht und für Einsteiger oft wie eine bequeme Typumwandlung (Type Cast) wirkt. Dies ist jedoch ein Trugschluss.
 
 \begin{definition}
 \label{def:ts-as}
-\textbf{Die Type Assertion (\texttt{as}):} Das Schlüsselwort \mintinline{typescript}{as} ist keine Operation, die zur Laufzeit ausgeführt wird. Es ist eine reine Compiler-Direktive. Sie zwingt den TypeScript-Compiler dazu, einen Wert ab sofort als den angegebenen Typ zu behandeln, überschreibt dessen interne Typrate-Logik, lässt den Wert im Arbeitsspeicher aber völlig unangetastet.
+\textbf{Die Type Assertion (\texttt{as}):} Das Schlüsselwort \mintinline{typescript}{as} ist keine Operation, die zur Laufzeit ausgeführt wird. Es ist eine reine Compiler-Direktive. Sie zwingt den TypeScript-Compiler dazu, einen Wert ab sofort als den angegebenen Typ zu behandeln, lässt den Wert im Arbeitsspeicher aber völlig unangetastet.
 \end{definition}
 
-Listing~\ref{lst:ts-as-no-conversion} verdeutlicht diese trügerische Sicherheit:
+Listing~\ref{lst:ts-as-no-conversion} verdeutlicht diese trügerische Sicherheit.
 
 \begin{listing}[htbp]
     \caption{Eine Type Assertion ist keine echte Umwandlung}
@@ -235,17 +235,17 @@ let values: any = [1, 2, 3];
 const text = values as string;
 
 // Der Wert ist zur Laufzeit weiterhin ein Array!
-console.log(text.toUpperCase()); // Laufzeitfehler: text.toUpperCase is not a function
+console.log(text.toUpperCase()); // Laufzeitfehler
     \end{minted}
 \end{listing}
 
-Das inhaltliche Problem wurde somit nicht gelöst, sondern lediglich vor der Typprüfung versteckt.
+Das inhaltliche Problem wurde somit nicht gelöst, sondern lediglich vor der Typprüfung versteckt, zur Laufzeit ist die Methode auf dem Array nicht definiert und es kommt zum Absturz.
 
 
 \paragraph{Methodischer Verzicht auf Typ-Bypässe}
 \label{par:verzicht-any-as}
 
-Weder \mintinline{typescript}{any} noch \mintinline{typescript}{as} sind neutrale Komfortfunktionen. Es sind Mechanismen, die die disziplinierende Wirkung des Typsystems gezielt aushebeln. Das erklärte Ziel dieser Studienarbeit war es, den Code nach TypeScript – und nicht bloß nach JavaScript in \texttt{.ts}-Dateien – zu überführen. Folglich wurde architektonisch in der gesamten Implementierung auf den Einsatz von \mintinline{typescript}{any} und ungesicherten \mintinline{typescript}{as}-Behauptungen verzichtet.
+Weder \mintinline{typescript}{any} noch \mintinline{typescript}{as} sind neutrale Komfortfunktionen. Es sind Mechanismen, die die Wirkung des Typsystems gezielt aushebeln. Das erklärte Ziel dieser Studienarbeit war es, den Code nach TypeScript, und nicht bloß nach JavaScript in \texttt{.ts}-Dateien, zu überführen. Folglich wurde architektonisch in der gesamten Implementierung auf den Einsatz von \mintinline{typescript}{any} und ungesicherten \mintinline{typescript}{as}-Behauptungen verzichtet.
 
 
 \subsubsection{Explizite Typannotationen}
@@ -271,7 +271,7 @@ function formatUserIdStrict(id: number): string {
     \end{minted}
 \end{listing}
 
-Die strikte Variante formuliert einen eindeutigen Vertrag, der den Interpretationsspielraum auf null reduziert. Die Signatur verlangt nicht nur eine \mintinline{typescript}{number} als Eingabe, sondern garantiert auch einen spezifischen Rückgabetyp, in diesem Fall einen Text:
+Die strikte Variante formuliert einen eindeutigen Vertrag, der keinen Interpretationsspielraum zulässt. Die Signatur verlangt nicht nur eine \mintinline{typescript}{number} als Eingabe, sondern garantiert auch einen spezifischen Rückgabetyp, in diesem Fall einen Text:
 
 \begin{definition}
 \label{def:ts-string}
@@ -309,7 +309,54 @@ let userProfile: { id: number; name: string } = {
     \end{minted}
 \end{listing}
 
-Bereits die simple Typdefinition von \mintinline{typescript}{userProfile} legt eine klare Struktur mit zwei benannten und typisierten Bestandteilen fest. Genau diese Fähigkeit, komplexe Verträge im Code zu verankern, bildet das Herzstück für sichere Architekturen.
+Bereits die simple Typdefinition von \mintinline{typescript}{userProfile} legt eine klare Struktur mit zwei benannten und typisierten Bestandteilen fest. Die Fähigkeit, komplexe Verträge im Code zu verankern, ist Grundlage sicherer Architekturen.
+
+\paragraph{Eingrenzung von Wertebereichen durch Literal und Union Types}
+\label{par:literal-und-union-types}
+% HINWEIS: Diesen Block am besten direkt hinter die atomaren Basistypen 
+% (number, string, boolean) verschieben!
+
+Oft reicht es nicht aus, einen Wert pauschal als \mintinline{typescript}{string} zu deklarieren. Wenn fachlich nur eine feste Menge spezifischer Ausprägungen zulässig ist (etwa bestimmte Nutzerrollen), bietet TypeScript zwei eng verwobene Konzepte:
+
+\begin{definition}
+\label{def:ts-literal-types}
+\textbf{Literal Types:} Ein Literal Type beschreibt nicht eine ganze Menge von Werten, sondern repräsentiert exakt einen einzigen, konkreten Wert (z.\,B. exakt die Zeichenkette \mintinline{typescript}{"admin"}).
+\end{definition}
+
+\begin{definition}
+\label{def:ts-union-types}
+\textbf{Union Types (\texttt{|}):} Ein Union Type kombiniert mehrere Typen durch ein logisches \enquote{Oder}. Eine Variable dieses Typs darf zur Laufzeit jeden der verknüpften Typen annehmen.
+\end{definition}
+
+Ihre immense Flexibilität gewinnen Literal Types gerade durch diese Kombination mit Union Types. Listing~\ref{lst:ts-literal-union} zeigt, wie sich Zustandsräume dadurch präzise eingrenzen lassen.
+
+\begin{listing}[htbp]
+    \caption{Union Type aus Literal Types in TypeScript}
+    \label{lst:ts-literal-union}
+    \begin{minted}{typescript}
+type Role = "admin" | "user" | "guest";
+
+let currentRole: Role = "user";
+currentRole = "admin";
+// currentRole = "superuser"; 
+// Compiler-Fehler: Typ '"superuser"' ist nicht zuweisbar
+    \end{minted}
+\end{listing}
+
+Dieses Konzept transformiert lose Text-Konventionen in maschinenprüfbare Verträge. Python unterstützt dies ebenfalls sehr ähnlich und nutzt dafür \mintinline{python}{Literal} aus dem \mintinline{python}{typing}-Modul, wie Listing~\ref{lst:python-literal-compare} belegt.
+
+\begin{listing}[htbp]
+    \caption{Literal Types in Python}
+    \label{lst:python-literal-compare}
+    \begin{minted}{python}
+from typing import Literal
+
+Role = Literal["admin", "user", "guest"]
+
+def is_privileged(role: Role) -> bool:
+    return role == "admin"
+    \end{minted}
+\end{listing}
 
 
 \paragraph{Modellierung fehlender Werte (\texttt{null} und \texttt{undefined})}
@@ -319,7 +366,7 @@ In realen Programmen tritt häufig der Fall auf, dass ein gesuchter Wert schlich
 
 \begin{definition}
 \label{def:ts-null-undefined}
-\textbf{Die Typen \texttt{undefined} und \texttt{null}:} Der Typ \mintinline{typescript}{undefined} bedeutet typischerweise, dass ein Wert noch nicht initialisiert wurde oder in einem Suchvorgang nicht gefunden werden konnte. Der Typ \mintinline{typescript}{null} wird hingegen meist genutzt, um die absichtliche, bewusste Abwesenheit eines Wertes durch den Entwickler zu markieren. Beide Typen repräsentieren zur Laufzeit einen fehlenden Wert, haben aber eine leicht unterschiedliche fachliche Semantik.
+\textbf{Die Typen \texttt{undefined} und \texttt{null}:} Der Typ \mintinline{typescript}{undefined} bedeutet typischerweise, dass ein Wert noch nicht initialisiert wurde oder in einem Suchvorgang nicht gefunden werden konnte. Der Typ \mintinline{typescript}{null} wird hingegen meist genutzt, um die absichtliche, bewusste Abwesenheit eines Wertes durch den Entwickler zu markieren. Beide Typen repräsentieren zur Laufzeit einen fehlenden Wert, haben aber eine leicht unterschiedliche Semantik.
 \end{definition}
 
 Die Suche nach einer E-Mail-Adresse in einer Datenbank, wie in Listing~\ref{lst:ts-undefined-return} dargestellt, verdeutlicht dieses Prinzip.
@@ -337,7 +384,7 @@ function findEmail(username: string): string | undefined {
     \end{minted}
 \end{listing}
 
-Da die Funktion nicht zwingend ein Ergebnis findet, reicht der Rückgabetyp \mintinline{typescript}{string} allein nicht aus. Die Signatur \mintinline{typescript}{string | undefined} nutzt ein logisches \enquote{Oder} (Union Type) und hält somit ausdrücklich fest, dass entweder eine Zeichenkette oder eben kein nutzbarer Wert zurückkommt. 
+Da die Funktion nicht zwingend ein Ergebnis findet, reicht der Rückgabetyp \mintinline{typescript}{string} allein nicht aus. Die Signatur \mintinline{typescript}{string | undefined} nutzt einen Union Type und hält somit ausdrücklich fest, dass entweder ein String oder eben kein nutzbarer Wert zurückkommt. 
 
 Python modelliert dieses Problem auf der Ebene der Laufzeitwerte ganz ähnlich, wie Listing~\ref{lst:python-none-return} zeigt. Dort wird ein potenziell fehlender Wert typischerweise durch \mintinline{python}{None} ausgedrückt.
 
@@ -361,7 +408,7 @@ Die bloße Existenz von \mintinline{typescript}{null} und \mintinline{typescript
 
 \begin{definition}
 \label{def:ts-strict-null-checks}
-\textbf{Die Compiler-Option \texttt{strictNullChecks}:} Ist diese Option deaktiviert, behandelt TypeScript fehlende Werte nachsichtig – \mintinline{typescript}{null} und \mintinline{typescript}{undefined} dürfen überall dort übergeben werden, wo eigentlich z.\,B. ein \mintinline{typescript}{string} erwartet wird. Ist sie jedoch aktiviert, trennt der Compiler diese Typen strikt von regulären Werten. Ein potenziell fehlender Wert muss dann zwingend im Code auf seine Existenz geprüft werden, bevor auf ihn zugegriffen werden darf.
+\textbf{Die Compiler-Option \texttt{strictNullChecks}:} Ist diese Option deaktiviert, behandelt TypeScript fehlende Werte nachsichtig, \mintinline{typescript}{null} und \mintinline{typescript}{undefined} dürfen überall dort übergeben werden, wo eigentlich beispielsweise ein \mintinline{typescript}{string} erwartet wird. Ist sie jedoch aktiviert, trennt der Compiler diese Typen strikt von regulären Werten. Ein potenziell fehlender Wert muss dann zwingend im Code auf seine Existenz geprüft werden, bevor auf ihn zugegriffen werden darf.
 \end{definition}
 
 Führt man das vorherige E-Mail-Beispiel fort, wird die Tragweite dieser Option in Listing~\ref{lst:ts-strict-null-checks} sofort sichtbar.
@@ -385,12 +432,12 @@ Die saubere Lösung besteht darin, den fehlenden Wert im Kontrollfluss explizit 
     \begin{minted}{typescript}
 const email = findEmail("guest");
 if (email !== undefined) {
-    console.log(email.toUpperCase()); // Hier weiß der Compiler: email ist ein string
+    console.log(email.toUpperCase()); // email kann nur string sein
 }
     \end{minted}
 \end{listing}
 
-Einer der häufigsten Fehler in Programmen besteht darin, blind davon auszugehen, dass ein Wert vorhanden ist. Für die portierten Notebooks war \mintinline{text}{strictNullChecks} deshalb keine kosmetische Zusatzregel, sondern eine elementare Sicherheitsmaßnahme. 
+Einer der häufigsten Fehler in Programmen besteht darin, blind davon auszugehen, dass ein Wert vorhanden ist. Für die Notebooks war \mintinline{text}{strictNullChecks} deshalb keine kosmetische Zusatzregel, sondern eine elementare Sicherheitsmaßnahme, welche über einen Patch am Notebookkernel eingebaut wurde. 
 
 \paragraph{Der Typ \texttt{unknown} als sichere Abstraktion}
 \label{par:unknown}
@@ -399,7 +446,7 @@ Neben \mintinline{typescript}{null} und \mintinline{typescript}{undefined} biete
 
 \begin{definition}
 \label{def:ts-unknown}
-\textbf{Der Typ \texttt{unknown}:} Dieser Typ ist das typsichere Gegenstück zu \mintinline{typescript}{any}. Während \mintinline{typescript}{any} die Typprüfung faktisch deaktiviert, verbietet \mintinline{typescript}{unknown} zunächst jegliche Interaktion. Der Compiler zwingt den Entwickler dazu, den Wert durch Laufzeitprüfungen (Type Narrowing) präzise einzuengen, bevor typspezifische Methoden aufgerufen werden dürfen.
+\textbf{Der Typ \texttt{unknown}:} Dieser Typ ist das typsichere Gegenstück zu \mintinline{typescript}{any}. Während \mintinline{typescript}{any} die Typprüfung faktisch deaktiviert, verbietet \mintinline{typescript}{unknown} zunächst jegliche Interaktion. Der Compiler zwingt den Entwickler dazu, den Wert durch Laufzeitprüfungen präzise einzuengen, bevor typspezifische Methoden aufgerufen werden dürfen.
 \end{definition}
 
 Listing~\ref{lst:ts-unknown-basic} zeigt, wie der Compiler unsichere Operationen auf einem \mintinline{typescript}{unknown}-Wert rigoros blockiert.
@@ -424,7 +471,7 @@ Erst nach einer erfolgreichen Typprüfung im Kontrollfluss schaltet der Compiler
 let value: unknown = "Alice";
 
 if (typeof value === "string") {
-    // Innerhalb dieses Blocks weiß der Compiler sicher, dass value ein string ist.
+    // Innerhalb dieses Blocks weiß der Compiler, dass value ein string ist.
     console.log(value.toUpperCase());
 }
     \end{minted}
@@ -459,9 +506,7 @@ from typing import Any
 def normalize(value: Any) -> str:
     return str(value) # mypy erlaubt hier völlig beliebige Eingaben
     \end{minted}
-    
-    \vspace{0.5em}
-    
+        
     \begin{minted}{typescript}
 function normalize(value: unknown): string {
     if (typeof value === "string") {
@@ -482,7 +527,7 @@ Entscheidend ist dabei ein Konzept, das TypeScript grundlegend von Sprachen wie 
 
 \begin{definition}
 \label{def:ts-structural-typing}
-\textbf{Strukturelles Typing (Statisches Duck-Typing):} TypeScript prüft Typkompatibilität nicht anhand einer expliziten Klassenhierarchie (Nominales Typing), sondern rein anhand der \enquote{Gestalt} (Struktur) eines Objekts. Besitzt ein Objekt alle Eigenschaften und Methoden, die ein Interface verlangt, gilt es als kompatibel zu diesem Interface – unabhängig davon, ob es explizit davon erbt oder nicht.
+\textbf{Strukturelles Typing (Statisches Duck-Typing):} TypeScript prüft Typkompatibilität nicht anhand einer expliziten Klassenhierarchie (Nominales Typing), sondern rein anhand der \enquote{Gestalt} (Struktur) eines Objekts. Besitzt ein Objekt alle Eigenschaften und Methoden, die ein Interface verlangt, gilt es als kompatibel zu diesem Interface, unabhängig davon, ob es explizit davon erbt oder nicht.
 \end{definition}
 
 Listing~\ref{lst:ts-structural-interface} definiert einen solchen strukturellen Vertrag in Form des Interfaces \mintinline{typescript}{Displayable}.
@@ -516,7 +561,7 @@ class UserAccount {
     }
 }
 
-// Zuweisung ist zulässig, da die Struktur des Objekts mit dem Interface übereinstimmt:
+// Zuweisung ist zulässig, da Struktur des Objekts mit Interface übereinstimmt:
 const item: Displayable = new UserAccount("alice", true);
     \end{minted}
 \end{listing}
@@ -543,9 +588,9 @@ class Displayable(Protocol):
     \end{minted}
 \end{listing}
 
-Klassen müssen in Python nicht explizit von diesem Protocol erben, um als kompatibel zu gelten; die bloße Erfüllung der Signatur reicht aus. Während strukturelle Kompatibilität in TypeScript jedoch das fundamentale Designprinzip bildet, bleibt sie in Python ein optionales Konstrukt.
+Klassen müssen auch in Python nicht explizit von diesem Protocol erben, um als kompatibel zu gelten; die bloße Erfüllung der Signatur reicht aus. Während strukturelle Kompatibilität in TypeScript jedoch das fundamentale Designprinzip bildet, bleibt sie in Python ein optionales Konstrukt.
 
-Für reine Datenobjekte (ohne eigenes Verhalten) bietet Python zudem \mintinline{python}{TypedDict}. Wie Listing~\ref{lst:python-typeddict-address} demonstriert, lassen sich damit Dictionary-Strukturen mit festen Schlüsseln und Typen definieren.
+Für reine Datenobjekte (ohne eigenes Verhalten) bietet Python zusätzlich \mintinline{python}{TypedDict}. Wie Listing~\ref{lst:python-typeddict-address} demonstriert, lassen sich damit Dictionary-Strukturen mit festen Schlüsseln und Typen definieren.
 
 \begin{listing}[htbp]
     \caption{Feste Datenstruktur mit TypedDict in Python}
@@ -560,20 +605,43 @@ class Address(TypedDict):
     \end{minted}
 \end{listing}
 
-In TypeScript übernehmen Interfaces (oder Type-Aliase) fließend beide Rollen. Listing~\ref{lst:ts-interface-address} zeigt die TypeScript-Äquivalenz, die sowohl Methodensignaturen als auch reine Datenfelder kompakt beschreiben kann.
+\paragraph{Interfaces vs. Type Aliase in TypeScript}
+\label{par:ts-interface-vs-type}
+
+In TypeScript gibt es für die Modellierung von Datenstrukturen gleich zwei Werkzeuge, die auf den ersten Blick identisch wirken: \mintinline{typescript}{interface} und \mintinline{typescript}{type}. Während \mintinline{typescript}{interface} (wie in Abschnitt~\ref{subsubsec:interfaces-strukturell} gezeigt) historisch aus der objektorientierten Welt stammt und primär die Gestalt von Objekten oder Klassen beschreibt, ist \mintinline{typescript}{type} ein deutlich universelleres Konzept:
+
+\begin{definition}
+\label{def:ts-type-alias}
+\textbf{Type Aliase (\texttt{type}):} Ein Type Alias gibt einem beliebigen Typ einen neuen, aussagekräftigen Namen. Im Gegensatz zu einem \mintinline{typescript}{interface} kann ein \mintinline{typescript}{type} nicht nur Objektstrukturen, sondern auch die bereits eingeführten Union Types, Tupel oder primitive Werte benennen.
+\end{definition}
+
+Listing~\ref{lst:ts-interface-vs-type} stellt die TypeScript-Äquivalenz zum Python-\mintinline{python}{TypedDict} dar. Es zeigt, wie fließend \mintinline{typescript}{interface} und \mintinline{typescript}{type} für reine Datenobjekte ineinander übergehen, während \mintinline{typescript}{type} bei komplexeren Kombinationen (wie Union Types) alternativlos ist.
 
 \begin{listing}[htbp]
-    \caption{Äquivalente Objektstruktur in TypeScript}
-    \label{lst:ts-interface-address}
+    \caption{Objektstrukturen und Aliase: \texttt{interface} und \texttt{type} in TypeScript}
+    \label{lst:ts-interface-vs-type}
     \begin{minted}{typescript}
+// Variante 1: Interface (Fokus auf die Objektform, oft nachträglich erweiterbar)
 interface Address {
     street: string;
     zipCode: number;
     city: string;
 }
+
+// Variante 2: Type Alias (Fokus auf einen festen Namen für eine feste Struktur)
+type UserData = {
+    name: string;
+    email: string;
+    address: Address; // Nahtlose Kombination von Type und Interface
+};
+
+// Die exklusive Stärke von 'type': Benennung von Unions oder Tupeln
+// (Dies wäre mit einem 'interface' syntaktisch nicht möglich)
+type UnsafeMail = string | undefined;
     \end{minted}
 \end{listing}
 
+Für die Architektur der portierten Software bedeutet dies eine klare Arbeitsteilung: Sobald Verträge für Klassen oder polymorphes Verhalten (Methoden) definiert werden, greift die Codebasis bevorzugt auf \mintinline{typescript}{interface} zurück. Geht es jedoch um die Definition von reinen Datencontainern, Tupeln oder die Kombination von Typen (wie bei \mintinline{typescript}{UnsafeMail}), ist der \mintinline{typescript}{type}-Alias das Werkzeug der Wahl. Diese saubere semantische Trennung verbessert die Lesbarkeit und macht die TypeScript-Notebooks in ihrer Typbeschreibung ausdrucksstärker als die Python-Vorlage.
 
 \paragraph{Generische Programmierung im Sprachvergleich}
 \label{par:generics-ts-python}
@@ -596,8 +664,10 @@ function first<T>(items: T[]): T | undefined {
     return items[0];
 }
 
-const firstNumber = first<number>([10, 20, 30]); // firstNumber ist number | undefined
-const firstName = first<string>(["Alice", "Bob"]); // firstName ist string | undefined
+// firstNumber ist number | undefined
+const firstNumber = first<number>([10, 20, 30]);
+// firstName ist string | undefined
+const firstName = first<string>(["Alice", "Bob"]);
     \end{minted}
 \end{listing}
 
@@ -629,60 +699,13 @@ function filterActive<T extends Displayable>(items: T[]): T[] {
     return items.filter(item => item.isActive());
 }
     \end{minted}
-    
-    \vspace{0.5em}
-    
+        
     \begin{minted}{python}
 # Python: S wird an das Protocol 'Displayable' gebunden
 S = TypeVar("S", bound=Displayable)
 
 def filter_active(items: list[S]) -> list[S]:
     return [item for item in items if item.is_active()]
-    \end{minted}
-\end{listing}
-
-
-\paragraph{Eingrenzung von Wertebereichen durch Literal und Union Types}
-\label{par:literal-und-union-types}
-
-Oft reicht es nicht aus, einen Wert pauschal als \mintinline{typescript}{string} zu deklarieren. Wenn fachlich nur eine feste Menge spezifischer Ausprägungen zulässig ist (etwa bestimmte Nutzerrollen), bietet TypeScript zwei eng verwobene Konzepte:
-
-\begin{definition}
-\label{def:ts-literal-types}
-\textbf{Literal Types:} Ein Literal Type beschreibt nicht eine ganze Menge von Werten, sondern repräsentiert exakt einen einzigen, konkreten Wert (z.\,B. exakt die Zeichenkette \mintinline{typescript}{"admin"}).
-\end{definition}
-
-\begin{definition}
-\label{def:ts-union-types}
-\textbf{Union Types (\texttt{|}):} Ein Union Type kombiniert mehrere Typen durch ein logisches \enquote{Oder}. Eine Variable dieses Typs darf zur Laufzeit jeden der verknüpften Typen annehmen.
-\end{definition}
-
-Ihre immense Flexibilität gewinnen Literal Types gerade durch diese Kombination mit Union Types. Listing~\ref{lst:ts-literal-union} zeigt, wie sich Zustandsräume dadurch präzise eingrenzen lassen.
-
-\begin{listing}[htbp]
-    \caption{Union Type aus Literal Types in TypeScript}
-    \label{lst:ts-literal-union}
-    \begin{minted}{typescript}
-type Role = "admin" | "user" | "guest";
-
-let currentRole: Role = "user";
-currentRole = "admin";
-// currentRole = "superuser"; // Compiler-Fehler: Typ '"superuser"' ist nicht zuweisbar
-    \end{minted}
-\end{listing}
-
-Dieses Konzept transformiert lose Text-Konventionen in maschinenprüfbare Verträge. Python unterstützt dies ebenfalls sehr ähnlich und nutzt dafür \mintinline{python}{Literal} aus dem \mintinline{python}{typing}-Modul, wie Listing~\ref{lst:python-literal-compare} belegt.
-
-\begin{listing}[htbp]
-    \caption{Literal Types in Python}
-    \label{lst:python-literal-compare}
-    \begin{minted}{python}
-from typing import Literal
-
-Role = Literal["admin", "user", "guest"]
-
-def is_privileged(role: Role) -> bool:
-    return role == "admin"
     \end{minted}
 \end{listing}
 
@@ -720,6 +743,10 @@ Während \mintinline{typescript}{typeof} für primitive Datentypen geeignet ist,
     \caption{Klassenprüfung mit \texttt{instanceof}}
     \label{lst:ts-narrowing-instanceof}
     \begin{minted}{typescript}
+class UserAccount {
+    constructor(public username: string, public active: boolean) {}
+}
+
 function describe(user: UserAccount | string): string {
     if (user instanceof UserAccount) {
         return `Konto: ${user.username} (Aktiv: ${user.active})`;
@@ -769,8 +796,13 @@ function translateStatus(status: OrderStatus): string {
 \subsection{Fazit zur architektonischen Neuausrichtung}
 \label{subsec:warum-typescript-statt-notebook-mypy}
 
-Die Herausforderung der bestehenden Architektur lag nicht in einer grundsätzlichen Unzulänglichkeit von \textit{mypy}. Für klassische, dateibasierte Python-Projekte ist \textit{mypy} ein hochgradig leistungsfähiger statischer Checker. Das Problem resultierte vielmehr aus der Diskrepanz zwischen statischer Typprüfung und der hochdynamischen, interaktiven Laufzeitumgebung der Jupyter-Notebooks.
+Die Herausforderung der ursprünglichen Architektur lag nicht in einer grundsätzlichen Unzulänglichkeit von \textit{mypy} als Werkzeug. Für klassische, dateibasierte Python-Projekte ist \textit{mypy} ein leistungsfähiger statischer Checker. Die Schwierigkeiten resultierten vielmehr aus der Diskrepanz zwischen einer nachträglich aufgesetzten statischen Typprüfung und der hochdynamischen, zellenbasierten Laufzeitumgebung von Jupyter-Notebooks.
 
-Ein Notebook baut seinen Ausführungszustand sequenziell und über Zellengrenzen hinweg auf. Die Einbindung von Fremdcode über \enquote{Magic Commands} (wie \mintinline{text}{%run}) unterläuft die traditionellen, statisch analysierbaren Modulgrenzen. Werkzeuge wie \textit{nb-mypy} versuchen diese Lücke zu schließen, stoßen jedoch bei komplexen, dateiübergreifenden Abhängigkeiten schnell an ihre Systemgrenzen. In der Praxis der Lehrmaterialien führte dies häufig dazu, dass legitime architektonische Konstrukte mit unschönen \mintinline{text}{# type: ignore}-Kommentaren versehen werden mussten, was den eigentlichen Nutzen und die Verlässlichkeit des Typsystems massiv minderte.
+In der Python-Umgebung musste die Typprüfung durch externe Werkzeuge wie \textit{nb-mypy} nachgerüstet werden. Im praktischen Lehrbetrieb offenbarten sich dabei zwei gravierende architektonische Reibungspunkte:
 
-Die Portierung nach TypeScript stellte daher nicht nur einen simplen Syntaxtausch dar, sondern überführte das gesamte Projekt in ein strukturell von Grund auf prüfbares Fundament. Die Auflösung der isolierten Notebook-Zellen in ein klassisches Modulsystem mit regulären \mintinline{typescript}{import}-Anweisungen ermöglichte es dem TypeScript-Compiler schließlich, Datentypen, Schnittstellen und Kontrollflüsse über die gesamte Architektur hinweg lückenlos, hermetisch und verlässlich zu verifizieren.
+\begin{itemize}
+    \item \textbf{Fehlendes Type Narrowing bei \texttt{match}-\texttt{case}:} Bei der Verwendung moderner Sprachkonstrukte wie dem strukturellen Pattern Matching (\mintinline{python}{match} und \mintinline{python}{case}) stieß die Notebook-Integration des Checkers an ihre Grenzen. Selbst wenn alle theoretisch möglichen Fälle logisch vollständig abgehandelt waren, erkannte das Tool diese Vollständigkeit (Exhaustiveness) nicht zuverlässig. Um Fehlermeldungen über angeblich fehlende Rückgabewerte zu vermeiden, mussten gezwungenermaßen toter Code geschrieben (z.\,B. ein redundantes \mintinline{python}{return None}) oder legitime Konstrukte per \mintinline{text}{# type: ignore} unterdrückt werden.
+    \item \textbf{Zustandsverlust bei \texttt{\%run}-Befehlen:} Um Code aus Basis-Notebooks in anderen Notebooks wiederzuverwenden, macht die interaktive Umgebung Gebrauch von Magic Commands wie \mintinline{text}{%run}. Dies korrumpierte jedoch regelmäßig den internen Typ-Zustand von \textit{nb-mypy}. Als Workaround musste die Typprüfungs-Erweiterung manuell entladen werden, was ihren inhärenten Zweck ad absurdum führte.
+\end{itemize}
+
+Die Neuausrichtung des Projekts behält die didaktischen Vorteile der interaktiven Arbeit bei, wechselt jedoch die technologische Basis, um genau diese Brüche zu heilen. Durch den Einsatz von TypeScript in Kombination mit dem \textit{tslab}-Kernel wird die Typprüfung zu einem integralen Bestandteil der Ausführungsumgebung. Der TypeScript-Kernel verifiziert den Code durch seine native Kontrollflussanalyse direkt während der Eingabe und über Zellengrenzen hinweg, ohne auf fehleranfällige Zusatzskripte oder ständige Neustarts der Prüfwerkzeuge angewiesen zu sein. 
