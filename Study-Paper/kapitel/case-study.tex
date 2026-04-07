@@ -1,0 +1,288 @@
+\section{Case Study: Umsetzung eines vollständigen Interpreters in TypeScript}
+\label{sec:case_study}
+
+In diesem Kapitel wird die praktische Umsetzung der zuvor entwickelten Konzepte anhand des letzten Notebooks (03-Interpreter.ipynb) aus Chapter-07 zur Interpreter-Realisierung dargestellt. Im Mittelpunkt steht nicht nur ein einzelner Ausdrucksparser, sondern eine vollständige Verarbeitungskette für eine kleine \texttt{C}-ähnliche Sprache: von der Grammatikdefinition über die Parsergenerierung und die Transformation des Concrete Syntax Tree (CST) in einen Abstract Syntax Tree (AST) bis hin zur eigentlichen Interpretation des Programms.
+
+Die Fallstudie ist besonders geeignet, um die Unterschiede und Gemeinsamkeiten zwischen der ursprünglichen Python-basierten Lehrumgebung und der TypeScript-Variante sichtbar zu machen. Beide Implementierungen folgen denselben compilertechnischen Grundprinzipien, unterscheiden sich jedoch in der Modellierung der Datenstrukturen, im Zusammenspiel mit dem Typsystem und in der konkreten Werkzeugkette. Der grundsätzliche Ablauf entspricht den klassischen Phasen eines Sprachprozessors: syntaktische Analyse, interne Repräsentation und semantische Ausführung \autocite[S.~4\,ff.]{aho2006compilers}.
+
+\subsection{Ziel und Aufbau des Notebooks}
+
+Das Notebook implementiert einen vollständigen Interpreter für eine kleine imperative Sprache mit Variablen, arithmetischen Ausdrücken, Bedingungen, Schleifen und elementaren Funktionsaufrufen. Die Verarbeitungskette besteht aus vier Schritten:
+
+\begin{enumerate}
+    \item Definition der Sprache durch eine formale Grammatik,
+    \item Generierung eines Parsers mit Lezer,
+    \item Umwandlung des erzeugten CST in einen kompakteren AST,
+    \item rekursive Interpretation des AST.
+\end{enumerate}
+
+Damit greift das Notebook exakt jene Struktur auf, die auch in klassischen Compiler- und Interpreter-Systemen verwendet wird: Eine formale Grammatik beschreibt die syntaktisch zulässigen Programme, der Parser konstruiert daraus eine Baumdarstellung, und ein nachgelagerter Verarbeitungsschritt interpretiert diese Repräsentation semantisch \autocite[S.~42\,ff.]{aho2006compilers}.
+
+\subsection{Sprachdefinition durch die Lezer-Grammatik}
+
+Die Sprache wird im Notebook direkt als String in TypeScript formuliert. Dadurch wird die Grammatik nicht in einer externen Datei verwaltet, sondern unmittelbar in den Programmcode eingebettet. Das folgende Fragment zeigt den Beginn der im Notebook definierten Grammatik:
+
+\begin{minted}{typescript}
+const grammarString = `
+    @top Script { Program }
+
+    @tokens {
+        Identifier { $[a-zA-Z] $[a-zA-Z0-9_]* }
+        Number     { "0" | $[1-9] $[0-9]* }
+
+        "+" "-" "*" "/" "%"
+        ":=" "==" "!=" "<=" ">=" "<" ">"
+        "(" ")" "{" "}"
+        ";" "," 
+
+        space { $[ \t\n\r]+ }
+        LineComment { "//" ![\n]* }
+        BlockComment { "/*" ( ![*] | "*" + ![*/] )* "*"+ "/" }
+        @precedence { LineComment, BlockComment, "/" }
+    }
+
+    @skip { space | LineComment | BlockComment }
+
+    IF    { @specialize<Identifier, "if"> }
+    WHILE { @specialize<Identifier, "while"> }
+
+    Program {
+        Stmnt Program | 
+        ""
+    }
+
+    Stmnt {
+        IF "(" BoolExpr ")" Stmnt    |
+        WHILE "(" BoolExpr ")" Stmnt |
+        "{" Program "}"              |
+        Identifier ":=" Expr ";"     |
+        Expr ";"
+    }
+
+    BoolExpr {
+        Expr "==" Expr |
+        Expr "!=" Expr |
+        Expr "<=" Expr |
+        Expr ">=" Expr |
+        Expr "<"  Expr |
+        Expr ">"  Expr
+    }
+
+    Expr {
+        Expr "+" Product |
+        Expr "-" Product |
+        Product
+    }
+
+    Product {
+        Product "*" Factor |
+        Product "/" Factor | 
+        Product "%" Factor |
+        Factor
+    }
+
+    Factor {
+        "(" Expr ")"                |
+        Number                      |
+        Identifier                  |
+        Identifier "(" ExprList ")"
+    }
+
+    ExprList {
+        NeExprList | 
+        ""
+    }
+
+    NeExprList {
+        Expr |
+        Expr "," NeExprList
+    }
+`;
+\end{minted}
+
+Bereits an diesem Ausschnitt wird deutlich, dass das Notebook nicht nur die eigentliche Grammatik, sondern auch die lexikalische Ebene integriert. Identifier, Zahlen, Operatoren, Klammern, Kommentare sowie überspringbare Eingabeelemente wie Leerzeichen und Zeilenumbrüche werden gemeinsam beschrieben. Inhaltlich entspricht dies der klassischen Trennung zwischen lexikalischer und syntaktischer Analyse, auch wenn beide Ebenen hier innerhalb derselben Lezer-Spezifikation formuliert werden \autocite[S.~109\,ff.]{aho2006compilers}.
+
+Ein zentrales Detail ist die Behandlung von Kommentaren und des Zeichens \texttt{/}. Da dieses sowohl als Divisionsoperator als auch als Beginn von Zeilen- oder Blockkommentaren auftreten kann, definiert das Notebook explizit eine Prioritätsregel. Solche Konflikte zwischen konkurrierenden Tokenmustern sind ein klassisches Problem der lexikalischen Analyse und werden typischerweise durch Priorisierung oder längste Übereinstimmung aufgelöst \autocite[S.~128\,ff.]{aho2006compilers}.
+
+Die eigentliche Programmsyntax wird rekursiv formuliert. Besonders auffällig ist dabei, dass Listenstrukturen etwa Folgen von Statements oder Ausdruckslisten nicht mit bequemen Wiederholungsoperatoren modelliert werden, sondern durch explizite Rekursion. Das zeigt sich beispielsweise in der Definition von \texttt{Program}:
+
+\begin{minted}{typescript}
+Program {
+    Stmnt Program | 
+    ""
+}
+
+Stmnt {
+    IF "(" BoolExpr ")" Stmnt    |
+    WHILE "(" BoolExpr ")" Stmnt |
+    "{" Program "}"              |
+    Identifier ":=" Expr ";"     |
+    Expr ";"
+}
+\end{minted}
+
+Diese Form ist für die Fallstudie besonders relevant, weil sie die rekursive Struktur der Sprache unmittelbar sichtbar macht. Gleichzeitig bleibt die entstehende CST-Struktur nahe an der formalen Grammatik. Die verwendete Grammatik ist damit eine kontextfreie Grammatik im klassischen Sinn, wie sie für Programmiersprachen und Parsergeneratoren typisch ist \autocite[S.~171\,ff.]{hopcroft2006automata}.
+
+\subsection{Parsergenerierung und syntaktische Analyse}
+
+Auf Basis der Grammatik erzeugt das Notebook den Parser direkt zur Laufzeit:
+
+\begin{minted}{typescript}
+import { buildParser } from "@lezer/generator";
+const parser = buildParser(grammarString);
+\end{minted}
+
+Damit wird aus der formalen Sprachbeschreibung ein ausführbarer Parser konstruiert. Aus Sicht der Compilertechnik entspricht dies genau der Verwendung eines Parsergenerators, wie sie auch bei traditionellen Werkzeugen üblich ist \autocite[S.~194\,ff.]{hopcroft2006automata}. Der Unterschied besteht weniger im Grundprinzip als vielmehr in der konkreten Einbettung in das TypeScript-Ökosystem.
+
+Die eigentliche Parse-Funktion des Notebooks verbindet Dateieinlesen, syntaktische Analyse und AST-Erzeugung:
+
+\begin{minted}{typescript}
+function parse(fileName: string): AST {
+    const source = readFileSync(fileName, "utf8");
+    const tree   = parser.parse(source);
+    return cst2ast(tree.cursor(), source, myOperators, myListVars);
+}
+\end{minted}
+
+An dieser Stelle wird der Ablauf des gesamten Frontends sichtbar. Zunächst wird der Quelltext als Zeichenkette eingelesen, anschließend vom Parser analysiert und in einen CST überführt. Dieser CST wird dann nicht direkt interpretiert, sondern zunächst in einen AST transformiert. Genau diese Trennung ist auch theoretisch bedeutsam: Der CST repräsentiert die syntaktische Struktur sehr detailliert, während der AST nur noch jene Informationen enthält, die für die spätere semantische Verarbeitung relevant sind \autocite[S.~45\,ff.]{aho2006compilers}.
+
+\subsection{AST-Modellierung in TypeScript}
+
+Ein wesentlicher Unterschied zur Python-Variante zeigt sich in der expliziten Modellierung des AST. Das Notebook verwendet hierfür keinen allgemeinen Objektbaum, sondern einen rekursiven Typ, der aus Zahlen, Strings und Tupel-artigen Operatorstrukturen besteht:
+
+\begin{minted}{typescript}
+type Operator = string;
+type AST = string | number | 
+           [Operator, AST]                |
+           [Operator, AST, AST]           |
+           [Operator, AST, AST, AST]      |
+           [Operator, AST, AST, AST, AST];
+\end{minted}
+
+Diese Modellierung ist für die Fallstudie besonders aussagekräftig. Einerseits bleibt sie relativ nah an der dynamischen Flexibilität der Python-Implementierung, weil Operatoren weiterhin als Strings kodiert werden. Andererseits wird die rekursive Struktur des AST durch das Typsystem bereits explizit beschrieben. Genau hier zeigt sich ein typischer Mehrwert von TypeScript: Datenstrukturen, die in Python häufig nur implizit durch Konventionen abgesichert sind, erhalten in TypeScript eine formale Beschreibung auf Typebene. Dadurch werden bestimmte Strukturfehler früher sichtbar und die internen Invarianten des Programms klarer dokumentiert.
+
+Zugleich zeigt diese Typdefinition aber auch eine Grenze der gewählten Umsetzung. Der Typ \texttt{AST} ist zwar präziser als eine rein dynamische Struktur, bleibt aber bewusst allgemein. Er unterscheidet beispielsweise nicht statisch zwischen arithmetischen Ausdrücken, booleschen Vergleichen und Statement-Listen. Die Fallstudie illustriert damit sehr gut, dass die Übersetzung nach TypeScript nicht automatisch maximale Typpräzision bedeutet, sondern dass zwischen Flexibilität und Strenge eine bewusste Entwurfsentscheidung getroffen werden muss.
+
+\subsection{Transformation vom CST zum AST}
+
+Die Umwandlung des Lezer-Baums in die AST-Repräsentation erfolgt über die Funktion \texttt{cst2ast}, die im Notebook importiert und mit zwei zentralen Konfigurationslisten parametrisiert wird:
+
+\begin{minted}{typescript}
+const myOperators = [
+    "IF", "WHILE", ":=",              
+    "+", "-", "*", "/", "%",
+    "==", "!=", "<", ">", "<=", ">="
+];
+
+const myListVars = ["Program", "NeExprList"];
+\end{minted}
+
+Die Operatorliste legt fest, welche syntaktischen Symbole im AST als eigentliche Operatoren erscheinen sollen. Die Liste \texttt{myListVars} markiert jene Nichtterminale, die Listen repräsentieren. Im AST werden diese Listen nicht als Arrays, sondern als verkettete Punkt-Strukturen kodiert. Diese Entscheidung ist konzeptionell interessant, weil sie die rekursive Natur der Grammatik auch auf der Ebene der abstrakten Repräsentation erhält. Eine Folge von Statements wird dadurch nicht als flache Sequenz, sondern als rekursiv geschachtelte Struktur dargestellt.
+
+Aus der Perspektive der formalen Sprachverarbeitung ist dieser Schritt besonders wichtig: Der Parser allein reicht nicht aus, um eine gut verarbeitbare interne Repräsentation zu erzeugen. Erst die explizite Transformation in einen AST schafft jene Struktur, auf der semantische Operationen effizient formuliert werden können \autocite[S.~358\,ff.]{aho2006compilers}.
+
+\subsection{Interpretation des AST}
+
+Nach der Transformation beginnt der semantische Teil des Notebooks. Hierfür werden vier zentrale Funktionen deklariert:
+
+\begin{minted}{typescript}
+let execute:      (node: AST, env: Environment) => void;
+let executeList:  (list: AST, env: Environment) => void;
+let evaluate:     (node: AST, env: Environment) => number;
+let evaluateBool: (node: AST, env: Environment) => boolean;
+\end{minted}
+
+Das Ausführungsmodell trennt damit klar zwischen Statements, Statement-Listen, arithmetischen Ausdrücken und booleschen Ausdrücken. Diese funktionale Aufteilung ist didaktisch sehr sinnvoll, weil sie die semantischen Rollen der verschiedenen AST-Knoten klar voneinander abgrenzt.
+
+Der Zustand des Programms wird durch eine Umgebung repräsentiert:
+
+\begin{minted}{typescript}
+type Environment = Map<string, number>;
+let inputStream: string[] = [];
+\end{minted}
+
+Die Entscheidung für \texttt{Map<string, number>} ist ein besonders anschauliches Beispiel für den Mehrwert von TypeScript. In Python wäre eine solche Umgebung meist einfach ein Dictionary, das zwar flexibel, aber nur konventionell eingeschränkt ist. Im Notebook ist dagegen auf Typebene festgelegt, dass Variablennamen Strings und Werte Zahlen sind. Die Umgebung wird dadurch zu einer klar spezifizierten semantischen Struktur.
+
+Die Ausführung von Statement-Listen erfolgt rekursiv über die mit \texttt{'.'} markierten Listen-Knoten:
+
+\begin{minted}{typescript}
+executeList = (list: AST, env: Environment) => {
+    if (list === "") return;
+    
+    if (Array.isArray(list) && list[0] === '.') {
+        const head = list[1];
+        const tail = list[2];
+
+        if (head !== undefined && tail !== undefined) {
+            execute(head, env);
+            executeList(tail, env);
+        }
+    }
+};
+\end{minted}
+
+Die rekursive Struktur entspricht direkt der rekursiven Definition von \texttt{Program} in der Grammatik. Damit wird eine zentrale Gemeinsamkeit zwischen Syntax und Semantik sichtbar: Beide Ebenen arbeiten mit denselben rekursiven Grundmustern. Genau dieser Zusammenhang zwischen rekursiver Grammatik und rekursiver Verarbeitung ist für formale Sprachen charakteristisch \autocite[S.~61\,ff.]{grune2008parsing}.
+
+Auch die Statement-Ausführung selbst ist eng an die AST-Tags gebunden:
+
+\begin{minted}{typescript}
+execute = (node: AST, env: Environment): void => {    
+    if (!Array.isArray(node)) return;
+    const tag = node[0];
+
+    if (tag === '.') {
+        executeList(node, env);
+        return;
+    }
+
+    if (tag === "block") {
+        const content = node[1];
+        if (content !== undefined) {
+            executeList(content, env);
+        }
+    }
+    else if (tag === ":=") {
+        const name = node[1];
+        const expr = node[2];
+        if (typeof name === "string" && expr !== undefined) {
+            env.set(name, evaluate(expr, env));
+        }
+    }
+    else if (tag === "IF") {
+        const cond = node[1];
+        const body = node[2];
+        if (cond !== undefined && body !== undefined) {
+            if (evaluateBool(cond, env)) execute(body, env);
+        }
+    }
+    else if (tag === "WHILE") {
+        const cond = node[1];
+        const body = node[2];
+        if (cond !== undefined && body !== undefined) {
+            while (evaluateBool(cond, env)) execute(body, env);
+        }
+    }
+    else if (tag === "Call") {
+        evaluate(node, env);
+    }
+};
+\end{minted}
+
+Die Semantik ist hier unmittelbar lesbar: Zuweisungen aktualisieren die Umgebung, \texttt{IF}-Knoten prüfen eine Bedingung und führen optional einen Teilbaum aus, \texttt{WHILE}-Knoten wiederholen die Ausführung solange die Bedingung wahr bleibt. Damit bildet das Notebook die klassische Interpreter-Idee einer rekursiven, syntaxgesteuerten Auswertung konkret nach.
+
+\subsection{Visualisierung des Abstract Syntax Tree}
+
+Zur besseren Nachvollziehbarkeit der internen Programmrepräsentation wird im Notebook eine grafische Darstellung des Abstract Syntax Tree (AST) erzeugt. Hierfür wird die Bibliothek \texttt{viz-js} verwendet, die auf dem Graphviz-Ökosystem basiert und DOT-Beschreibungen in skalierbare Vektorgrafiken (SVG) umwandelt.
+
+Die Transformation des AST in eine DOT-Repräsentation erfolgt über eine Hilfsfunktion:
+
+\begin{minted}{typescript}
+const dotSum = ast2dot(astSum);
+display.html(viz.renderString(dotSum, { format: "svg" }));
+\end{minted}
+
+Durch diese Visualisierung wird die Baumstruktur des Programms explizit sichtbar. Insbesondere komplexe Konstrukte wie verschachtelte Kontrollstrukturen oder rekursive Ausdrucksstrukturen lassen sich so deutlich besser analysieren als durch eine rein textuelle Darstellung.
+
+Ein zusätzlicher Vorteil der gewählten Darstellung liegt in der sogenannten „List Flattening“-Optimierung. Dabei werden interne Listenstrukturen (z.\,B. verkettete Punkt-Listen) visuell vereinfacht, sodass die resultierenden Graphen eine deutlich höhere Lesbarkeit aufweisen.
+
+Die grafische Darstellung unterstützt somit nicht nur das Verständnis der konkreten Implementierung, sondern verdeutlicht auch grundlegende Konzepte der Syntaxbaumverarbeitung \autocite[S.~45ff]{aho2006compilers}.
