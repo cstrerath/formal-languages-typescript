@@ -16,12 +16,16 @@
 % --- 3. Mathematik ---
 \usepackage{amsmath} % (Doppelter Eintrag entfernt)
 \usepackage{amssymb}
+\usepackage{amsthm}
 \usepackage{stmaryrd}
+
+
 
 % --- 4. Farben, Grafiken & Zeichnungen ---
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{pdfpages}
+\usepackage[many]{tcolorbox}
 \usepackage{tikz}
 \usetikzlibrary{shapes, shapes.multipart, arrows.meta, positioning, calc, decorations.pathreplacing}
 
@@ -38,6 +42,14 @@
 \setlength{\cftsecnumwidth}{2.9em}
 \setlength{\cftsubsecnumwidth}{3.9em}
 \setlength{\cftsubsubsecnumwidth}{4.9em}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\tcolorboxenvironment{definition}{
+  colback=blue!5!white, % Heller blauer Hintergrund
+  colframe=blue!75!black, % Dunkelblauer Rahmen
+  arc=3pt, % Leicht abgerundete Ecken
+  left=5pt, right=5pt, top=5pt, bottom=5pt
+}
 
 % --- 6. Tabellen ---
 \usepackage{tabularx}

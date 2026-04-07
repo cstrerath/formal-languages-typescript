@@ -5,7 +5,7 @@
 
 Die Theoretische Informatik bildet ein wichtiges Fundament im Informatikstudium. Themen wie Automaten oder formale Sprachen können anfangs jedoch sehr abstrakt wirken. Um diese theoretischen Konzepte greifbarer zu machen, kommen in der Vorlesung \enquote{Theoretische Informatik III} interaktive Notebooks zum Einsatz. Dort wird erklärender Text direkt mit ausführbarem Programmcode gemischt. Bislang basieren diese Notebooks auf der Programmiersprache Python. Studierende können so theoretische Algorithmen direkt ausprobieren, verändern und live nachvollziehen.
 
-Diese Arbeit befasst sich mit der Übertragung dieser Lehrinhalte in die Programmiersprache TypeScript. Der Fokus liegt dabei auf einer Portierung, welche nicht nur die Syntax übersetzt, sondern die Konzepte der formalen Sprachen durch verbindliche Datenstrukturen explizit modelliert.
+Diese Arbeit befasst sich mit der Übertragung dieser Lehrinhalte in die Programmiersprache TypeScript. Der Fokus liegt dabei auf einer Portierung, welche nicht nur die Syntax übersetzt, sondern die Konzepte der formalen Sprachen durch feste, verbindliche Datenstrukturen explizit modelliert.
 
 \subsection{Problemstellung}
 \label{subsec:problemstellung}
@@ -13,9 +13,9 @@ Diese Arbeit befasst sich mit der Übertragung dieser Lehrinhalte in die Program
 Ausgangspunkt dieser Arbeit sind interaktive Python-Notebooks, die Konzepte der theoretischen Informatik demonstrieren. Werden diese Lehrmaterialien in das TypeScript-Ökosystem übertragen, reicht es jedoch nicht aus, lediglich die Syntax der Sprache zu übersetzen. Es entstehen fundamentale technische Hürden, da beide Sprachen Daten auf unterschiedliche Weise verarbeiten. Folgende zwei Problemfelder stehen dabei im Fokus:
 
 \paragraph*{Zu späte Fehlererkennung bei verschachtelten Daten}
-In Python haben Variablen keine festen Typen. Das führt oft dazu, dass Programmierfehler erst auffallen, wenn der Code ausgeführt wird und plötzlich abstürzt. Zwar gibt es externe Werkzeuge, um Datentypen in Python nachträglich zu prüfen, diese sind jedoch nicht nativ in die Sprache integriert und stoßen gerade in der interaktiven Umgebung der Notebooks oft an ihre Grenzen.
+Python ist eine dynamische Sprache. Das bedeutet, dass Variablen keine festen Typen haben und Fehler oft erst dann auffallen, wenn das Programm ausgeführt wird und abstürzt. Zwar gibt es Werkzeuge, um Typen in Python zu prüfen, in der interaktiven Umgebung eines Jupyter-Notebooks übersehen diese jedoch häufig Fehler. 
 
-In der Vorlesung arbeiten wir ständig mit tief verschachtelten Objekten, beispielsweise Datenstrukturen, bei denen eine Liste wieder viele weitere Objekte und Listen enthält. Fehlt einem dieser verschachtelten Elemente versehentlich eine wichtige Eigenschaft, merkt Python das erst, wenn der Code im Hintergrund genau dieses fehlerhafte Element aufruft. Wir benötigen stattdessen eine Sprache, die uns schon während des Tippens garantiert, dass unsere Datenstrukturen über alle Ebenen hinweg fehlerfrei und vollständig aufgebaut sind.
+In der Vorlesung arbeiten wir ständig mit tief verschachtelten Objekten -- beispielsweise Datenstrukturen, bei denen eine Liste wieder viele weitere Objekte und Listen enthält. Fehlt einem dieser verschachtelten Elemente versehentlich eine wichtige Eigenschaft, merkt Python das erst, wenn der Code im Hintergrund genau dieses fehlerhafte Element aufruft. Wir benötigen stattdessen eine Sprache, die uns schon während des Tippens garantiert, dass unsere Datenstrukturen über alle Ebenen hinweg fehlerfrei und vollständig aufgebaut sind.
 
 \paragraph*{Das unerwartete Verhalten von Mengen (Sets)}
 Das gravierendste Hindernis bei der Übersetzung zeigt sich jedoch bei der Arbeit mit Mengen (Sets). In der theoretischen Informatik ist es unumgänglich, berechnete Zustände in Mengen zu speichern, um Duplikate zu vermeiden oder später zu prüfen, ob ein Zustand bereits erreicht wurde.
@@ -23,56 +23,46 @@ Das gravierendste Hindernis bei der Übersetzung zeigt sich jedoch bei der Arbei
 In Python funktioniert das exakt so, wie man es intuitiv erwartet. Fügen wir ein Tupel in eine Menge ein und fragen danach ab, ob ein Tupel mit denselben Zahlen enthalten ist, liefert Python das erwartete Ergebnis:
 
 \begin{listing}[H]
-    \caption{Mengen in Python: Das erwartete Verhalten}
-    \label{lst:set_python}
-    \begin{minted}{python}
+	\caption{Mengen in Python: Das erwartete Verhalten}
+	\label{lst:set_python}
+	\begin{minted}{python}
 menge = set()
 menge.add((1, 2))
 
-# Die Menge enthält das Tupel sichtbar
-print(menge)            # Ausgabe: {(1, 2)}
-
 # Die Abfrage liefert das erwartete Ergebnis
 print((1, 2) in menge)  # Ausgabe: True
-    \end{minted}
+	\end{minted}
 \end{listing}
 
-Ein naiver Übersetzungsversuch nach TypeScript führt hier jedoch zu einem fundamentalen Bruch in der Logik. Zwar erlaubt uns die Sprache, im Code ganz genau festzulegen, dass unsere Menge ausschließlich Tupel aus exakt zwei Zahlen aufnehmen darf. Führen wir diesen Code jedoch aus und fragen das zuvor hinzugefügte Element ab, erhalten wir plötzlich ein falsches Ergebnis:
+Ein naiver Übersetzungsversuch nach TypeScript führt hier jedoch zu einem fundamentalen Bruch in der Logik. Nutzen wir die Standard-Datenstruktur \texttt{Set} in TypeScript auf die exakt gleiche Weise, erhalten wir plötzlich ein falsches Ergebnis:
 
 \begin{listing}[H]
-    \caption{Mengen in TypeScript: Das fehlerhafte Verhalten bei Tupeln}
-    \label{lst:set_ts}
-    \begin{minted}{typescript}
-// Wir definieren den Typ Tuple, der zwei Zahlen akzeptiert.
-type Tuple = [number, number];
-
-// Die Menge soll nur diese Tupel akzeptieren
-const menge = new Set<Tuple>();
+	\caption{Mengen in TypeScript: Das fehlerhafte Verhalten}
+	\label{lst:set_ts_untyped}
+	\begin{minted}{typescript}
+const menge = new Set();
 menge.add([1, 2]);
 
-// Die Menge enthält das Element sichtbar
-console.log(menge);             // Ausgabe: Set(1) { [ 1, 2 ] }
-
-// Die Abfrage liefert ein ungewöhnliches Ergebnis
+// TypeScript findet das Array überraschenderweise nicht
 console.log(menge.has([1, 2])); // Ausgabe: false
-    \end{minted}
+	\end{minted}
 \end{listing}
 
-Obwohl die Konsolenausgabe beweist, dass das Element \texttt{[1, 2]} offensichtlich in die Menge eingefügt wurde, behauptet TypeScripts Standard-Set in der anschließenden Abfrage, es sei nicht vorhanden. Dieser zunächst unerklärliche Widerspruch führt bei einer direkten Portierung dazu, dass Logik-Abfragen fehlschlagen, Endlosschleifen entstehen und Algorithmen falsche Ergebnisse liefern.
+Obwohl das Array \texttt{[1, 2]} im Code zuvor offensichtlich in die Menge eingefügt wurde, behauptet TypeScript, es sei nicht vorhanden. Dieser zunächst unerklärliche Unterschied führt bei einer direkten Portierung dazu, dass Logik-Abfragen fehlschlagen, Endlosschleifen entstehen und Algorithmen falsche Ergebnisse liefern. Die Ursachenforschung und Behebung dieses Verhaltens ist die zentrale technische Herausforderung dieser Arbeit.
 
 \subsection{Zielsetzung}
 \label{subsec:zielsetzung}
 
-Das übergeordnete Ziel dieser Arbeit ist es, die Lehrinhalte der Vorlesung \enquote{Theoretische Informatik III} vollständig nach TypeScript zu übersetzen. Die neue Codebasis soll die bisherigen Python-Notebooks ersetzen und dabei die strikten Typvorgaben der neuen Sprache nutzen, um Fehler schon während des Schreibens zu verhindern. 
+Das übergeordnete Ziel dieser Arbeit ist es, die Lehrinhalte der Vorlesung \enquote{Theoretische Informatik III} vollständig nach TypeScript zu übersetzen. Die neue Codebasis soll die bisherigen Python-Notebooks ersetzen und dabei die klaren Strukturvorgaben der neuen Sprache nutzen, um Fehler frühzeitig zu vermeiden. 
 
 Daraus leiten sich folgende konkrete Teilziele ab:
 
 \begin{enumerate}
-    \item \textbf{Strukturierte Neuimplementierung:} Die Algorithmen der Vorlesung sollen vollständig in TypeScript portiert werden. Der fehleranfällige Verzicht auf feste Typen in Python wird dabei durch verbindliche Datenstrukturen und strikte Typvorgaben ersetzt.
-
-    \item \textbf{Lösung des Mengen-Problems:} Um die Algorithmen fehlerfrei auszuführen, muss das fehlerhafte Verhalten von TypeScripts Standard-Sets umgangen werden. Das zentrale technische Ziel ist daher die Entwicklung einer eigenen Datenstruktur, die sich beim Vergleichen von Inhalten exakt wie ein Python-Set verhält und auch tief verschachtelte Objekte verlässlich erkennt.
-    
-    \item \textbf{Einheitliche Ausführungsumgebung:} Da die Notebooks lokal auf den Rechnern der Studierenden ausgeführt werden, muss eine standardisierte Umgebung geschaffen werden, die unabhängig vom Betriebssystem identisch funktioniert. Ein wichtiges technisches Teilziel ist es dabei, die Hintergrundprozesse der Notebooks so anzupassen, dass TypeScripts strenge Prüfregeln auch bei der interaktiven, schrittweisen Ausführung zuverlässig greifen. Der Einrichtungsaufwand soll durch eine klare Anleitung minimal gehalten werden.
+	\item \textbf{Strukturierte Neuimplementierung:} Die Algorithmen der Vorlesung sollen in TypeScript portiert werden. Die dynamische, oft fehleranfälligere Natur von Python soll dabei durch verbindliche Datenstrukturen und Typvorgaben ersetzt werden.
+	
+	\item \textbf{Lösung des Mengen-Problems:} Um die Algorithmen fehlerfrei auszuführen, muss das unerwartete Verhalten von TypeScripts \texttt{Set} analysiert und behoben werden. Ziel ist die Entwicklung einer maßgeschneiderten Datenstruktur, die sich exakt wie ein Python-Set verhält und verschachtelte Objekte verlässlich erkennt.
+	
+	\item \textbf{Einheitliche Ausführungsumgebung:} Da die Notebooks lokal ausgeführt werden, muss eine standardisierte Umgebung geschaffen werden, die unabhängig vom Betriebssystem identisch funktioniert. Ein wichtiges technisches Teilziel ist es dabei, die Hintergrundprozesse der Notebooks so anzupassen, dass TypeScripts strenge Prüfregeln auch bei der interaktiven, schrittweisen Ausführung zuverlässig erzwungen werden. Der Einrichtungsaufwand für Studierende soll durch eine klare Schritt-für-Schritt-Anleitung minimal gehalten werden.
 \end{enumerate}
 
 \subsection{Methodik und Abgrenzung}
@@ -84,4 +74,4 @@ Ein zentraler methodischer Aspekt betrifft die didaktische Aufbereitung: Die beg
 
 Auf technischer Ebene war die Minimierung von Systemabhängigkeiten ein wesentliches Entwurfsziel. Insbesondere für die grafische Visualisierung von Automaten und Graphen wurde darauf geachtet, keine komplexen lokalen Installationen von externer Software vorauszusetzen. Stattdessen kommen integrierbare, plattformunabhängige Lösungen zum Einsatz, um die Ausführung auf verschiedenen Betriebssystemen zu garantieren und den Einstieg für die Studierenden so barrierefrei wie möglich zu gestalten.
 
-Um die Ergebnisse dieser Arbeit nachvollziehbar und frei zugänglich zu machen, wird der gesamte entwickelte Quellcode in einem öffentlichen \gls{repository} bereitgestellt. Die Implementierung ist unter der URL \url{https://github.com/cstrerath/formal-languages-typescript} im Verzeichnis \texttt{TypeScript} abrufbar.
+Zur Gewährleistung der Reproduzierbarkeit und für die freie Zugänglichkeit der Ergebnisse wird der gesamte entwickelte Quellcode in einem öffentlichen Repository bereitgestellt. Die Implementierung ist unter der URL \url{https://github.com/cstrerath/formal-languages-typescript} im Verzeichnis \texttt{TypeScript} abrufbar.
