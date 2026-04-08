@@ -16,41 +16,93 @@ Das Notebook implementiert einen vollständigen Interpreter für eine kleine imp
     \item rekursive Interpretation des AST.
 \end{enumerate}
 
-Damit greift das Notebook exakt jene Struktur auf, die auch in klassischen Compiler- und Interpreter-Systemen verwendet wird: Eine formale Grammatik beschreibt die syntaktisch zulässigen Programme, der Parser konstruiert daraus eine Baumdarstellung, und ein nachgelagerter Verarbeitungsschritt interpretiert diese Repräsentation semantisch \autocite[S.~42\,ff.]{aho2006compilers}.
+Diese Struktur entspricht sowohl in der Python- als auch in der TypeScript-Implementierung dem klassischen Aufbau eines Interpreters. Während die Python-Variante typischerweise auf PLY basiert und Lexer sowie Parser explizit trennt, wird in der TypeScript-Version mit Lezer eine integrierte, deklarative Grammatik verwendet. Unabhängig vom eingesetzten Werkzeug bleibt die zugrunde liegende Architektur identisch. Eine formale Grammatik beschreibt die syntaktisch zulässigen Programme, der Parser konstruiert daraus eine Baumdarstellung, und ein nachgelagerter Verarbeitungsschritt interpretiert diese Repräsentation semantisch \autocite[S.42ff.]{aho2006compilers}.
 
-\subsection{Sprachdefinition durch die Lezer-Grammatik}
+\subsection{Sprachdefinition im Vergleich: Python (PLY) vs. TypeScript (Lezer)}
 
-Die Sprache wird im Notebook direkt als String in TypeScript formuliert. Dadurch wird die Grammatik nicht in einer externen Datei verwaltet, sondern unmittelbar in den Programmcode eingebettet. Das folgende Fragment zeigt den Beginn der im Notebook definierten Grammatik:
+In der ursprünglichen Python-Implementierung wird die Sprache mithilfe von \emph{PLY} (Python Lex-Yacc) definiert. Dabei erfolgt eine klassische Trennung zwischen lexikalischer und syntaktischer Analyse, wie sie in der Compilertechnik etabliert ist \autocite[S.~5ff]{aho2006compilers}. Die Tokenisierung wird durch reguläre Ausdrücke beschrieben, während die Grammatikregeln in Form von Python-Funktionen implementiert werden. Dieses Vorgehen orientiert sich eng an traditionellen Werkzeugen wie \emph{Lex} und \emph{Yacc} und spiegelt den zweiphasigen Aufbau eines Compilers wieder.
 
+\begin{listing}[htbp]
+\caption{Ply-Grammatik}
+\label{lst:ply-grammatik}
+\begin{minted}{python}
+import ply.lex as lex
+tokens = [ 
+    'NUMBER',     # r'0|[1-9][0-9]*'
+    'IDENTIFIER', # r'[a-zA-Z][a-zA-Z0-9_]*'
+    'ASSIGN',     # r':='
+    'EQ',         # r'=='
+    'NE',         # r'!='
+    'LE',         # r'<='
+    'GE',         # r'>='
+    'IF',         # see below
+    'WHILE'       # see below
+]
+def t_COMMENT(t):
+    r'/\*(.|\n)*?\*/|//.*'
+    t.lexer.lineno += t.value.count('\n')
+def t_NUMBER(t):
+    r'0|[1-9][0-9]*'
+    t.value = int(t.value)
+    return t
+t_ASSIGN = r':='
+t_EQ     = r'=='
+t_NE     = r'!='
+t_LE     = r'<='
+t_GE     = r'>='
+Keywords = { 'if': 'IF', 'while': 'WHILE' }
+def t_IDENTIFIER(t):
+    r'[a-zA-Z][a-zA-Z0-9_]*'
+    t.type = Keywords.get(t.value, 'IDENTIFIER')
+    return t
+literals = ['+', '-', '*', '/', '%', '(', ')', '{', '}', ';', '<', '>', ',']
+t_ignore  = ' \t\r'
+def t_newline(t):
+    r'\n'
+    t.lexer.lineno += 1
+    return
+def find_column(token):
+    program    = token.lexer.lexdata  # the complete string given to the scanner
+    line_start = program.rfind('\n', 0, token.lexpos)
+    return token.lexpos - line_start
+def t_error(t):
+    column = find_column(t)
+    print(f"Illegal character '{t.value[0]}' in line {t.lineno}, column {column}.")
+    t.lexer.skip(1)
+lexer = lex.lex()  
+\end{minted}
+\end{listing}
+
+Dieses Vorgehen führt zu einer engen Verzahnung von Grammatik und Programmlogik. Grammatikregeln sind implizit in Python-Code eingebettet, wodurch die formale Struktur der Sprache weniger explizit sichtbar ist. Gleichzeitig ermöglicht dieser Ansatz eine flexible Integration semantischer Aktionen direkt in den Parser.
+
+Im Gegensatz dazu wird die Sprache in der TypeScript-Implementierung mit \emph{Lezer} deklarativ als Grammatik spezifiziert. Die Grammatik wird dabei als strukturierter String formuliert und anschließend automatisch in einen Parser übersetzt. Dieses Vorgehen entspricht stärker der formalen Definition kontextfreier Grammatiken, wie sie in der Theorie formaler Sprachen üblich sind \autocite[S.~171ff]{hopcroft2006automata}.
+
+\begin{listing}[htbp]
+\caption{Lezer-Grammatik-Teil1}
+\label{lst:Lezer-grammatik-t1}
 \begin{minted}{typescript}
+import { buildParser } from "@lezer/generator";
 const grammarString = `
     @top Script { Program }
-
     @tokens {
         Identifier { $[a-zA-Z] $[a-zA-Z0-9_]* }
         Number     { "0" | $[1-9] $[0-9]* }
-
         "+" "-" "*" "/" "%"
         ":=" "==" "!=" "<=" ">=" "<" ">"
         "(" ")" "{" "}"
         ";" "," 
-
         space { $[ \t\n\r]+ }
         LineComment { "//" ![\n]* }
         BlockComment { "/*" ( ![*] | "*" + ![*/] )* "*"+ "/" }
         @precedence { LineComment, BlockComment, "/" }
     }
-
     @skip { space | LineComment | BlockComment }
-
     IF    { @specialize<Identifier, "if"> }
     WHILE { @specialize<Identifier, "while"> }
-
     Program {
         Stmnt Program | 
         ""
     }
-
     Stmnt {
         IF "(" BoolExpr ")" Stmnt    |
         WHILE "(" BoolExpr ")" Stmnt |
@@ -58,7 +110,6 @@ const grammarString = `
         Identifier ":=" Expr ";"     |
         Expr ";"
     }
-
     BoolExpr {
         Expr "==" Expr |
         Expr "!=" Expr |
@@ -67,107 +118,199 @@ const grammarString = `
         Expr "<"  Expr |
         Expr ">"  Expr
     }
-
     Expr {
         Expr "+" Product |
         Expr "-" Product |
         Product
-    }
+`
+\end{minted}
+\end{listing}
 
+\begin{listing}[htbp]
+\caption{Lezer-Grammatik-Teil2}
+\label{lst:Lezer-grammatik-t2}
+\begin{minted}{typescript}
+`
     Product {
         Product "*" Factor |
         Product "/" Factor | 
         Product "%" Factor |
         Factor
     }
-
     Factor {
         "(" Expr ")"                |
         Number                      |
         Identifier                  |
         Identifier "(" ExprList ")"
     }
-
     ExprList {
         NeExprList | 
         ""
     }
-
     NeExprList {
         Expr |
         Expr "," NeExprList
     }
 `;
-\end{minted}
-
-Bereits an diesem Ausschnitt wird deutlich, dass das Notebook nicht nur die eigentliche Grammatik, sondern auch die lexikalische Ebene integriert. Identifier, Zahlen, Operatoren, Klammern, Kommentare sowie überspringbare Eingabeelemente wie Leerzeichen und Zeilenumbrüche werden gemeinsam beschrieben. Inhaltlich entspricht dies der klassischen Trennung zwischen lexikalischer und syntaktischer Analyse, auch wenn beide Ebenen hier innerhalb derselben Lezer-Spezifikation formuliert werden \autocite[S.~109\,ff.]{aho2006compilers}.
-
-Ein zentrales Detail ist die Behandlung von Kommentaren und des Zeichens \texttt{/}. Da dieses sowohl als Divisionsoperator als auch als Beginn von Zeilen- oder Blockkommentaren auftreten kann, definiert das Notebook explizit eine Prioritätsregel. Solche Konflikte zwischen konkurrierenden Tokenmustern sind ein klassisches Problem der lexikalischen Analyse und werden typischerweise durch Priorisierung oder längste Übereinstimmung aufgelöst \autocite[S.~128\,ff.]{aho2006compilers}.
-
-Die eigentliche Programmsyntax wird rekursiv formuliert. Besonders auffällig ist dabei, dass Listenstrukturen etwa Folgen von Statements oder Ausdruckslisten nicht mit bequemen Wiederholungsoperatoren modelliert werden, sondern durch explizite Rekursion. Das zeigt sich beispielsweise in der Definition von \texttt{Program}:
-
-\begin{minted}{typescript}
-Program {
-    Stmnt Program | 
-    ""
-}
-
-Stmnt {
-    IF "(" BoolExpr ")" Stmnt    |
-    WHILE "(" BoolExpr ")" Stmnt |
-    "{" Program "}"              |
-    Identifier ":=" Expr ";"     |
-    Expr ";"
-}
-\end{minted}
-
-Diese Form ist für die Fallstudie besonders relevant, weil sie die rekursive Struktur der Sprache unmittelbar sichtbar macht. Gleichzeitig bleibt die entstehende CST-Struktur nahe an der formalen Grammatik. Die verwendete Grammatik ist damit eine kontextfreie Grammatik im klassischen Sinn, wie sie für Programmiersprachen und Parsergeneratoren typisch ist \autocite[S.~171\,ff.]{hopcroft2006automata}.
-
-\subsection{Parsergenerierung und syntaktische Analyse}
-
-Auf Basis der Grammatik erzeugt das Notebook den Parser direkt zur Laufzeit:
-
-\begin{minted}{typescript}
-import { buildParser } from "@lezer/generator";
 const parser = buildParser(grammarString);
 \end{minted}
+\end{listing}
 
-Damit wird aus der formalen Sprachbeschreibung ein ausführbarer Parser konstruiert. Aus Sicht der Compilertechnik entspricht dies genau der Verwendung eines Parsergenerators, wie sie auch bei traditionellen Werkzeugen üblich ist \autocite[S.~194\,ff.]{hopcroft2006automata}. Der Unterschied besteht weniger im Grundprinzip als vielmehr in der konkreten Einbettung in das TypeScript-Ökosystem.
+Ein wesentlicher Unterschied zwischen beiden Ansätzen liegt somit im Abstraktionsniveau: Während PLY eine imperativ definierte Kombination aus Lexer- und Parserlogik darstellt, beschreibt Lezer die Sprache deklarativ auf Basis einer expliziten Grammatik. Diese deklarative Form erleichtert insbesondere die Analyse, Wartbarkeit und Weiterverarbeitung der Grammatik, da die Struktur der Sprache klar getrennt von ihrer Verarbeitung beschrieben wird.
 
-Die eigentliche Parse-Funktion des Notebooks verbindet Dateieinlesen, syntaktische Analyse und AST-Erzeugung:
+Darüber hinaus unterstützt Lezer moderne Anforderungen wie inkrementelles Parsing, das insbesondere für editornahe Anwendungen relevant ist. Der Parser kann dabei Änderungen effizient verarbeiten, ohne die gesamte Eingabe neu analysieren zu müssen. Dies stellt einen wesentlichen Vorteil gegenüber klassischen Parsergeneratoren dar, die typischerweise eine vollständige Neuverarbeitung der Eingabe voraussetzen.
 
-\begin{minted}{typescript}
-function parse(fileName: string): AST {
-    const source = readFileSync(fileName, "utf8");
-    const tree   = parser.parse(source);
-    return cst2ast(tree.cursor(), source, myOperators, myListVars);
-}
-\end{minted}
-
-An dieser Stelle wird der Ablauf des gesamten Frontends sichtbar. Zunächst wird der Quelltext als Zeichenkette eingelesen, anschließend vom Parser analysiert und in einen CST überführt. Dieser CST wird dann nicht direkt interpretiert, sondern zunächst in einen AST transformiert. Genau diese Trennung ist auch theoretisch bedeutsam: Der CST repräsentiert die syntaktische Struktur sehr detailliert, während der AST nur noch jene Informationen enthält, die für die spätere semantische Verarbeitung relevant sind \autocite[S.~45\,ff.]{aho2006compilers}.
-
-\subsection{AST-Modellierung in TypeScript}
-
-Ein wesentlicher Unterschied zur Python-Variante zeigt sich in der expliziten Modellierung des AST. Das Notebook verwendet hierfür keinen allgemeinen Objektbaum, sondern einen rekursiven Typ, der aus Zahlen, Strings und Tupel-artigen Operatorstrukturen besteht:
-
-\begin{minted}{typescript}
-type Operator = string;
-type AST = string | number | 
-           [Operator, AST]                |
-           [Operator, AST, AST]           |
-           [Operator, AST, AST, AST]      |
-           [Operator, AST, AST, AST, AST];
-\end{minted}
-
-Diese Modellierung ist für die Fallstudie besonders aussagekräftig. Einerseits bleibt sie relativ nah an der dynamischen Flexibilität der Python-Implementierung, weil Operatoren weiterhin als Strings kodiert werden. Andererseits wird die rekursive Struktur des AST durch das Typsystem bereits explizit beschrieben. Genau hier zeigt sich ein typischer Mehrwert von TypeScript: Datenstrukturen, die in Python häufig nur implizit durch Konventionen abgesichert sind, erhalten in TypeScript eine formale Beschreibung auf Typebene. Dadurch werden bestimmte Strukturfehler früher sichtbar und die internen Invarianten des Programms klarer dokumentiert.
-
-Zugleich zeigt diese Typdefinition aber auch eine Grenze der gewählten Umsetzung. Der Typ \texttt{AST} ist zwar präziser als eine rein dynamische Struktur, bleibt aber bewusst allgemein. Er unterscheidet beispielsweise nicht statisch zwischen arithmetischen Ausdrücken, booleschen Vergleichen und Statement-Listen. Die Fallstudie illustriert damit sehr gut, dass die Übersetzung nach TypeScript nicht automatisch maximale Typpräzision bedeutet, sondern dass zwischen Flexibilität und Strenge eine bewusste Entwurfsentscheidung getroffen werden muss.
+Zusammenfassend lässt sich festhalten, dass PLY einen eher traditionellen, eng an der Implementierung orientierten Ansatz verfolgt, während Lezer eine stärker formal orientierte und deklarative Beschreibung der Sprache ermöglicht. Diese Unterschiede sind insbesondere im Kontext der Übersetzung von Python nach TypeScript relevant, da sie unterschiedliche Möglichkeiten zur Modellierung und Weiterverarbeitung von Sprachstrukturen bieten.
 
 \subsection{Transformation vom CST zum AST}
 
-Die Umwandlung des Lezer-Baums in die AST-Repräsentation erfolgt über die Funktion \texttt{cst2ast}, die im Notebook importiert und mit zwei zentralen Konfigurationslisten parametrisiert wird:
+Ein wesentlicher Unterschied zwischen beiden Implementierungen zeigt sich unmittelbar nach dem Parsing. In der Python-Version wird der AST bereits während der Anwendung der Grammatikregeln erzeugt. Die semantischen Aktionen der PLY-Produktionen konstruieren direkt die interne Repräsentation, sodass keine separate Transformationsphase zwischen Parsebaum und abstrakter Syntax mehr erforderlich ist. Die Grammatik und die Konstruktion der Zielstruktur sind damit eng miteinander verbunden.
 
+\begin{listing}[htbp]
+\caption{Direkte AST-Konstruktion in PLY Teil1}
+\label{lst:ply-ast-direkt-t1}
+\begin{minted}{python}
+start = 'program'
+def p_program_lambda(p):
+    "program : "
+    p[0] = ('.',)
+def p_program_more(p):
+    "program : stmnt program"
+    p[0] = ('.', p[1]) + p[2][1:]
+def p_stmnt_if(p):
+    "stmnt : IF '(' bool_expr ')' stmnt"
+    p[0] = ('if', p[3], p[5])   
+
+def p_stmnt_while(p):
+    "stmnt : WHILE '(' bool_expr ')' stmnt"
+    p[0] = ('while', p[3], p[5])
+    
+def p_stmnt_block(p):
+    "stmnt : '{' program '}'"
+    p[0] = p[2]
+    
+def p_stmnt_assign(p):
+    "stmnt : IDENTIFIER ASSIGN expr ';'"
+    p[0] = (':=', p[1], p[3]) 
+
+def p_stmnt_expr(p):
+    "stmnt : expr ';'"
+    p[0] = ('expr', p[1])
+
+def p_bool_expr_eq(p):
+    "bool_expr : expr EQ expr"
+    p[0] = ('==', p[1], p[3])
+
+def p_bool_expr_ne(p):
+    "bool_expr : expr NE expr"
+    p[0] = ('!=', p[1], p[3])
+
+def p_bool_expr_le(p):
+    "bool_expr : expr LE expr"
+    p[0] = ('<=', p[1], p[3])
+    
+\end{minted}
+\end{listing}
+
+\begin{listing}[htbp]
+\caption{Direkte AST-Konstruktion in PLY Teil2}
+\label{lst:ply-ast-direkt-t2}
+\begin{minted}{python}
+def p_bool_expr_ge(p):
+    "bool_expr : expr GE expr"
+    p[0] = ('>=', p[1], p[3])
+    
+def p_bool_expr_lt(p):
+    "bool_expr : expr '<' expr"
+    p[0] = ('<', p[1], p[3])
+
+def p_bool_expr_gt(p):
+    "bool_expr : expr '>' expr"
+    p[0] = ('>', p[1], p[3])
+
+def p_expr_plus(p):
+    "expr : expr '+' product"
+    p[0] = ('+', p[1], p[3])
+    
+def p_expr_minus(p):
+    "expr : expr '-' product"
+    p[0] = ('-', p[1], p[3])
+
+def p_expr_product(p):
+    "expr : product"
+    p[0] = p[1]
+    
+def p_product_times(p):
+    "product : product '*' factor"
+    p[0] = ('*', p[1], p[3])
+    
+def p_product_divide(p):
+    "product : product '/' factor"
+    p[0] = ('/', p[1], p[3])
+
+def p_product_modulo(p):
+    "product : product '%' factor"
+    p[0] = ('%', p[1], p[3])
+\end{minted}
+\end{listing}
+
+\begin{listing}[htbp]
+\caption{Direkte AST-Konstruktion in PLY Teil3}
+\label{lst:ply-ast-direkt-t3}
+\begin{minted}{python}
+def p_product_factor(p):
+    "product : factor"
+    p[0] = p[1]
+
+def p_factor_paren(p):
+    "factor : '(' expr ')'"
+    p[0] = p[2]
+
+def p_factor_number(p):
+    "factor : NUMBER"
+    p[0] = p[1]
+
+def p_factor_identifier(p):
+    "factor : IDENTIFIER"
+    p[0] = p[1]
+
+def p_factor_fct_call(p):
+    "factor : IDENTIFIER '(' expr_list ')'"
+    p[0] = ('call', p[1]) + p[3][1:]
+
+def p_expr_list_empty(p):
+    "expr_list : "
+    p[0] = ('.',)
+     
+def p_expr_more(p):
+    "expr_list : ne_expr_list"
+    p[0] = p[1]     
+
+def p_ne_expr_list_one(p):
+    "ne_expr_list : expr"
+    p[0] = ('.', p[1]) 
+    
+def p_ne_expr_list_more(p):
+    "ne_expr_list : expr ',' ne_expr_list"
+    p[0] = ('.', p[1]) + p[3][1:] 
+def p_error(t):
+    column = find_column(t)
+    if t:
+        print(f'Syntax error at token "{t.value}" in line {t.lineno}, column {column}.')
+    else:
+        print('Syntax error at end of input.')
+parser = yacc.yacc(write_tables=False, debug=True)
+\end{minted}
+\end{listing}
+
+Die TypeScript-Variante trennt diese Schritte klarer. Lezer erzeugt zunächst einen CST, der anschließend durch eine eigene Transformationsfunktion in einen AST überführt wird. Dadurch wird die klassische Trennung zwischen konkreter und abstrakter Syntax explizit sichtbar \autocite[S.~42ff.]{aho2006compilers}.
+
+\begin{listing}[htbp]
+\caption{CST-zu-AST-Transformation in TypeScript}
+\label{lst:ts-cst-zu-ast}
 \begin{minted}{typescript}
+import { cst2ast } from './CST2AST';
+
 const myOperators = [
     "IF", "WHILE", ":=",              
     "+", "-", "*", "/", "%",
@@ -175,36 +318,56 @@ const myOperators = [
 ];
 
 const myListVars = ["Program", "NeExprList"];
+
+function parse(fileName: string): AST {
+    const source = readFileSync(fileName, "utf8");
+    const tree   = parser.parse(source);
+    return cst2ast(tree.cursor(), source, myOperators, myListVars);
+}
 \end{minted}
+\end{listing}
 
-Die Operatorliste legt fest, welche syntaktischen Symbole im AST als eigentliche Operatoren erscheinen sollen. Die Liste \texttt{myListVars} markiert jene Nichtterminale, die Listen repräsentieren. Im AST werden diese Listen nicht als Arrays, sondern als verkettete Punkt-Strukturen kodiert. Diese Entscheidung ist konzeptionell interessant, weil sie die rekursive Natur der Grammatik auch auf der Ebene der abstrakten Repräsentation erhält. Eine Folge von Statements wird dadurch nicht als flache Sequenz, sondern als rekursiv geschachtelte Struktur dargestellt.
+Die Python-Variante erzeugt ihre Zielstruktur somit unmittelbar innerhalb der Grammatikregeln, während die TypeScript-Version einen expliziten Zwischenschritt einführt. Diese zusätzliche Transformationsphase erhöht die Modularität der Implementierung und trennt die formale Beschreibung der Sprache deutlicher von ihrer internen Repräsentation.
 
-Aus der Perspektive der formalen Sprachverarbeitung ist dieser Schritt besonders wichtig: Der Parser allein reicht nicht aus, um eine gut verarbeitbare interne Repräsentation zu erzeugen. Erst die explizite Transformation in einen AST schafft jene Struktur, auf der semantische Operationen effizient formuliert werden können \autocite[S.~358\,ff.]{aho2006compilers}.
+\subsection{Darstellung rekursiver Listenstrukturen}
 
-\subsection{Interpretation des AST}
+Auch bei der Modellierung rekursiver Listenstrukturen folgen beide Notebooks demselben Grundprinzip. Sowohl Programmlisten als auch Argumentlisten werden als Punktlisten dargestellt. In der Python-Version geschieht dies direkt in den PLY-Regeln.
 
-Nach der Transformation beginnt der semantische Teil des Notebooks. Hierfür werden vier zentrale Funktionen deklariert:
+\begin{listing}[htbp]
+\caption{Rekursive Listen in der Python-Version}
+\label{lst:ply-listen}
+\begin{minted}{python}
+def p_program_lambda(p):
+    "program : "
+    p[0] = ('.',)
 
-\begin{minted}{typescript}
-let execute:      (node: AST, env: Environment) => void;
-let executeList:  (list: AST, env: Environment) => void;
-let evaluate:     (node: AST, env: Environment) => number;
-let evaluateBool: (node: AST, env: Environment) => boolean;
+def p_program_more(p):
+    "program : stmnt program"
+    p[0] = ('.', p[1]) + p[2][1:]
+
+def p_expr_list_empty(p):
+    "expr_list : "
+    p[0] = ('.',)
+     
+def p_expr_more(p):
+    "expr_list : ne_expr_list"
+    p[0] = p[1]     
+
+def p_ne_expr_list_one(p):
+    "ne_expr_list : expr"
+    p[0] = ('.', p[1]) 
+    
+def p_ne_expr_list_more(p):
+    "ne_expr_list : expr ',' ne_expr_list"
+    p[0] = ('.', p[1]) + p[3][1:]
 \end{minted}
+\end{listing}
 
-Das Ausführungsmodell trennt damit klar zwischen Statements, Statement-Listen, arithmetischen Ausdrücken und booleschen Ausdrücken. Diese funktionale Aufteilung ist didaktisch sehr sinnvoll, weil sie die semantischen Rollen der verschiedenen AST-Knoten klar voneinander abgrenzt.
+In der TypeScript-Version bleibt diese Listenstruktur ebenfalls erhalten, wird jedoch explizit durch eine eigene Ausführungsfunktion verarbeitet. Die rekursive Form wird damit nicht nur beim Aufbau des AST, sondern auch bei seiner semantischen Verarbeitung sichtbar.
 
-Der Zustand des Programms wird durch eine Umgebung repräsentiert:
-
-\begin{minted}{typescript}
-type Environment = Map<string, number>;
-let inputStream: string[] = [];
-\end{minted}
-
-Die Entscheidung für \texttt{Map<string, number>} ist ein besonders anschauliches Beispiel für den Mehrwert von TypeScript. In Python wäre eine solche Umgebung meist einfach ein Dictionary, das zwar flexibel, aber nur konventionell eingeschränkt ist. Im Notebook ist dagegen auf Typebene festgelegt, dass Variablennamen Strings und Werte Zahlen sind. Die Umgebung wird dadurch zu einer klar spezifizierten semantischen Struktur.
-
-Die Ausführung von Statement-Listen erfolgt rekursiv über die mit \texttt{'.'} markierten Listen-Knoten:
-
+\begin{listing}[htbp]
+\caption{Verarbeitung rekursiver Listen in TypeScript}
+\label{lst:ts-listen}
 \begin{minted}{typescript}
 executeList = (list: AST, env: Environment) => {
     if (list === "") return;
@@ -220,11 +383,61 @@ executeList = (list: AST, env: Environment) => {
     }
 };
 \end{minted}
+\end{listing}
 
-Die rekursive Struktur entspricht direkt der rekursiven Definition von \texttt{Program} in der Grammatik. Damit wird eine zentrale Gemeinsamkeit zwischen Syntax und Semantik sichtbar: Beide Ebenen arbeiten mit denselben rekursiven Grundmustern. Genau dieser Zusammenhang zwischen rekursiver Grammatik und rekursiver Verarbeitung ist für formale Sprachen charakteristisch \autocite[S.~61\,ff.]{grune2008parsing}.
+Die Gemeinsamkeit beider Varianten liegt darin, dass die rekursive Struktur der Grammatik unmittelbar in die interne Repräsentation übernommen wird. Der Unterschied besteht vor allem darin, dass TypeScript diese Listenstruktur zusätzlich durch Hilfsfunktionen systematischer kapselt.
 
-Auch die Statement-Ausführung selbst ist eng an die AST-Tags gebunden:
+\subsection{Typisierung und interne AST-Repräsentation}
 
+Ein besonders markanter Unterschied zwischen beiden Implementierungen liegt in der Darstellung des AST. In Python bleibt die Baumstruktur implizit durch Tupelkonventionen beschrieben. Welche Form ein Knoten besitzt, ergibt sich aus dem verwendeten Tag und der Position seiner Operanden. In TypeScript wird dieselbe Struktur dagegen durch einen expliziten Typ beschrieben.
+
+\begin{listing}[htbp]
+\caption{AST-Typdefinition in TypeScript}
+\label{lst:ts-ast-typ}
+\begin{minted}{typescript}
+type Operator = string;
+type AST = string | number | 
+           [Operator, AST]                |
+           [Operator, AST, AST]           |
+           [Operator, AST, AST, AST]      |
+           [Operator, AST, AST, AST, AST];
+\end{minted}
+\end{listing}
+
+Diese Typdefinition dokumentiert die rekursive Struktur des AST unmittelbar im Programmtext. Während in Python nur informell klar ist, dass etwa \texttt{('+', lhs, rhs)} einen binären Ausdruck repräsentiert, wird in TypeScript explizit festgelegt, dass AST-Knoten aus Zahlen, Bezeichnern oder Operator-Tupeln verschiedener Stelligkeit bestehen. Dadurch wird die Baumstruktur besser dokumentiert und teilweise statisch überprüfbar.
+
+\subsection{Interpreterarchitektur im Vergleich}
+
+Die Grundstruktur des Interpreters bleibt in beiden Notebooks gleich. Sowohl in Python als auch in TypeScript erfolgt eine Trennung in Anweisungsausführung, arithmetische Auswertung und boolesche Auswertung. In der Python-Version wird dies durch Pattern Matching über Tupel realisiert.
+
+\begin{listing}[htbp]
+\caption{Ausführung von Anweisungen in Python}
+\label{lst:ply-execute}
+\begin{minted}{python}
+def execute(stmnt: NestedTuple, Values: dict[str, Number]) -> None:
+    match stmnt:
+        case ('.', *SL):
+            execute_tuple(tuple(SL), Values)
+        case (':=', var, value):
+            Values[var] = evaluate(value, Values)
+        case ('expr', expr):
+            evaluate(expr, Values)
+        case ('if', test, stmnt):
+            if evaluate_bool(test, Values):
+                execute(stmnt, Values)
+        case ('while', test, stmnt):
+            while evaluate_bool(test, Values):
+                execute(stmnt, Values)
+        case _:
+            assert False, f'{stmnt} unexpected'
+\end{minted}
+\end{listing}
+
+Die TypeScript-Version folgt derselben semantischen Idee, verwendet aber explizite Fallunterscheidungen über Knotentags.
+
+\begin{listing}[htbp]
+\caption{Ausführung von Anweisungen in TypeScript}
+\label{lst:ts-execute}
 \begin{minted}{typescript}
 execute = (node: AST, env: Environment): void => {    
     if (!Array.isArray(node)) return;
@@ -267,22 +480,198 @@ execute = (node: AST, env: Environment): void => {
     }
 };
 \end{minted}
+\end{listing}
 
-Die Semantik ist hier unmittelbar lesbar: Zuweisungen aktualisieren die Umgebung, \texttt{IF}-Knoten prüfen eine Bedingung und führen optional einen Teilbaum aus, \texttt{WHILE}-Knoten wiederholen die Ausführung solange die Bedingung wahr bleibt. Damit bildet das Notebook die klassische Interpreter-Idee einer rekursiven, syntaxgesteuerten Auswertung konkret nach.
+Die semantische Struktur bleibt also erhalten, obwohl sich die sprachspezifischen Mittel unterscheiden. Python nutzt Tupel und Pattern Matching, TypeScript verwendet Array-Prüfungen und String-Tags.
 
-\subsection{Visualisierung des Abstract Syntax Tree}
+\subsection{Auswertung arithmetischer Ausdrücke}
 
-Zur besseren Nachvollziehbarkeit der internen Programmrepräsentation wird im Notebook eine grafische Darstellung des Abstract Syntax Tree (AST) erzeugt. Hierfür wird die Bibliothek \texttt{viz-js} verwendet, die auf dem Graphviz-Ökosystem basiert und DOT-Beschreibungen in skalierbare Vektorgrafiken (SVG) umwandelt.
+Auch bei der Auswertung arithmetischer Ausdrücke zeigen sich deutliche strukturelle Parallelen. In Python wird die Semantik direkt durch rekursive Fallunterscheidung über die Tupelform des Knotens beschrieben.
 
-Die Transformation des AST in eine DOT-Repräsentation erfolgt über eine Hilfsfunktion:
-
-\begin{minted}{typescript}
-const dotSum = ast2dot(astSum);
-display.html(viz.renderString(dotSum, { format: "svg" }));
+\begin{listing}[htbp]
+\caption{Arithmetische Auswertung in Python}
+\label{lst:ply-evaluate}
+\begin{minted}{python}
+def evaluate(expr: NestedTuple, Values: dict[str, Number]) -> Number:
+    match expr:
+        case int():
+            return expr
+        case str():
+            return Values[expr] 
+        case ('call', 'read'):
+            return int(input('Please enter a natural number: '))
+        case ('call', 'print', expr):
+            print(evaluate(expr, Values))
+            return 0;
+        case ('+', lhs, rhs):
+            return evaluate(lhs, Values) + evaluate(rhs, Values)
+        case ('-', lhs, rhs):
+            return evaluate(lhs, Values) - evaluate(rhs, Values)
+        case ('*', lhs, rhs):
+            return evaluate(lhs, Values) * evaluate(rhs, Values)
+        case ('/', lhs, rhs):
+            return evaluate(lhs, Values) / evaluate(rhs, Values)
+        case ('%', lhs, rhs):
+            return evaluate(lhs, Values) % evaluate(rhs, Values)
+        case _:
+            assert False, f'{expr} unexpected'
 \end{minted}
+\end{listing}
 
-Durch diese Visualisierung wird die Baumstruktur des Programms explizit sichtbar. Insbesondere komplexe Konstrukte wie verschachtelte Kontrollstrukturen oder rekursive Ausdrucksstrukturen lassen sich so deutlich besser analysieren als durch eine rein textuelle Darstellung.
+Die TypeScript-Version bildet dieselbe rekursive Struktur nach, ergänzt jedoch explizite Prüfungen auf undefinierte Variablen sowie Fehlerbehandlung bei Division durch Null.
 
-Ein zusätzlicher Vorteil der gewählten Darstellung liegt in der sogenannten „List Flattening“-Optimierung. Dabei werden interne Listenstrukturen (z.\,B. verkettete Punkt-Listen) visuell vereinfacht, sodass die resultierenden Graphen eine deutlich höhere Lesbarkeit aufweisen.
+\begin{listing}[htbp]
+\caption{Arithmetische Auswertung in TypeScript Teil 1}
+\label{lst:ts-evaluate-t1}
+\begin{minted}{typescript}
+evaluate = (node: AST, env: Environment): number => {
+    if (typeof node === "number") return node;
+    if (typeof node === "string") {
+        const val = env.get(node);
+        if (val === undefined) throw new Error(`Undefined var ${node}`);
+        return val;
+    }
 
-Die grafische Darstellung unterstützt somit nicht nur das Verständnis der konkreten Implementierung, sondern verdeutlicht auch grundlegende Konzepte der Syntaxbaumverarbeitung \autocite[S.~45ff]{aho2006compilers}.
+    if (Array.isArray(node)) {
+        const tag = node[0];
+
+        if (["+", "-", "*", "/", "%"].includes(tag)) {
+             const leftNode = node[1];
+             const rightNode = node[2];
+
+             if (leftNode !== undefined && rightNode !== undefined) {
+                 const l = evaluate(leftNode, env);
+                 const r = evaluate(rightNode, env);
+                 switch(tag) {
+                     case "+": return l + r;
+                     case "-": return l - r;
+                     case "*": return l * r;
+                     case "/": 
+                         if (r === 0) throw new Error("Division by zero");
+                         return Math.floor(l / r);
+                     case "%": 
+                         if (r === 0) throw new Error("Modulo by zero");
+                         return l % r;
+                 }
+             }
+        }
+        if (tag === "Call") {
+             const fn = node[1];
+             const argsNode = node[2]; 
+
+             if (fn === "print" && argsNode !== undefined) {
+                 if (Array.isArray(argsNode) && argsNode[0] === '.') {
+                     const actualArg = argsNode[1];
+                     if (actualArg !== undefined) {
+                        console.log(">> STDOUT:", evaluate(actualArg, env));
+....
+}}}}}}
+\end{minted}
+\end{listing}
+
+Die prinzipielle Auswertungslogik bleibt damit erhalten. Auffällig ist jedoch, dass die TypeScript-Version die Division mit \texttt{Math.floor(l / r)} als ganzzahlige Division realisiert, während in Python direkt der Operator \texttt{/} verwendet wird. Damit zeigt sich, dass eine Portierung nicht nur strukturelle, sondern auch semantische Detailentscheidungen umfasst.
+
+\subsection{Auswertung boolescher Bedingungen}
+
+Die boolesche Auswertung ist in beiden Implementierungen analog aufgebaut. Vergleichsoperatoren werden rekursiv ausgewertet und liefern einen Wahrheitswert zurück.
+
+\begin{listing}[htbp]
+\caption{Boolesche Auswertung in Python}
+\label{lst:ply-evaluate-bool}
+\begin{minted}{python}
+def evaluate_bool(expr: NestedTuple, Values: dict[str, Number]) -> bool:
+    match expr:
+        case ('==', lhs, rhs):
+            return evaluate(lhs, Values) == evaluate(rhs, Values)
+        case ('!=', lhs, rhs):
+            return evaluate(lhs, Values) != evaluate(rhs, Values)
+        case ('<=', lhs, rhs):
+            return evaluate(lhs, Values) <= evaluate(rhs, Values)
+        case ('>=', lhs, rhs):
+            return evaluate(lhs, Values) >= evaluate(rhs, Values)
+        case ('<', lhs, rhs):
+            return evaluate(lhs, Values) <  evaluate(rhs, Values)
+        case ('>', lhs, rhs):
+            return evaluate(lhs, Values) >  evaluate(rhs, Values)
+        case _:
+            assert False, f'{expr} unexpected'
+\end{minted}
+\end{listing}
+
+\begin{listing}[htbp]
+\caption{Boolesche Auswertung in TypeScript}
+\label{lst:ts-evaluate-bool}
+\begin{minted}{typescript}
+evaluateBool = (node: AST, env: Environment): boolean => {
+    if (Array.isArray(node)) {
+        const tag = node[0];
+        if (["==", "!=", "<", ">", "<=", ">="].includes(tag)) {
+             const leftNode = node[1];
+             const rightNode = node[2];
+
+             if (leftNode !== undefined && rightNode !== undefined) {
+                 const l = evaluate(leftNode, env);
+                 const r = evaluate(rightNode, env);
+                 switch(tag) {
+                     case "==": return l == r;
+                     case "!=": return l != r;
+                     case "<":  return l < r;
+                     case ">":  return l > r;
+                     case "<=": return l <= r;
+                     case ">=": return l >= r;
+                 }
+             }
+        }
+    }
+    throw new Error("Invalid boolean expression");
+};
+\end{minted}
+\end{listing}
+
+Hier zeigt sich besonders deutlich, dass die eigentliche Interpretersemantik weitgehend unverändert bleibt. Unterschiede ergeben sich vor allem aus der konkreten Form der AST-Repräsentation und aus den sprachspezifischen Mitteln der Fallunterscheidung.
+
+\subsection{Umgebungsmodell und Programmausführung}
+
+Der Programmlauf basiert in beiden Notebooks auf einer Variablenumgebung, die Bezeichner auf numerische Werte abbildet. In Python wird hierfür ein Dictornary verwendet, in TypeScript eine \texttt{Map<string, number>}.
+
+\begin{listing}[htbp]
+\caption{Programmausführung in Python}
+\label{lst:ply-main}
+\begin{minted}{python}
+def main(file):
+    with open(file, 'r') as handle:
+        program = handle.read() 
+    stmnt = yacc.parse(program)
+    print(stmnt)
+    Values = {}
+    execute(stmnt, Values)
+\end{minted}
+\end{listing}
+
+\begin{listing}[htbp]
+\caption{Programmausführung in TypeScript}
+\label{lst:ts-runprogram}
+\begin{minted}{typescript}
+type Environment = Map<string, number>;
+let inputStream: string[] = [];
+
+function runProgram(fileName: string, inputs: string[] = []) {
+    console.log(`\n--- Executing File: ${fileName} ---`);
+    console.log(`--- Inputs: [${inputs.join(", ")}] ---`);
+    inputStream = [...inputs];
+    console.log(inputStream);
+    try {
+        const ast = parse(fileName);
+        execute(ast, new Map());
+    } catch (e) { console.error(e); }
+}
+\end{minted}
+\end{listing}
+
+Gerade an dieser Stelle wird ein praktischer Unterschied sichtbar: Während die Python-Version interaktive Eingaben direkt über \texttt{input(...)} verarbeitet, simuliert die TypeScript-Version Eingaben über einen vorbereiteten \texttt{inputStream}. Dies erleichtert insbesondere in Notebook-Umgebungen reproduzierbare Testläufe.
+
+\subsection{Ergebnisse der Case Study}
+
+Die Gegenüberstellung der restlichen Notebook-Bestandteile bestätigt die zentrale Beobachtung dieser Fallstudie: Die TypeScript-Version übernimmt die grundlegende Interpreterarchitektur des Python-Originals, modelliert die einzelnen Verarbeitungsschritte jedoch expliziter und modularer. Besonders deutlich wird dies an der Trennung von CST und AST, an der typisierten Beschreibung der Baumstruktur sowie an der systematischeren Behandlung rekursiver Listen und Laufzeitfehler.
+
+Gleichzeitig zeigt der Vergleich der konkreten Codeausschnitte, dass die Portierung nicht nur eine Übertragung syntaktischer Konstrukte darstellt. Vielmehr werden bei der Umsetzung in TypeScript Entscheidungen über Abstraktionsniveau, Fehlerbehandlung und teilweise auch über semantische Details getroffen. Die TypeScript-Variante erscheint dadurch als stärker strukturierte und typisierte Rekonstruktion derselben interpretertechnischen Grundidee.
