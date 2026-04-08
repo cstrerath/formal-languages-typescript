@@ -38,49 +38,37 @@ tokens = [
     'IF',         # see below
     'WHILE'       # see below
 ]
-
 def t_COMMENT(t):
     r'/\*(.|\n)*?\*/|//.*'
     t.lexer.lineno += t.value.count('\n')
-
 def t_NUMBER(t):
     r'0|[1-9][0-9]*'
     t.value = int(t.value)
     return t
-
 t_ASSIGN = r':='
 t_EQ     = r'=='
 t_NE     = r'!='
 t_LE     = r'<='
 t_GE     = r'>='
-
 Keywords = { 'if': 'IF', 'while': 'WHILE' }
-
 def t_IDENTIFIER(t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
     t.type = Keywords.get(t.value, 'IDENTIFIER')
     return t
-
 literals = ['+', '-', '*', '/', '%', '(', ')', '{', '}', ';', '<', '>', ',']
-
 t_ignore  = ' \t\r'
-
 def t_newline(t):
     r'\n'
     t.lexer.lineno += 1
     return
-
-
 def find_column(token):
     program    = token.lexer.lexdata  # the complete string given to the scanner
     line_start = program.rfind('\n', 0, token.lexpos)
     return token.lexpos - line_start
-
 def t_error(t):
     column = find_column(t)
     print(f"Illegal character '{t.value[0]}' in line {t.lineno}, column {column}.")
     t.lexer.skip(1)
-
 lexer = lex.lex()  
 \end{minted}
 \end{listing}
@@ -90,38 +78,31 @@ Dieses Vorgehen führt zu einer engen Verzahnung von Grammatik und Programmlogik
 Im Gegensatz dazu wird die Sprache in der TypeScript-Implementierung mit \emph{Lezer} deklarativ als Grammatik spezifiziert. Die Grammatik wird dabei als strukturierter String formuliert und anschließend automatisch in einen Parser übersetzt. Dieses Vorgehen entspricht stärker der formalen Definition kontextfreier Grammatiken, wie sie in der Theorie formaler Sprachen üblich sind \autocite[S.~171ff]{hopcroft2006automata}.
 
 \begin{listing}[htbp]
-\caption{lezer-Grammatik}
-\label{lst:lezer-grammatik}
+\caption{Lezer-Grammatik-Teil1}
+\label{lst:Lezer-grammatik-t1}
 \begin{minted}{typescript}
 import { buildParser } from "@lezer/generator";
 const grammarString = `
     @top Script { Program }
-
     @tokens {
         Identifier { $[a-zA-Z] $[a-zA-Z0-9_]* }
         Number     { "0" | $[1-9] $[0-9]* }
-
         "+" "-" "*" "/" "%"
         ":=" "==" "!=" "<=" ">=" "<" ">"
         "(" ")" "{" "}"
         ";" "," 
-
         space { $[ \t\n\r]+ }
         LineComment { "//" ![\n]* }
         BlockComment { "/*" ( ![*] | "*" + ![*/] )* "*"+ "/" }
         @precedence { LineComment, BlockComment, "/" }
     }
-
     @skip { space | LineComment | BlockComment }
-
     IF    { @specialize<Identifier, "if"> }
     WHILE { @specialize<Identifier, "while"> }
-
     Program {
         Stmnt Program | 
         ""
     }
-
     Stmnt {
         IF "(" BoolExpr ")" Stmnt    |
         WHILE "(" BoolExpr ")" Stmnt |
@@ -129,7 +110,6 @@ const grammarString = `
         Identifier ":=" Expr ";"     |
         Expr ";"
     }
-
     BoolExpr {
         Expr "==" Expr |
         Expr "!=" Expr |
@@ -138,32 +118,35 @@ const grammarString = `
         Expr "<"  Expr |
         Expr ">"  Expr
     }
-
     Expr {
         Expr "+" Product |
         Expr "-" Product |
         Product
-    }
+`
+\end{minted}
+\end{listing}
 
+\begin{listing}[htbp]
+\caption{Lezer-Grammatik-Teil2}
+\label{lst:Lezer-grammatik-t2}
+\begin{minted}{typescript}
+`
     Product {
         Product "*" Factor |
         Product "/" Factor | 
         Product "%" Factor |
         Factor
     }
-
     Factor {
         "(" Expr ")"                |
         Number                      |
         Identifier                  |
         Identifier "(" ExprList ")"
     }
-
     ExprList {
         NeExprList | 
         ""
     }
-
     NeExprList {
         Expr |
         Expr "," NeExprList
@@ -175,7 +158,7 @@ const parser = buildParser(grammarString);
 
 Ein wesentlicher Unterschied zwischen beiden Ansätzen liegt somit im Abstraktionsniveau: Während PLY eine imperativ definierte Kombination aus Lexer- und Parserlogik darstellt, beschreibt Lezer die Sprache deklarativ auf Basis einer expliziten Grammatik. Diese deklarative Form erleichtert insbesondere die Analyse, Wartbarkeit und Weiterverarbeitung der Grammatik, da die Struktur der Sprache klar getrennt von ihrer Verarbeitung beschrieben wird.
 
-Darüber hinaus unterstützt Lezer moderne Anforderungen wie inkrementelles Parsing, das insbesondere für editornahe Anwendungen relevant ist. Der Parser kann dabei Änderungen effizient verarbeiten, ohne die gesamte Eingabe neu analysieren zu müssen \autocite[S.~3ff]{grune2008parsing}. Dies stellt einen wesentlichen Vorteil gegenüber klassischen Parsergeneratoren dar, die typischerweise eine vollständige Neuverarbeitung der Eingabe voraussetzen.
+Darüber hinaus unterstützt Lezer moderne Anforderungen wie inkrementelles Parsing, das insbesondere für editornahe Anwendungen relevant ist. Der Parser kann dabei Änderungen effizient verarbeiten, ohne die gesamte Eingabe neu analysieren zu müssen. Dies stellt einen wesentlichen Vorteil gegenüber klassischen Parsergeneratoren dar, die typischerweise eine vollständige Neuverarbeitung der Eingabe voraussetzen.
 
 Zusammenfassend lässt sich festhalten, dass PLY einen eher traditionellen, eng an der Implementierung orientierten Ansatz verfolgt, während Lezer eine stärker formal orientierte und deklarative Beschreibung der Sprache ermöglicht. Diese Unterschiede sind insbesondere im Kontext der Übersetzung von Python nach TypeScript relevant, da sie unterschiedliche Möglichkeiten zur Modellierung und Weiterverarbeitung von Sprachstrukturen bieten.
 
@@ -184,9 +167,16 @@ Zusammenfassend lässt sich festhalten, dass PLY einen eher traditionellen, eng 
 Ein wesentlicher Unterschied zwischen beiden Implementierungen zeigt sich unmittelbar nach dem Parsing. In der Python-Version wird der AST bereits während der Anwendung der Grammatikregeln erzeugt. Die semantischen Aktionen der PLY-Produktionen konstruieren direkt die interne Repräsentation, sodass keine separate Transformationsphase zwischen Parsebaum und abstrakter Syntax mehr erforderlich ist. Die Grammatik und die Konstruktion der Zielstruktur sind damit eng miteinander verbunden.
 
 \begin{listing}[htbp]
-\caption{Direkte AST-Konstruktion in PLY}
-\label{lst:ply-ast-direkt}
+\caption{Direkte AST-Konstruktion in PLY Teil1}
+\label{lst:ply-ast-direkt-t1}
 \begin{minted}{python}
+start = 'program'
+def p_program_lambda(p):
+    "program : "
+    p[0] = ('.',)
+def p_program_more(p):
+    "program : stmnt program"
+    p[0] = ('.', p[1]) + p[2][1:]
 def p_stmnt_if(p):
     "stmnt : IF '(' bool_expr ')' stmnt"
     p[0] = ('if', p[3], p[5])   
@@ -206,6 +196,110 @@ def p_stmnt_assign(p):
 def p_stmnt_expr(p):
     "stmnt : expr ';'"
     p[0] = ('expr', p[1])
+
+def p_bool_expr_eq(p):
+    "bool_expr : expr EQ expr"
+    p[0] = ('==', p[1], p[3])
+
+def p_bool_expr_ne(p):
+    "bool_expr : expr NE expr"
+    p[0] = ('!=', p[1], p[3])
+
+def p_bool_expr_le(p):
+    "bool_expr : expr LE expr"
+    p[0] = ('<=', p[1], p[3])
+    
+\end{minted}
+\end{listing}
+
+\begin{listing}[htbp]
+\caption{Direkte AST-Konstruktion in PLY Teil2}
+\label{lst:ply-ast-direkt-t2}
+\begin{minted}{python}
+def p_bool_expr_ge(p):
+    "bool_expr : expr GE expr"
+    p[0] = ('>=', p[1], p[3])
+    
+def p_bool_expr_lt(p):
+    "bool_expr : expr '<' expr"
+    p[0] = ('<', p[1], p[3])
+
+def p_bool_expr_gt(p):
+    "bool_expr : expr '>' expr"
+    p[0] = ('>', p[1], p[3])
+
+def p_expr_plus(p):
+    "expr : expr '+' product"
+    p[0] = ('+', p[1], p[3])
+    
+def p_expr_minus(p):
+    "expr : expr '-' product"
+    p[0] = ('-', p[1], p[3])
+
+def p_expr_product(p):
+    "expr : product"
+    p[0] = p[1]
+    
+def p_product_times(p):
+    "product : product '*' factor"
+    p[0] = ('*', p[1], p[3])
+    
+def p_product_divide(p):
+    "product : product '/' factor"
+    p[0] = ('/', p[1], p[3])
+
+def p_product_modulo(p):
+    "product : product '%' factor"
+    p[0] = ('%', p[1], p[3])
+\end{minted}
+\end{listing}
+
+\begin{listing}[htbp]
+\caption{Direkte AST-Konstruktion in PLY Teil3}
+\label{lst:ply-ast-direkt-t3}
+\begin{minted}{python}
+def p_product_factor(p):
+    "product : factor"
+    p[0] = p[1]
+
+def p_factor_paren(p):
+    "factor : '(' expr ')'"
+    p[0] = p[2]
+
+def p_factor_number(p):
+    "factor : NUMBER"
+    p[0] = p[1]
+
+def p_factor_identifier(p):
+    "factor : IDENTIFIER"
+    p[0] = p[1]
+
+def p_factor_fct_call(p):
+    "factor : IDENTIFIER '(' expr_list ')'"
+    p[0] = ('call', p[1]) + p[3][1:]
+
+def p_expr_list_empty(p):
+    "expr_list : "
+    p[0] = ('.',)
+     
+def p_expr_more(p):
+    "expr_list : ne_expr_list"
+    p[0] = p[1]     
+
+def p_ne_expr_list_one(p):
+    "ne_expr_list : expr"
+    p[0] = ('.', p[1]) 
+    
+def p_ne_expr_list_more(p):
+    "ne_expr_list : expr ',' ne_expr_list"
+    p[0] = ('.', p[1]) + p[3][1:] 
+def p_error(t):
+    column = find_column(t)
+    if t:
+        print(f'Syntax error at token "{t.value}" in line {t.lineno}, column {column}.')
+    else:
+        print('Syntax error at end of input.')
+parser = yacc.yacc(write_tables=False, debug=True)
 \end{minted}
 \end{listing}
 
@@ -427,8 +521,8 @@ def evaluate(expr: NestedTuple, Values: dict[str, Number]) -> Number:
 Die TypeScript-Version bildet dieselbe rekursive Struktur nach, ergänzt jedoch explizite Prüfungen auf undefinierte Variablen sowie Fehlerbehandlung bei Division durch Null.
 
 \begin{listing}[htbp]
-\caption{Arithmetische Auswertung in TypeScript}
-\label{lst:ts-evaluate}
+\caption{Arithmetische Auswertung in TypeScript Teil 1}
+\label{lst:ts-evaluate-t1}
 \begin{minted}{typescript}
 evaluate = (node: AST, env: Environment): number => {
     if (typeof node === "number") return node;
@@ -461,7 +555,6 @@ evaluate = (node: AST, env: Environment): number => {
                  }
              }
         }
-
         if (tag === "Call") {
              const fn = node[1];
              const argsNode = node[2]; 
@@ -471,20 +564,8 @@ evaluate = (node: AST, env: Environment): number => {
                      const actualArg = argsNode[1];
                      if (actualArg !== undefined) {
                         console.log(">> STDOUT:", evaluate(actualArg, env));
-                     }
-                 }
-                 return 0;
-             }
-             if (fn === "read") {
-                 const input = inputStream.shift();
-                 const val = input !== undefined ? Number(input) : 0;
-                 console.log("<< STDIN:", val);
-                 return val;
-             }
-        }
-    }
-    throw new Error(`Invalid expression node: ${JSON.stringify(node)}`);
-};
+....
+}}}}}}
 \end{minted}
 \end{listing}
 
@@ -551,7 +632,7 @@ Hier zeigt sich besonders deutlich, dass die eigentliche Interpretersemantik wei
 
 \subsection{Umgebungsmodell und Programmausführung}
 
-Der Programmlauf basiert in beiden Notebooks auf einer Variablenumgebung, die Bezeichner auf numerische Werte abbildet. In Python wird hierfür ein Wörterbuch verwendet, in TypeScript eine \texttt{Map<string, number>}.
+Der Programmlauf basiert in beiden Notebooks auf einer Variablenumgebung, die Bezeichner auf numerische Werte abbildet. In Python wird hierfür ein Dictornary verwendet, in TypeScript eine \texttt{Map<string, number>}.
 
 \begin{listing}[htbp]
 \caption{Programmausführung in Python}
