@@ -1,0 +1,661 @@
+% !TEX root = ../master.tex
+\section{Case Study: Umsetzung eines vollständigen Interpreters in TypeScript}
+\label{sec:case_study}
+
+In diesem Kapitel wird die praktische Umsetzung der zuvor entwickelten Konzepte anhand des Notebooks \texttt{03-Interpreter.ipynb} (aus \enquote{Chapter-07} der Lehrveranstaltung) dargestellt. Im Mittelpunkt steht eine vollständige Verarbeitungskette für eine kleine \texttt{C}-ähnliche Sprache: von der Sprachdefinition über die Parsergenerierung und die Transformation des \glslink{cst}{\textit{Concrete Syntax Tree}} (\glslink{cst_acr}{CST}) in einen \glslink{ast}{\textit{Abstract Syntax Tree}} (\glslink{ast_acr}{AST}) bis hin zur eigentlichen Interpretation des Programms.
+
+Die Fallstudie dient als Vergleichspunkt zwischen der ursprünglichen Python-basierten Lehrumgebung und der TypeScript-Portierung. Beide Implementierungen folgen denselben compilertechnischen Grundprinzipien, verteilen die dabei entstehende Komplexität jedoch unterschiedlich. Während \emph{\glslink{ply}{PLY}} die klassische Trennung von lexikalischer und syntaktischer Analyse für den Einstieg sehr explizit macht, ermöglicht \emph{Lezer} eine formal klarere, \glslink{ebnf}{EBNF}-nahe Darstellung der Grammatik. Dies führt bei \emph{Lezer} jedoch zu einem detaillierten \glslink{cst_acr}{CST}, der erst in einer zusätzlichen Transformationsphase in eine für die Programmauswertung geeignete Struktur überführt werden muss.
+
+\subsection{Ziel und Aufbau des Notebooks}
+
+Das Notebook implementiert einen vollständigen Interpreter für eine kleine imperative Sprache mit Variablen, arithmetischen Ausdrücken, Bedingungen, Schleifen und elementaren Funktionsaufrufen. Die Verarbeitungskette besteht in beiden Implementierungen aus vier Schritten:
+
+\begin{enumerate}
+    \item Definition der Sprache durch eine formale Grammatik,
+    \item Erzeugung eines Parsers aus dieser Grammatik,
+    \item Konstruktion oder Ableitung eines abstrakten Syntaxbaums (\glslink{ast_acr}{AST}),
+    \item rekursive semantische Interpretation des \glslink{ast_acr}{AST}.
+\end{enumerate}
+
+Unabhängig vom eingesetzten Werkzeug bleibt die zugrunde liegende Architektur eines Sprachprozessors damit erhalten. Unterschiede ergeben sich vor allem aus der Werkzeugkette, der Darstellung der Grammatik und der Frage, an welcher Stelle des Systems die strukturelle Komplexität sichtbar wird.
+
+\subsection{Sprachdefinition und Parsing im Vergleich: Python (PLY) vs. TypeScript (Lezer)}
+
+Die beiden Implementierungen unterscheiden sich weniger in den zugrunde liegenden compilertechnischen Prinzipien als in der Verteilung der einzelnen Verarbeitungsschritte. In der Python-Version mit \emph{\glslink{ply}{PLY}} sind Lexer und Parser als getrennte Komponenten sichtbar. In der TypeScript-Version mit \emph{Lezer} werden scannernahe und parsernahe Aspekte dagegen innerhalb einer gemeinsamen Grammatikbeschreibung zusammengeführt.
+
+Zunächst zeigt Listing~\ref{lst:ply-grammatik} den lexerbasierten Teil der Python-Implementierung. Die Token werden über reguläre Ausdrücke definiert und bei Bedarf bereits während des Scannens weiterverarbeitet.
+
+\begin{listing}[htbp]
+\caption{Auszug der PLY-Scannerdefinition (Python)}
+\label{lst:ply-grammatik}
+\begin{minted}{python}
+import ply.lex as lex
+
+tokens = ['NUMBER', 'IDENTIFIER', 'ASSIGN', 'IF', 'WHILE', 'EQ']  # ...
+
+def t_NUMBER(t):
+    r'0|[1-9][0-9]*'
+    t.value = int(t.value)
+    return t
+
+t_ASSIGN = r':='
+Keywords = { 'if': 'IF', 'while': 'WHILE' }
+
+def t_IDENTIFIER(t):
+    r'[a-zA-Z][a-zA-Z0-9_]*'
+    t.type = Keywords.get(t.value, 'IDENTIFIER')
+    return t
+
+# ... weitere Definitionen für Kommentare, Leerraum und Fehlerbehandlung ...
+lexer = lex.lex()
+\end{minted}
+\end{listing}
+
+Das Listing beginnt mit dem Import von \texttt{ply.lex}. Diese Bibliothek stellt den Lexer-Generator bereit, aus dem am Ende mit \texttt{lex.lex()} ein konkreter Scanner erzeugt wird. Die Variable \texttt{tokens} legt anschließend fest, welche Tokentypen der Lexer überhaupt erzeugen darf, also etwa Zahlen, Bezeichner, Zuweisungsoperatoren und Schlüsselwörter.
+
+Die Funktion \texttt{t\_NUMBER} definiert die Regel für Zahlentoken. Der reguläre Ausdruck in der ersten Zeile beschreibt, welche Zeichenfolgen als Zahlen erkannt werden. Entscheidend ist anschließend die Zeile \mintinline{python}{t.value = int(t.value)}: Hier wird der erkannte Text nicht nur als Token klassifiziert, sondern sofort in einen numerischen Python-Wert umgewandelt. Der Lexer übernimmt damit bereits einen ersten Verarbeitungsschritt, der über reine Tokenerkennung hinausgeht.
+
+Mit \texttt{t\_ASSIGN = r':='} wird anschließend ein fester Operator direkt als Tokenregel definiert. Die Variable \texttt{Keywords} dient dazu, bestimmte Bezeichnertexte wie \texttt{if} oder \texttt{while} nachträglich als reservierte Wörter zu markieren. Dadurch muss für Schlüsselwörter nicht zwingend eine vollständig getrennte Lexer-Regel formuliert werden.
+
+Die Funktion \texttt{t\_IDENTIFIER} erkennt zunächst alle gültigen Bezeichner mit einem regulären Ausdruck. Erst danach wird geprüft, ob der konkrete Text des Bezeichners in der Tabelle \texttt{Keywords} enthalten ist. Falls dies der Fall ist, wird der Tokentyp nachträglich angepasst. Das bedeutet: Auch in der \glslink{ply}{PLY}-Version besteht der Scanner nicht nur aus passiver Mustererkennung, sondern enthält bereits Logik zur Unterscheidung verschiedener sprachlicher Rollen.
+
+Dieses Listing macht die klassische Lexer-Phase in \emph{\glslink{ply}{PLY}} damit gut sichtbar. Zahlen, Bezeichner und Operatoren werden zunächst als Token erkannt. Zugleich bleibt die Verarbeitung nicht vollständig auf eine rein formale Zerlegung des Eingabetextes beschränkt, da bereits Tokenwerte umgewandelt und Bezeichner anhand ihres Inhalts spezialisiert werden.
+
+Listing~\ref{lst:ply-ast-direkt} zeigt anschließend den parserbasierten Teil der Python-Implemen\-tierung. Hier werden die Produktionsregeln nicht nur zur Syntaxanalyse verwendet, sondern zugleich zur direkten Konstruktion der internen Zielstruktur.
+
+\begin{listing}[htbp]
+\caption{Direkte AST-Konstruktion in PLY (Auszug)}
+\label{lst:ply-ast-direkt}
+\begin{minted}{python}
+start = 'program'
+
+def p_program_more(p):
+    "program : stmnt program"
+    p[0] = ('.', p[1]) + p[2][1:]
+
+def p_stmnt_if(p):
+    "stmnt : IF '(' bool_expr ')' stmnt"
+    p[0] = ('if', p[3], p[5])
+
+def p_expr_plus(p):
+    "expr : expr '+' product"
+    p[0] = ('+', p[1], p[3])
+
+# ... weitere Regeln für Schleifen, Zuweisungen und Operatoren ...
+
+parser = yacc.yacc(write_tables=False, debug=True)
+\end{minted}
+\end{listing}
+
+Die Variable \texttt{start} legt fest, mit welchem Nichtterminalsymbol der Parser beginnen soll. In diesem Fall ist dies \texttt{program}. Damit weiß \emph{\glslink{ply}{PLY}}, welche Regel den Einstiegspunkt für die vollständige Analyse einer Eingabedatei bildet.
+
+Jede Funktion mit dem Präfix \texttt{p\_} beschreibt anschließend eine Produktionsregel. Die Grammatik selbst steht jeweils als Docstring in der ersten Zeile der Funktion, etwa \mintinline{python}{"program : stmnt program"}. Der Parameter \texttt{p} enthält dabei die Bestandteile der rechten Seite der Produktionsregel. Über \texttt{p[0]} wird festgelegt, welches Ergebnis die gesamte Produktion liefert.
+
+Wichtig ist, dass diese Funktionen nicht nur feststellen, ob eine Eingabe syntaktisch passt. Sie bauen zugleich direkt den \glslink{ast_acr}{AST} auf. In \texttt{p\_expr\_plus} wird aus einem Ausdruck der Form \texttt{expr + product} unmittelbar das Tupel \mintinline{python}{('+', p[1], p[3])} erzeugt. Die syntaktische Struktur und ihre interne Repräsentation entstehen hier also im selben Schritt.
+
+Dasselbe Prinzip zeigt sich in \texttt{p\_stmnt\_if}. Die Regel beschreibt zunächst formal eine \texttt{if}-Anweisung. Gleichzeitig wird mit \mintinline{python}{('if', p[3], p[5])} direkt der passende \glslink{ast_acr}{AST}-Knoten erzeugt, der später vom Interpreter weiterverarbeitet werden kann. Die Produktionsregeln in \emph{\glslink{ply}{PLY}} übernehmen damit zwei Aufgaben zugleich: Syntaxanalyse und \glslink{ast_acr}{AST}-Konstruktion.
+
+Die Funktion \texttt{p\_program\_more} ist zusätzlich interessant, weil sie zeigt, wie rekursive Listenstrukturen aufgebaut werden. Aus einer Anweisung \texttt{stmnt} und dem restlichen Programm \texttt{program} entsteht eine Punktlistenstruktur mit dem Operator \texttt{'.'}. Diese interne Darstellung wird später für die Ausführung von Anweisungsfolgen wieder aufgegriffen.
+
+Die letzte Zeile \mintinline{python}{parser = yacc.yacc(...)} erzeugt schließlich den Parser aus allen zuvor definierten Regeln. Auch hier zeigt sich die enge Verzahnung von Grammatik und Programmlogik: Die Regeln beschreiben nicht nur die Sprache, sondern enthalten bereits die Konstruktion der Zielstruktur.
+
+An diesem Listing wird deutlich, dass die \glslink{ply}{PLY}-Produktionsregeln zwei Aufgaben zugleich übernehmen. Sie beschreiben einerseits, welche syntaktischen Strukturen zulässig sind, und legen andererseits unmittelbar fest, wie daraus \glslink{ast_acr}{AST}-Knoten erzeugt werden. Syntaxanalyse und \glslink{ast_acr}{AST}-Konstruktion sind in der Python-Version daher eng miteinander verflochten.
+
+Die TypeScript-Implementierung mit \emph{Lezer} organisiert diese Schritte anders. Scanner- und parsernahe Aspekte werden nicht in getrennten Artefakten implementiert, sondern innerhalb einer gemeinsamen deklarativen Grammatikbeschreibung zusammengeführt. Der zentrale Vorteil dieses Ansatzes liegt in der Darstellung der Grammatik, die sich deutlich stärker an der \glslink{ebnf}{EBNF} (siehe Definition~\ref{def:ebnf}) orientiert. 
+
+Um die Unterscheidung zwischen Scanner und Grammatik für das Verständnis dennoch sichtbar zu halten, wird die Sprachdefinition in zwei logisch getrennte Zeichenketten zerlegt. Listing~\ref{lst:lezer-scanner} zeigt zunächst die scannernahe Tokenbeschreibung.
+
+\begin{listing}[htbp]
+\caption{Beginn der Lezer-Grammatik (Startsymbol und Scanner-Token)}
+\label{lst:lezer-scanner}
+\begin{minted}[linenos]{typescript}
+import { buildParser } from "@lezer/generator";
+
+const grammarString = `
+    @top Script { Program }
+
+    @tokens {
+        Identifier { $[a-zA-Z] $[a-zA-Z0-9_]* }
+        Number     { "0" | $[1-9] $[0-9]* }
+
+        "+" "-" "*" "/" "%"
+        ":=" "==" "!=" "<=" ">=" "<" ">"
+        "(" ")" "{" "}"
+        ";" ","
+
+        space { $[ \t\n\r]+ }
+        LineComment { "//" ![\n]* }
+        BlockComment { "/*" ( ![*] | "*" + ![*/] )* "*"+ "/" }
+
+        @precedence { LineComment, BlockComment, "/" }
+    }
+
+    @skip { space | LineComment | BlockComment }
+
+    IF    { @specialize<Identifier, "if"> }
+    WHILE { @specialize<Identifier, "while"> }
+\end{minted}
+\end{listing}
+
+Das Listing beginnt mit dem Import von \texttt{buildParser}. Diese Funktion erzeugt aus der deklarativen Grammatikbeschreibung den später verwendeten Lezer-Parser. Anders als bei \emph{\glslink{ply}{PLY}} werden Token-Definitionen und Grammatikregeln dabei nicht als verstreute Host-Code-Funktionen formuliert, sondern als zusammenhängende Spezifikation in einem einzigen String.
+
+Die erste Zeile innerhalb des Strings, \mintinline{typescript}{@top Script { Program }}, legt das Startsymbol fest. Sie erfüllt damit dieselbe fachliche Rolle wie \texttt{start = 'program'} in der Python-Version, verwendet dafür aber die Lezer-spezifische Deklarationssyntax.
+
+Der Block \mintinline{typescript}{@tokens} beschreibt anschließend die elementaren Tokenklassen. \texttt{Identifier} erkennt Bezeichner, die mit einem Buchstaben beginnen und danach Buchstaben, Ziffern oder Unterstriche enthalten dürfen. \texttt{Number} beschreibt natürliche Zahlen ohne führende Nullen, außer im Sonderfall der isolierten Null. Im Unterschied zu \emph{\glslink{ply}{PLY}} wird hier jedoch noch kein Text in einen konkreten Zahlenwert umgewandelt. Die Beschreibung bleibt zunächst auf der Ebene der formalen Tokenerkennung.
+
+Die nachfolgenden Zeichenketten wie \mintinline{typescript}{"+"}, \mintinline{typescript}{":="} oder \mintinline{typescript}{"("} definieren feste terminale Symbole der Sprache. Leerraum und Kommentare werden ebenfalls als Tokenarten beschrieben, im Block \mintinline{typescript}{@skip} aber anschließend als zu ignorierende Eingabeelemente markiert. Dadurch muss die eigentliche Grammatik später nicht bei jeder Regel erneut erwähnen, dass zwischen Tokens auch Leerraum oder Kommentare stehen dürfen.
+
+Wichtig ist die Regel \mintinline{typescript}{@precedence { LineComment, BlockComment, "/" }}. Sie löst den Konflikt, dass das Zeichen \texttt{/} sowohl als Divisionsoperator als auch als Beginn eines Kommentars auftreten kann. Lezer soll in solchen Fällen zuerst prüfen, ob eine längere Kommentarform vorliegt, und nur andernfalls das einfache Slash-Token erzeugen.
+
+Die Regeln \texttt{IF} und \texttt{WHILE} zeigen schließlich die Spezialisierung von Schlüsselwörtern. Zunächst wird ein passender Text als \texttt{Identifier} erkannt. Erst danach wird geprüft, ob sein vollständiger Inhalt genau \texttt{if} oder \texttt{while} lautet. Dadurch bleiben längere Bezeichner wie \texttt{ifCounter} gültig und werden nicht fälschlich in ein Schlüsselwortpräfix und einen Rest zerlegt.
+
+Listing~\ref{lst:lezer-grammar-1} und Listing~\ref{lst:lezer-grammar-2} ergänzen diese gemeinsame Spezifikation um die eigentlichen Programm-, Anweisungs- und Ausdrucksregeln und schließen mit der Parsergenerierung ab. Der daraus erzeugte Lezer-Parser verarbeitet den Eingabetext zunächst zu einem konkreten Syntaxbaum. Anders als bei \emph{\glslink{ply}{PLY}} entsteht die interne Zielstruktur also noch nicht direkt in den Grammatikregeln.
+
+\begin{listing}[htbp]
+\caption{Fortsetzung der Lezer-Grammatik (Teil 1: Anweisungen)}
+\label{lst:lezer-grammar-1}
+\begin{minted}[linenos, firstnumber=last]{typescript}
+    Program {
+        Stmnt Program | 
+        ""
+    }
+
+    Stmnt {
+        IF "(" BoolExpr ")" Stmnt    |
+        WHILE "(" BoolExpr ")" Stmnt |
+        "{" Program "}"              |
+        Identifier ":=" Expr ";"     |
+        Expr ";"
+    }
+
+    BoolExpr {
+        Expr "==" Expr |
+        Expr "!=" Expr |
+        Expr "<=" Expr |
+        Expr ">=" Expr |
+        Expr "<"  Expr |
+        Expr ">"  Expr
+    }
+\end{minted}
+\end{listing}
+
+Der erste Teil der Grammatik beschreibt die grundlegende Struktur vollständiger Programme und einzelner Anweisungen. Die Regel \texttt{Program} ist rechtsrekursiv formuliert: Ein Programm besteht entweder aus einer Anweisung \texttt{Stmnt}, gefolgt von einem weiteren \texttt{Program}, oder aus der leeren Zeichenkette \mintinline{typescript}{""}. Diese Form entspricht einer rekursiv aufgebauten Liste von Anweisungen und bereitet bereits die spätere interne Darstellung als Punktliste vor.
+
+Die Regel \texttt{Stmnt} legt fest, welche Arten von Anweisungen in der Sprache zulässig sind. Erfasst werden bedingte Anweisungen mit \texttt{IF}, Schleifen mit \texttt{WHILE}, Blockanweisungen in geschweiften Klammern, Zuweisungen sowie Ausdrucksanweisungen. Für Studierende ist hier besonders hilfreich, dass jede Alternative unmittelbar eine konkrete Sprachkonstruktion repräsentiert. Die Grammatik kann daher nahezu wie eine formale Aufzählung der erlaubten Anweisungsformen gelesen werden.
+
+Die Regel \texttt{BoolExpr} beschreibt boolesche Ausdrücke ausschließlich als Vergleiche zwischen zwei arithmetischen Ausdrücken. Zulässig sind also nur Formen wie \mintinline{typescript}{Expr "==" Expr} oder \mintinline{typescript}{Expr "<" Expr}. Diese Einschränkung ist didaktisch nützlich, weil sie die boolesche Auswertung klar von der arithmetischen Auswertung trennt. Anders als in vielen Vollsprachen gibt es hier keine implizite Wahrheitsinterpretation beliebiger Zahlenwerte.
+
+\begin{listing}[htbp]
+\caption{Ende der Lezer-Grammatik (Teil 2: Ausdrücke)}
+\label{lst:lezer-grammar-2}
+\begin{minted}[linenos, firstnumber=last]{typescript}
+    Expr {
+        Expr "+" Product |
+        Expr "-" Product |
+        Product
+    }
+
+    Product {
+        Product "*" Factor |
+        Product "/" Factor | 
+        Product "%" Factor |
+        Factor
+    }
+
+    Factor {
+        "(" Expr ")"                |
+        Number                      |
+        Identifier                  |
+        Identifier "(" ExprList ")"
+    }
+
+    ExprList {
+        NeExprList | 
+        ""
+    }
+
+    NeExprList {
+        Expr |
+        Expr "," NeExprList
+    }
+`;
+
+const parser = buildParser(grammarString);
+\end{minted}
+\end{listing}
+
+Der zweite Teil der Grammatik beschreibt die Struktur arithmetischer Ausdrücke. Die Regel \texttt{Expr} erfasst Addition und Subtraktion, während \texttt{Product} für Multiplikation, Division und Modulo zuständig ist. Dass diese beiden Ebenen getrennt formuliert werden, ist kein bloßer Stil, sondern modelliert direkt die gewünschte Operatorpriorität: Multiplikation und Division binden dadurch stärker als Addition und Subtraktion.
+
+Die Regel \texttt{Factor} beschreibt die elementaren Bausteine, aus denen größere Ausdrücke zusammengesetzt werden. Dazu gehören geklammerte Ausdrücke, Zahlen, Bezeichner und Funktionsaufrufe. Besonders wichtig ist hier der Fall \mintinline{typescript}{Identifier "(" ExprList ")"}, da Funktionsaufrufe syntaktisch wie ein Bezeichner mit nachfolgender Argumentliste behandelt werden. Auch diese Struktur wird später nicht sofort als fertiger \glslink{ast_acr}{AST}-Knoten geliefert, sondern liegt nach dem Parsing zunächst in der detaillierteren \glslink{cst_acr}{CST}-Form vor.
+
+Mit \texttt{ExprList} und \texttt{NeExprList} werden schließlich Argumentlisten beschrieben. \texttt{ExprList} erlaubt entweder eine nichtleere Liste oder die leere Zeichenkette \mintinline{typescript}{""} und deckt damit auch Funktionsaufrufe ohne Argumente ab. \texttt{NeExprList} ist wiederum rekursiv formuliert: Eine nichtleere Liste besteht aus genau einem Ausdruck oder aus einem Ausdruck, gefolgt von einem Komma und einer weiteren nichtleeren Liste. Auch hier zeigt sich dasselbe Grundprinzip wie bereits bei \texttt{Program}: Wiederholungsstrukturen werden nicht durch einen separaten Listenoperator, sondern durch explizite Rekursion modelliert.
+
+Die letzte Zeile erzeugt mit \mintinline{typescript}{buildParser(grammarString)} den Lezer-Parser aus der vollständigen Grammatikbeschreibung. Dieser Parser verarbeitet den Eingabetext anschließend zu einem \glslink{cst}{konkreten Syntaxbaum}. Anders als in der Python-Version mit \emph{\glslink{ply}{PLY}} wird die interne Zielstruktur dabei jedoch noch nicht unmittelbar in den Grammatikregeln aufgebaut. Die Überführung in den später vom Interpreter verwendeten \glslink{ast_acr}{AST} erfolgt erst im nachgelagerten Transformationsschritt.
+
+\subsection{Transformation vom CST zum AST}
+
+Während die Python-Version den \glslink{ast_acr}{AST} bereits innerhalb der \glslink{ply}{PLY}-Produktionsregeln konstruiert, endet die TypeScript-Version mit \emph{Lezer} zunächst bei einem \glslink{cst}{konkreten Syntaxbaum} (\glslink{cst_acr}{CST}). Für die spätere Programmauswertung muss dieser Baum daher in einem zusätzlichen Schritt in einen abstrakten Syntaxbaum überführt werden.
+
+Listing~\ref{lst:ts-cst-zu-ast} zeigt diese nachgelagerte Transformationsphase. Die eigentliche syntaktische Analyse ist zu diesem Zeitpunkt bereits abgeschlossen; die Funktion \texttt{parse} verbindet nun den von \emph{Lezer} erzeugten \glslink{cst_acr}{CST} mit der projektspezifischen \glslink{ast_acr}{AST}-Konstruktion.
+
+\begin{listing}[htbp]
+\caption{CST-zu-AST-Transformation in TypeScript}
+\label{lst:ts-cst-zu-ast}
+\begin{minted}{typescript}
+import { readFileSync } from "fs";
+import { cst2ast } from "./CST2AST";
+
+const myOperators = [
+    "IF", "WHILE", ":=",
+    "+", "-", "*", "/", "%",
+    "==", "!=", "<", ">", "<=", ">="
+];
+
+const myListVars = ["Program", "NeExprList"];
+
+function parse(fileName: string): AST {
+    const source = readFileSync(fileName, "utf8");
+    const tree   = parser.parse(source);
+    return cst2ast(tree.cursor(), source, myOperators, myListVars);
+}
+\end{minted}
+\end{listing}
+
+Die Funktion \texttt{parse} bündelt drei aufeinanderfolgende Verarbeitungsschritte. Zunächst wird mit \texttt{readFileSync} der Quelltext vollständig aus der Datei eingelesen. Anschließend erzeugt \texttt{parser.parse(source)} aus diesem Text einen \glslink{cst_acr}{CST}, dessen Struktur die vollständige Ableitung nach der Lezer-Grammatik enthält.
+
+Für die spätere Auswertung genügt dieser \glslink{cst_acr}{CST} jedoch nicht. Er enthält noch viele syntaktische Details, die für die Interpreterlogik nicht unmittelbar benötigt werden. Deshalb ruft \texttt{parse} im letzten Schritt die Funktion \texttt{cst2ast} auf, welche den \glslink{cst_acr}{CST} traversiert und daraus die kompaktere interne \glslink{ast_acr}{AST}-Repräsentation erzeugt.
+
+Die beiden Hilfslisten \texttt{myOperators} und \texttt{myListVars} steuern diese Transformation. \texttt{myOperators} legt fest, welche Symbole im \glslink{ast_acr}{AST} als eigentliche Operatorknoten erscheinen sollen. \texttt{myListVars} markiert jene Grammatikvariablen, die als rekursive Listen behandelt und daher in Punktlisten überführt werden müssen.
+
+Die TypeScript-Version führt damit einen expliziten Zwischenschritt ein, der in der Python-Version nicht als eigenständige Phase sichtbar wird. Während \emph{\glslink{ply}{PLY}} Syntaxanalyse und \glslink{ast_acr}{AST}-Konstruktion direkt im Parser miteinander verbindet, trennt die Lezer-basierte Implementierung die formale Analyse des Eingabetextes von der internen Modellierung des Programms. Diese zusätzliche Transformationsphase erhöht die Modularität der Implementierung, macht die Verarbeitungskette aber zugleich mehrstufiger.
+
+\subsection{Darstellung rekursiver Listenstrukturen}
+
+Bei der Modellierung rekursiver Listenstrukturen folgen beide Implementierungen demselben Grundprinzip. Sowohl Programmlisten als auch Argumentlisten werden als Punktlisten dargestellt, die an klassische \textit{Cons}-Zellen der funktionalen Programmierung erinnern. In Python erfolgt diese Konstruktion bereits direkt in den \emph{\glslink{ply}{PLY}}-Regeln, etwa durch \mintinline{python}{p[0] = ('.', p[1]) + p[2][1:]} in Listing~\ref{lst:ply-ast-direkt}.
+
+In der TypeScript-Version wird dieselbe Struktur nicht in der Grammatik selbst erzeugt, sondern über das in Definition~\ref{def:listen-faltung} erläuterte Verfahren der \glslink{listenfaltung}{Listen-Faltung} aus dem \glslink{cst_acr}{CST} abgeleitet. Listing~\ref{lst:ts-listen} zeigt die Ausführung solcher Listen über eine eigene rekursive Hilfsfunktion.
+
+\begin{listing}[htbp]
+\caption{Verarbeitung rekursiver Listen in TypeScript}
+\label{lst:ts-listen}
+\begin{minted}{typescript}
+let executeList = (list: AST, env: Environment) => {
+    if (list === "") return;
+
+    if (Array.isArray(list) && list[0] === '.') {
+        const head = list[1];
+        const tail = list[2];
+
+        if (head !== undefined && tail !== undefined) {
+            execute(head, env);
+            executeList(tail, env);
+        }
+    }
+};
+\end{minted}
+\end{listing}
+
+Die Funktion \texttt{executeList} verarbeitet rekursive Punktlisten. Der erste Sonderfall ist die leere Zeichenkette \texttt{""}, die das Ende einer Liste markiert. In diesem Fall gibt es keine weiteren Anweisungen auszuführen.
+
+Im eigentlichen Rekursionsfall prüft die Funktion, ob der aktuelle Knoten ein Array mit dem Tag \texttt{"."} ist. Dieses Tag kennzeichnet eine nichtleere Liste, die aus einem Kopf und einem Rest besteht. Der Kopf enthält die aktuelle Anweisung, der Rest verweist rekursiv auf die verbleibende Liste.
+
+Die beiden Variablen \texttt{head} und \texttt{tail} machen diese Struktur explizit sichtbar. Zuerst wird \texttt{head} durch \texttt{execute(head, env)} ausgeführt, anschließend wird die Funktion rekursiv auf \texttt{tail} angewendet. Damit wird die syntaktische Rechtsrekursion der Grammatik in eine schrittweise Abarbeitung der Anweisungsliste übersetzt.
+
+\subsection{Typisierung und interne AST-Repräsentation}
+
+Ein markanter Unterschied zwischen beiden Implementierungen liegt in der vertraglichen Absicherung des \glslink{ast_acr}{AST}. Zunächst zeigt Listing~\ref{lst:ply-ast-typ} die Python-Variante, in der die Baumstruktur implizit bleibt.
+
+\begin{listing}[htbp]
+\caption{AST-Typmodellierung in Python}
+\label{lst:ply-ast-typ}
+\begin{minted}{python}
+from typing import TypeVar
+NestedTuple = TypeVar('NestedTuple')
+NestedTuple = int | str | tuple['NestedTuple', ...]
+Number      = int | float
+\end{minted}
+\end{listing}
+
+Welche Form ein konkreter Knoten besitzt, ergibt sich in Python erst zur Laufzeit aus dem Operator-Tag an der ersten Tupel-Position. Listing~\ref{lst:ts-ast-typ} zeigt anschließend die TypeScript-Portierung, in der dieselbe Struktur explizit durch einen rekursiven Typ limitiert wird.
+
+\begin{listing}[htbp]
+\caption{AST-Typdefinition in TypeScript}
+\label{lst:ts-ast-typ}
+\begin{minted}{typescript}
+type Operator = string;
+type AST = string | number |
+           [Operator, AST]                |
+           [Operator, AST, AST]           |
+           [Operator, AST, AST, AST]      |
+           [Operator, AST, AST, AST, AST];
+\end{minted}
+\end{listing}
+
+Diese Typdefinition dokumentiert die Struktur des \glslink{ast_acr}{AST} unmittelbar im Programmtext. Gleichzeitig zwingt sie die Transformationslogik dazu, nur solche Knoten zu erzeugen, die dem vereinbarten Schema entsprechen. Im Vergleich zur Python-Version verschiebt sich dadurch ein Teil der Fehlererkennung aus der Laufzeit in die statische Typprüfung.
+
+\subsection{Interpreterarchitektur und Ausführung}
+
+Die Grundstruktur des Interpreters bleibt in beiden Notebooks gleich. In beiden Fällen erfolgt eine funktionale Trennung in Anweisungsausführung (\texttt{execute}), arithmetische Auswertung (\texttt{evaluate}) und boolesche Auswertung (\texttt{evaluate\_bool}).
+
+Zunächst zeigt Listing~\ref{lst:ply-execute} die Auswertungslogik in Python. Hier wird der Kontrollfluss elegant durch \textit{Pattern Matching} formuliert, welches das Tupel entpackt und Variablen im selben Schritt zuweist.
+
+\begin{listing}[htbp]
+\caption{Ausführung von Anweisungen in Python}
+\label{lst:ply-execute}
+\begin{minted}{python}
+def execute(stmnt: NestedTuple, Values: dict[str, Number]) -> None:
+    match stmnt:
+        case ('.', *SL):
+            execute_tuple(tuple(SL), Values)
+        case (':=', var, value):
+            Values[var] = evaluate(value, Values)
+        case ('expr', expr):
+            evaluate(expr, Values)
+        case ('if', test, stmnt):
+            if evaluate_bool(test, Values):
+                execute(stmnt, Values)
+        case ('while', test, stmnt):
+            while evaluate_bool(test, Values):
+                execute(stmnt, Values)
+        case _:
+            assert False, f'{stmnt} unexpected'
+\end{minted}
+\end{listing}
+
+Listing~\ref{lst:ts-execute} zeigt die TypeScript-Portierung derselben Funktion. Sie folgt derselben semantischen Idee, verwendet als Dispatcher jedoch explizite Fallunterscheidungen auf Basis von Array-Prüfungen.
+
+\begin{listing}[htbp]
+\caption{Ausführung von Anweisungen in TypeScript}
+\label{lst:ts-execute}
+\begin{minted}{typescript}
+let execute = (node: AST, env: Environment): void => {
+    if (!Array.isArray(node)) return;
+    const tag = node[0];
+
+    if (tag === '.') {
+        executeList(node, env);
+        return;
+    }
+    if (tag === "block") {
+        const content = node[1];
+        if (content !== undefined) {
+            executeList(content, env);
+        }
+    }
+    else if (tag === ":=") {
+        const name = node[1];
+        const expr = node[2];
+        if (typeof name === "string" && expr !== undefined) {
+            env.set(name, evaluate(expr, env));
+        }
+    }
+    else if (tag === "IF") {
+        const cond = node[1];
+        const body = node[2];
+        if (cond !== undefined && body !== undefined) {
+            if (evaluateBool(cond, env)) execute(body, env);
+        }
+    }
+    else if (tag === "WHILE") {
+        const cond = node[1];
+        const body = node[2];
+        if (cond !== undefined && body !== undefined) {
+            while (evaluateBool(cond, env)) execute(body, env);
+        }
+    }
+    else if (tag === "Call") {
+        evaluate(node, env);
+    }
+};
+\end{minted}
+\end{listing}
+
+Im TypeScript-Code fungiert die Funktion \mintinline{typescript}{execute} als zentraler Dispatcher für Anweisungen. Zunächst wird geprüft, ob der übergebene Knoten überhaupt ein Array ist. Dies ist notwendig, weil der \glslink{ast_acr}{AST} auch atomare Werte wie Zahlen oder Bezeichner enthalten kann, die keine ausführbaren Anweisungen darstellen.
+
+In der Variablen \mintinline{typescript}{tag} wird anschließend das erste Element des Tupels gespeichert. Dieses Tag bestimmt, welche Art von Anweisung vorliegt. Der Fall \mintinline{typescript}{"."} delegiert unmittelbar an \mintinline{typescript}{executeList}, weil Punktlisten keine einzelne Anweisung, sondern eine Folge von Anweisungen repräsentieren.
+
+Der Fall \mintinline{typescript}{"block"} behandelt Blockanweisungen. Hier wird der im Block enthaltene Programmkörper ausgelesen und als Liste ausgeführt. Der Fall \mintinline{typescript}{":="} implementiert Zuweisungen, indem zunächst der Variablenname und der rechte Ausdruck extrahiert und anschließend das berechnete Ergebnis in der Umgebung gespeichert werden.
+
+Die Fälle \mintinline{typescript}{"IF"} und \mintinline{typescript}{"WHILE"} realisieren die Kontrollflusskonstrukte der Sprache. In beiden Fällen wird zunächst die Bedingung ausgewertet. Beim \mintinline{typescript}{"IF"} wird der Rumpf genau dann ausgeführt, wenn die Bedingung wahr ist; bei \mintinline{typescript}{"WHILE"} geschieht dies wiederholt, solange die Bedingung wahr bleibt.
+
+Der letzte Fall \mintinline{typescript}{"Call"} zeigt, dass Funktionsaufrufe syntaktisch als Ausdrücke behandelt werden, aber dennoch Seiteneffekte besitzen können. Deshalb delegiert \mintinline{typescript}{execute} hier an \mintinline{typescript}{evaluate}. Die Ausführungsfunktion enthält somit selbst keine Fachlogik für \mintinline{typescript}{print} oder \mintinline{typescript}{read}, sondern überlässt diese der Ausdrucksauswertung.
+
+Im Vergleich zur Python-Version wird damit deutlich, dass TypeScript dieselbe Logik expliziter entfalten muss. Die TypeScript-Version wirkt dadurch ausführlicher und technischer, macht ihre Kontrollflüsse und Sicherheitsprüfungen aber auch unmittelbar sichtbar.
+
+\subsection{Auswertung arithmetischer Ausdrücke}
+
+Auch bei der Auswertung arithmetischer Ausdrücke bleiben die semantischen Grundideen erhalten. Literale werden direkt zurückgegeben, Variablen in der Umgebung nachgeschlagen und Operatoren rekursiv ausgewertet. Listing~\ref{lst:ply-evaluate} zeigt die Python-Implementierung dieser Logik.
+
+\begin{listing}[htbp]
+\caption{Arithmetische Auswertung in Python}
+\label{lst:ply-evaluate}
+\begin{minted}{python}
+def evaluate(expr: NestedTuple, Values: dict[str, Number]) -> Number:
+    match expr:
+        case int():
+            return expr
+        case str():
+            return Values[expr] 
+        case ('call', 'read'):
+            return int(input('Please enter a natural number: '))
+        case ('call', 'print', expr):
+            print(evaluate(expr, Values))
+            return 0
+        case ('+', lhs, rhs):
+            return evaluate(lhs, Values) + evaluate(rhs, Values)
+        # ... weitere Operatoren (-, *, /, %) ...
+        case _:
+            assert False, f'{expr} unexpected'
+\end{minted}
+\end{listing}
+
+Listing~\ref{lst:ts-evaluate-1} zeigt anschließend die TypeScript-Portierung derselben Funktion (Teil 1). Sie bildet die rekursive Struktur exakt nach, ergänzt diese jedoch um sicherheitskritische Überprüfungen.
+
+\begin{listing}[htbp]
+\caption{Arithmetische Auswertung in TypeScript (Teil 1: Basisoperatoren)}
+\label{lst:ts-evaluate-1}
+\begin{minted}[linenos]{typescript}
+let evaluate = (node: AST, env: Environment): number => {
+    if (typeof node === "number") return node;
+    if (typeof node === "string") {
+        const val = env.get(node);
+        if (val === undefined) throw new Error(`Undefined var ${node}`);
+        return val;
+    }
+
+    if (Array.isArray(node)) {
+        const tag = node[0];
+
+        if (["+", "-", "*", "/", "%"].includes(tag)) {
+             const leftNode = node[1];
+             const rightNode = node[2];
+
+             if (leftNode !== undefined && rightNode !== undefined) {
+                 const l = evaluate(leftNode, env);
+                 const r = evaluate(rightNode, env);
+                 switch(tag) {
+                     case "+": return l + r;
+                     case "-": return l - r;
+                     case "*": return l * r;
+                     case "/":
+                         if (r === 0) throw new Error("Division by zero");
+                         return Math.floor(l / r);
+                     case "%":
+                         if (r === 0) throw new Error("Modulo by zero");
+                         return l % r;
+                 }
+             }
+        }
+\end{minted}
+\end{listing}
+
+Im TypeScript-Code berechnet \texttt{evaluate} den numerischen Wert eines Ausdrucks. Die ersten beiden Fallunterscheidungen behandeln die einfachsten Formen von \glslink{ast_acr}{AST}-Knoten: Zahlen werden direkt zurückgegeben, während Zeichenketten als Variablennamen interpretiert und in der Umgebung nachgeschlagen werden.
+
+Ist ein Variablenname nicht in der Umgebung vorhanden, wird ein Fehler ausgelöst. Diese Prüfung ist wichtig, weil das Programm sonst mit einem impliziten oder undefinierten Wert weiterlaufen würde. Die TypeScript-Version macht diesen Fehlerfall daher ausdrücklich sichtbar.
+
+Der nächste Schritt behandelt zusammengesetzte Ausdrucksknoten. Liegt ein Array vor, wird zunächst wieder dessen Tag ausgelesen. Gehört dieses Tag zu den arithmetischen Operatoren, werden linker und rechter Operand bestimmt und anschließend rekursiv ausgewertet.
+
+Erst nach dieser rekursiven Auswertung erfolgt die eigentliche Berechnung im \texttt{switch}-Block. Die Struktur der Funktion spiegelt damit direkt den rekursiven Aufbau von Ausdrucksbäumen wider: Zuerst werden Teilbäume ausgewertet, danach wird ihr Ergebnis durch den übergeordneten Operator kombiniert. Bei Division und Modulo wird zusätzlich geprüft, ob der rechte Operand null ist, um undefinierte Rechenoperationen frühzeitig abzufangen.
+
+Im zweiten Teil der Funktion (Listing~\ref{lst:ts-evaluate-2}) wird die Auswertung von Funktionsaufrufen (\texttt{Call}) behandelt.
+
+\begin{listing}[htbp]
+\caption{Arithmetische Auswertung in TypeScript (Teil 2: Funktionsaufrufe)}
+\label{lst:ts-evaluate-2}
+\begin{minted}[linenos, firstnumber=last]{typescript}
+        if (tag === "Call") {
+             const fn = node[1];
+             const argsNode = node[2];
+
+             if (fn === "print" && argsNode !== undefined) {
+                 if (Array.isArray(argsNode) && argsNode[0] === '.') {
+                     const actualArg = argsNode[1];
+                     if (actualArg !== undefined) {
+                        console.log(">> STDOUT:", evaluate(actualArg, env));
+                     }
+                 }
+                 return 0;
+             }
+             if (fn === "read") {
+                 const input = inputStream.shift();
+                 const val = input !== undefined ? Number(input) : 0;
+                 console.log("<< STDIN:", val);
+                 return val;
+             }
+        }
+    }
+    throw new Error(`Invalid expression node: ${JSON.stringify(node)}`);
+};
+\end{minted}
+\end{listing}
+
+Für \texttt{print} wird geprüft, ob überhaupt eine Argumentliste vorhanden ist und ob diese in der erwarteten Punktlistenform vorliegt. Anschließend wird das erste tatsächliche Argument extrahiert, rekursiv ausgewertet und auf der Konsole ausgegeben. Der Rückgabewert ist anschließend \texttt{0}, damit \texttt{print} weiterhin als Ausdruck behandelt werden kann.
+
+Der Fall \texttt{read} arbeitet umgekehrt. Hier wird der nächste vorbereitete Eingabewert mit \texttt{inputStream.shift()} aus dem simulierten Eingabestrom entnommen, in eine Zahl umgewandelt und anschließend zurückgegeben. Damit bildet die Funktion einfache Ein- und Ausgabeoperationen ab, ohne auf blockierende Konsoleneingaben angewiesen zu sein.
+
+Die abschließende Fehlermeldung am Ende der Funktion dient nicht nur als defensiver Laufzeit-Schutz, sondern ist auch aus Sicht des TypeScript-Compilers notwendig. Da das erste Element eines AST-Knotens formal nur als generischer \mintinline{typescript}{string} typisiert ist, kann die Kontrollflussanalyse nicht ausschließen, dass auch unbekannte Operatoren auftreten. Weil \mintinline{typescript}{evaluate} jedoch einen Rückgabewert vom Typ \mintinline{typescript}{number} garantieren muss, ist ein expliziter Fehlerwurf erforderlich, um einen impliziten Rückgabepfad mit \mintinline{typescript}{undefined} auszuschließen.
+
+Ursache dafür ist das bewusst generische Design der Transformationsschicht. Die Funktion \mintinline{typescript}{cst2ast} wurde als wiederverwendbare Hilfskomponente für unterschiedliche Notebooks konzipiert, weshalb \mintinline{typescript}{Operator} offen als \mintinline{typescript}{string} definiert ist. Diese Abstraktion erhöht zwar die Wiederverwendbarkeit, erzeugt im konkreten Interpreter jedoch eine Informationslücke für das Typsystem: Fachlich unerreichbare Fälle bleiben für den Compiler prinzipiell möglich und müssen daher explizit abgesichert werden.
+
+Im Vergleich zur Python-Version wird hier sichtbar, dass die TypeScript-Por\-tier\-ung Laufzeitbedingungen expliziter modelliert. Fehlerfälle wie Division durch Null oder der Zugriff auf nicht initialisierte Variablen werden systematisch durch Ausnahmen behandelt, was jedoch zu einer höheren Verbosität des Codes führt.
+
+\subsection{Auswertung boolescher Bedingungen}
+
+Die boolesche Auswertung ist analog aufgebaut. Nach den Regeln der Grammatik existiert keine implizite Typkonvertierung im Sinne einer allgemeinen \textit{Truthiness}; ein boolescher Ausdruck muss stets über einen Vergleichsoperator formuliert werden. Listing~\ref{lst:ply-evaluate-bool} zeigt die Python-Lösung.
+
+\begin{listing}[htbp]
+\caption{Boolesche Auswertung in Python}
+\label{lst:ply-evaluate-bool}
+\begin{minted}{python}
+def evaluate_bool(expr: NestedTuple, Values: dict[str, Number]) -> bool:
+    match expr:
+        case ('==', lhs, rhs):
+            return evaluate(lhs, Values) == evaluate(rhs, Values)
+        case ('!=', lhs, rhs):
+            return evaluate(lhs, Values) != evaluate(rhs, Values)
+        # ... weitere Vergleichsoperatoren (<, >, <=, >=) ...
+        case _:
+            assert False, f'{expr} unexpected'
+\end{minted}
+\end{listing}
+
+Listing~\ref{lst:ts-evaluate-bool} zeigt die TypeScript-Version, die erneut das Array-Tag nutzt, um den passenden Fall zu identifizieren.
+
+\begin{listing}[htbp]
+\caption{Boolesche Auswertung in TypeScript}
+\label{lst:ts-evaluate-bool}
+\begin{minted}{typescript}
+let evaluateBool = (node: AST, env: Environment): boolean => {
+    if (Array.isArray(node)) {
+        const tag = node[0];
+        if (["==", "!=", "<", ">", "<=", ">="].includes(tag)) {
+             const leftNode = node[1];
+             const rightNode = node[2];
+
+             if (leftNode !== undefined && rightNode !== undefined) {
+                 const l = evaluate(leftNode, env);
+                 const r = evaluate(rightNode, env);
+                 switch(tag) {
+                     case "==": return l == r;
+                     case "!=": return l != r;
+                     case "<":  return l < r;
+                     case ">":  return l > r;
+                     case "<=": return l <= r;
+                     case ">=": return l >= r;
+                 }
+             }
+        }
+    }
+    throw new Error("Invalid boolean expression");
+};
+\end{minted}
+\end{listing}
+
+Die Funktion \texttt{evaluateBool} ist strukturell einfacher als \texttt{evaluate}, folgt jedoch demselben Grundmuster. Zunächst wird geprüft, ob überhaupt ein zusammengesetzter Knoten vorliegt und welches Tag dieser besitzt.
+
+Nur Vergleichsoperatoren sind in dieser Funktion zulässig. Deshalb wird anschließend kontrolliert, ob das Tag zu einer der sechs erlaubten Vergleichsoperationen gehört. Ist dies der Fall, werden linker und rechter Operand rekursiv mit \texttt{evaluate} ausgewertet.
+
+Erst auf Grundlage dieser numerischen Teilergebnisse wird im \texttt{switch}-Block der eigentliche Wahrheitswert berechnet. Die Funktion trennt damit bewusst zwischen arithmetischer Auswertung und boolescher Entscheidung. Dies macht die Interpreterlogik klarer und entspricht zugleich der Grammatik, in der boolesche Ausdrücke ausschließlich als Vergleiche definiert sind.
+
+Im Vergleich bleibt die semantische Idee gegenüber der Python-Version unverändert. Unterschiede zeigen sich vor allem in der Art der Strukturprüfung und in der Notwendigkeit, die erwartete Form des \glslink{ast_acr}{AST} vor jeder Auswertung in TypeScript explizit abzusichern.
+
+\subsection{Umgebungsmodell und Programmausführung}
+
+Der Startpunkt des Programmlaufs initialisiert die Laufzeitumgebung und den Eingabepuffer. In Python blockiert \mintinline{python}{input()} die Ausführung und wartet auf eine Konsoleneingabe (Listing~\ref{lst:ply-main}).
+
+\begin{listing}[htbp]
+\caption{Programmausführung in Python}
+\label{lst:ply-main}
+\begin{minted}{python}
+def main(file):
+    with open(file, 'r') as handle:
+        program = handle.read() 
+    stmnt = yacc.parse(program)
+    Values = {}
+    execute(stmnt, Values)
+\end{minted}
+\end{listing}
+
+Listing~\ref{lst:ts-runprogram} zeigt die Umsetzung in TypeScript.
+
+\begin{listing}[htbp]
+\caption{Programmausführung und \glslink{io}{I/O}-Simulation in TypeScript}
+\label{lst:ts-runprogram}
+\begin{minted}{typescript}
+type Environment = Map<string, number>;
+let inputStream: string[] = [];
+
+function runProgram(fileName: string, inputs: string[] = []) {
+    console.log(`\n--- Executing File: ${fileName} ---`);
+    console.log(`--- Inputs: [${inputs.join(", ")}] ---`);
+
+    inputStream = [...inputs];
+
+    try {
+        const ast = parse(fileName);
+        execute(ast, new Map());
+    } catch (e) {
+        console.error(e);
+    }
+}
+\end{minted}
+\end{listing}
+
+Die Typdefinition \texttt{Environment} legt fest, dass Variablennamen auf numerische Werte abgebildet werden. Mit \texttt{inputStream} wird zusätzlich ein globaler Eingabepuffer angelegt, der die spätere Simulation von \texttt{read}-Aufrufen ermöglicht.
+
+Die Funktion \texttt{runProgram} bündelt den gesamten Ablauf eines Testlaufs. Zunächst werden Dateiname und Eingabewerte protokolliert. Anschließend wird der Eingabestrom initialisiert, indem die übergebenen Werte in das globale Array kopiert werden.
+
+Im \texttt{try}-Block erfolgt dann die eigentliche Programmausführung. Zuerst wird der Quelltext geparst und in einen \glslink{ast_acr}{AST} transformiert. Danach startet \texttt{execute} die Interpretation mit einer frischen, zunächst leeren Variablenumgebung. Der \texttt{catch}-Block sorgt schließlich dafür, dass Laufzeit- oder Parsefehler nicht das gesamte Notebook abbrechen, sondern kontrolliert ausgegeben werden.
+
+Im Vergleich zur Python-Version unterscheidet sich die Eingabebehandlung deutlich. Während Python blockierende Konsoleneingaben nutzt, verwendet die TypeScript-Portierung einen vorbereiteten Eingabepuffer in Form des Arrays \texttt{inputStream}. Diese Lösung ist als Workaround für die Notebook-Umgebung zu verstehen und ersetzt keine echte interaktive Standardeingabe. Gleichwohl simuliert sie einen sequentiellen Eingabestrom, wie er in praktischen Verarbeitungskontexten durchaus üblich ist. Dadurch eignet sich der Ansatz insbesondere für reproduzierbare Testläufe mit kontrollierten Eingabewerten.
+
+\subsection{Ergebnisse der Case Study}
+
+Die Fallstudie zeigt, dass beide Implementierungen dieselbe interpretertechnische Grundidee realisieren, die dabei entstehende Komplexität jedoch unterschiedlich verteilen. In der Python-Version mit \emph{\glslink{ply}{PLY}} ist die klassische Trennung von Scanner und Parser leicht nachvollziehbar, da die einzelnen Phasen der Sprachverarbeitung klar voneinander abgegrenzt bleiben. Die Interpreterlogik selbst lässt sich durch Pattern Matching über dynamische Tupel äußerst kompakt ausdrücken. Gleichzeitig wirkt die konkrete Implementierung der Grammatik im Quelltext vergleichsweise unübersichtlich, weil sich formale Regeln auf zahlreiche Python-Funktionen und Docstrings verteilen.
+
+Die TypeScript-Version mit \emph{Lezer} verschiebt diesen Schwerpunkt. Die deklarative Grammatik ist deutlich näher an der formalen Notation aus der theoretischen Informatik und daher in ihrer Oberflächenstruktur geschlossener und leichter lesbar. Dem steht jedoch gegenüber, dass der generierte \glslink{cst_acr}{CST} für die eigentliche Programmauswertung zunächst noch zu detailliert ist. Der zentrale Mehraufwand der Portierung liegt daher in der zusätzlichen Transformation des durch \emph{Lezer} erzeugten \glslink{cst_acr}{CST} in einen auswertbaren \glslink{ast_acr}{AST}. Erst durch die in \texttt{cst2ast} gekapselte Schicht aus Terminal-Extraktion, Infix Operator Promotion und \glslink{listenfaltung}{Listen-Faltung} entsteht eine interne Repräsentation, die sich im typisierten Interpreter weiterverarbeiten lässt.
+
+\paragraph{Konsequenzen für die Lehrveranstaltung}
+Gerade diese Verschiebung der Komplexität erweist sich für den Einsatz in der Lehrveranstaltung als vorteilhaft. Die aufwendige \texttt{cst2ast}-Transformation kann als gekapselte Komponente über eine feste Schnittstelle bereitgestellt werden, sodass die Studierenden sich nicht unmittelbar mit allen implementierungsspezifischen Details der Baumerstellung befassen müssen.
+
+Der Fokus kann dadurch stärker auf die deklarative, \glslink{ebnf}{EBNF}-nahe Grammatikdefinition gelegt werden. Im Unterschied zur Python-Variante, in der formale Grammatikregeln und operative \glslink{ast_acr}{AST}-Konstruktion enger miteinander verflochten sind, erlaubt die TypeScript-Version eine klarere Trennung zwischen Sprachbeschreibung und späterer Programmauswertung. Die Portierung ist damit nicht nur eine syntaktische Übertragung des bestehenden Beispiels, sondern eine strukturelle Neuordnung, die den Zugang zu den zentralen Konzepten der Vorlesung erleichtert.

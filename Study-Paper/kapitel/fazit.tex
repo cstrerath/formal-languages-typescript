@@ -1,0 +1,84 @@
+% !TEX root = ../master.tex
+\section{Fazit und kritische Reflexion}
+\label{sec:fazit}
+
+Mit der vollständigen Portierung der interaktiven Python-Note\-books in das Type\-Script-Öko\-system liegt nun eine lauffähige, statisch typisierte Lehrumgebung für die theoretische Informatik vor. Der Wechsel der Programmiersprache war dabei weit mehr als eine reine Syntax\-übersetzung: Er erforderte tiefgreifende architektonische Anpassungen, von der Simulation mathematischer Mengen bis hin zur strukturellen Neuausrichtung der Syntaxanalyse. Um den tatsächlichen Mehrwert dieser Neuentwicklung für die Lehre einordnen zu können, bedarf die TypeScript-basierte Architektur einer abschließenden Bewertung. Dabei gilt es, nicht nur die erreichten Projektziele zu prüfen, sondern auch die technischen Kompromisse und methodischen Erfahrungen der Entwicklungsphase offen zu benennen.
+
+\subsection{Evaluation der Zielsetzung}
+
+Die zu Beginn des Projekts formulierten Kernziele konnten weitgehend erfolgreich umgesetzt werden:
+
+\begin{enumerate}
+    \item \textbf{Strukturierte Neuimplementierung:}  
+    Die Algorithmen der Vorlesung wurden vollständig nach TypeScript portiert. Die dynamische, in ihrer Fehlersichtbarkeit häufig erst zur Laufzeit überprüfbare Natur von Python wurde dabei durch explizite Datenstrukturen und statische Typvorgaben ersetzt.
+
+    \item \textbf{Lösung des Mengen-Problems:}  
+    Um die Algorithmen fehlerfrei auszuführen, wurde das referenzbasierte Verhalten von TypeScripts nativem \texttt{Set} analysiert und adressiert. Mit der Klasse \texttt{RecursiveSet} wurde eine Datenstruktur entwickelt, die sich in den für die Lehrmaterialien relevanten Operationen an Python-Sets orientiert und für die Modellierung formaler Sprachen benötigte verschachtelte Strukturen verlässlich verarbeiten kann.
+
+    \item \textbf{Einheitliche Ausführungsumgebung:}  
+    Für die Ausführung der Notebooks wurde eine standardisierte Umgebung geschaffen, die unabhängig vom zugrunde liegenden Betriebssystem konsistent nutzbar ist. Die Hintergrundprozesse wurden so angepasst, dass TypeScripts strenge Prüfregeln auch bei der interaktiven Ausführung erhalten bleiben. Zudem kommen WebAssembly-basierte Bibliotheken wie \texttt{@viz-js/viz} zum Einsatz, wodurch Graphen innerhalb der Notebook-Umgebung dargestellt werden können, ohne dass die Studierenden zusätzliche lokale Installationen wie Graphviz vornehmen müssen.
+\end{enumerate}
+
+Insgesamt wurde damit nicht nur eine technische Portierung erreicht, sondern eine eigenständige TypeScript-basierte Lehrumgebung geschaffen. Die ursprünglichen Python-Notebooks konnten funktional übertragen werden, ohne die zentralen fachlichen Konzepte der Lehrveranstaltung aufzugeben. Zugleich wurde sichtbar, dass die Übertragung in ein neues Ökosystem nicht ohne strukturelle Anpassungen möglich ist.
+
+\subsection{Gegenüberstellung: TypeScript vs. Python im Lehrkontext}
+
+Die Migration hat gezeigt, dass die Wahl der Programmiersprache erheblichen Einfluss darauf hat, wie formale Konzepte modelliert, visualisiert und vermittelt werden. Dabei haben sich klare Stärken, aber auch spürbare Nachteile von TypeScript herauskristallisiert.
+
+\paragraph{Stärken von TypeScript und Lezer}
+Ein zentraler Gewinn der Portierung liegt in der allgegenwärtigen Typsicherheit. Typen dokumentieren die Schnittstellen explizit und erschweren die versehentliche Weitergabe ungeeigneter Datenstrukturen. Dadurch werden Fehler, die in Python oft erst während der Ausführung sichtbar werden, früher erkennbar und didaktisch leichter einzuordnen.
+
+Auch die \texttt{RecursiveSet}-Implementierung erwies sich als hilfreich. Durch sie ließen sich die Notebooks zu formalen Sprachen in ihrer Grundstruktur sehr nah an der Python-Vorlage halten, obwohl TypeScripts eingebaute Mengenstruktur für diesen Zweck nicht ausreichte. Die Portierung musste daher nicht auf fachlich unpassende Ersatzlösungen ausweichen, sondern konnte ein präzise zugeschnittenes Datenmodell bereitstellen.
+
+Auch der Einsatz von \emph{Lezer} erwies sich in mehreren Aspekten als didaktisch vorteilhaft. Die deklarative Lezer-Syntax ist sehr nah an der \glslink{ebnf}{EBNF} und macht grammatische Strukturen dadurch sichtbar, ohne sie über zahlreiche Host-Code-Funktionen zu verteilen. Zudem reagiert Lezer bei problematischen Grammatiken unmittelbar mit klaren Fehlermeldungen, etwa bei Konflikten in der Parsergenerierung. Für Studierende, die sich mit Parsingtheorie und der Struktur formaler Grammatiken beschäftigen, kann dieses direkte Feedback einen hohen Lernwert besitzen.
+
+\paragraph{Architektonische Kompromisse}
+Ein spürbarer Kompromiss der Portierung liegt in der höheren Verbosität von TypeScript im Vergleich zu Python. Wie der Vergleich der \texttt{evaluate}-Funktionen im Interpreter zeigt, kann Python komplexe Fallunterscheidungen mit \textit{Pattern Matching} sehr kompakt ausdrücken. Das Prüfen der Struktur, das Entpacken von Tupeln und die Bindung ihrer Bestandteile erfolgen dort in einer knappen und lesbaren Form.
+
+TypeScript erzwingt demgegenüber eine deutlich imperativere Herangehensweise. Arrays müssen explizit geprüft, Tags ausgelesen und mögliche \texttt{undefined}-Fälle abgesichert werden. Zwar ließe sich dies im Standard-TypeScript durch konsequente Destrukturierung oft eleganter formulieren, doch stieß das Projekt hier an eine technische Grenze der verwendeten Ausführungsumgebung: Der Jupyter-Kernel \texttt{tslab} interpretiert destrukturierte Variablenzuweisungen, insbesondere im globalen oder Block-Kontext, teilweise problematisch und kann dadurch beim interaktiven Kompilieren von Notebook-Zellen zusätzliche Fehler erzeugen.
+
+Ein weiterer Unterschied betrifft die Eingabebehandlung. Die in Python genutzte Konsolenintegration über \mintinline{python}{input()} ist in den TypeScript-Notebooks nicht praktikabel. Stattdessen musste auf vorbereitete Eingabeströme in Form von Arrays ausgewichen werden. Dabei handelt es sich um einen technischen Workaround und nicht um einen funktionalen Ersatz echter interaktiver Standardeingabe. Zugleich simuliert dieser Ansatz jedoch einen sequentiellen Eingabestrom, wie er auch in realen Verarbeitungsszenarien vorkommt, und ermöglicht darüber hinaus reproduzierbare Testläufe mit kontrollierten Eingabewerten.
+
+\paragraph{Schwächen und verlorene Python-Features}
+Es gibt jedoch auch eindeutig negative Aspekte der Portierung. So fehlen in TypeScript elegante Sprachmittel wie Mengenkomprehensionen, auch wenn diese in den spezifischen Automaten-Notebooks nur selten benötigt wurden und später teilweise durch funktionale Methoden ersetzt werden konnten.
+
+Deutlich schwerwiegender ist der Verlust der mathematischen Operator-Syntax. Während Python für Mengen sehr intuitive Operatoren erlaubt, etwa \mintinline{python}{A | B} für die Vereinigung, erzwingt TypeScript Methodenaufrufe wie \mintinline{typescript}{A.union(B)}. Dadurch geht ein Teil der Nähe zur mathematischen Notation verloren, die gerade in der theoretischen Informatik didaktisch wertvoll ist.
+
+Auch beim Parsing ergibt sich ein didaktischer Zielkonflikt. In der Python-Version mit \emph{\glslink{ply}{PLY}} treten Lexer und Parser als getrennte Komponenten sehr explizit hervor. In der Lezer-basierten TypeScript-Version bleibt die fachliche Unterscheidung zwar erhalten, sie tritt strukturell jedoch nicht mehr in derselben unmittelbaren Form hervor, da scannernahe und parsernahe Aspekte innerhalb einer gemeinsamen Grammatikbeschreibung zusammengeführt werden. Für die Lehre ist dies einerseits formal elegant, andererseits geht damit ein Teil der anschaulichen Trennung verloren, die das ursprüngliche Python-Material auszeichnete.
+
+\subsection{Projektrückblick und \enquote{Lessons Learned}}
+
+Ein ehrlicher Rückblick auf das Projekt erfordert auch die Benennung von Fehlentscheidungen. Zu Beginn wurde versucht, die Parsergenerierung mit dem Framework \emph{Chevrotain} umzusetzen. Erst im Verlauf der Implementierung wurde deutlich, dass dieser Ansatz für den konkreten Lehrkontext ungeeignet war. Da Chevrotain auf LL(k)-Parsing und damit auf ein Top-Down-Verfahren setzt, passte das Werkzeug nicht zu einer Lehrveranstaltung, deren Schwerpunkt auf LR-Parsing, Bottom-Up-Strategien und Shift-Reduce-Mechanismen liegt.
+
+Diese Fehleinschätzung führte zu erheblichem Mehraufwand. Bereits portierte Notebooks mussten in Teilen erneut überarbeitet und auf \emph{Lezer} oder, wo fachlich angemessen, auf reine reguläre Ausdrücke umgestellt werden. Rückblickend zeigt sich hier eine zentrale methodische Erkenntnis: In Lehrprojekten dürfen Werkzeuge nicht allein nach praktischen Entwicklungsaspekten ausgewählt werden. Ebenso entscheidend ist die Frage, ob ihre zugrunde liegenden theoretischen Paradigmen zu den vermittelten Inhalten passen.
+
+Eine weitere wichtige Erfahrung betrifft den Charakter von Portierungen allgemein. Die Arbeit hat gezeigt, dass eine fachlich erfolgreiche Migration nicht in erster Linie darin besteht, möglichst viele Zeilen Code unverändert in eine neue Sprache zu übertragen. Entscheidend ist vielmehr, die zugrunde liegenden Konzepte so in das neue Ökosystem einzubetten, dass sie dort technisch tragfähig und didaktisch sinnvoll bleiben. Gerade an Punkten wie Mengenmodellierung, Parserarchitektur und Eingabebehandlung wurde deutlich, dass eine gute Portierung stets auch eine Neuinterpretation der Ausgangslösung erfordert.
+
+% !TEX root = ../master.tex
+
+\subsection{Methodische Reflexion zur KI-gestützten Portierung}
+
+Ein integraler Bestandteil der ursprünglichen Aufgabenstellung war der gezielte Einsatz generativer Künstlicher Intelligenz (\glslink{llm}{LLMs}) zur Unterstützung des Portierungsprozesses. Die Arbeit an diesem Projekt zeigte deutlich, dass die Modellierung formaler Sprachen im TypeScript-Ökosystem spezifische Anforderungen an den KI-Einsatz stellt und vereinfachende Lösungsstrategien hier schnell an ihre Grenzen stoßen.
+
+Zu Beginn des Projekts stand die Überlegung im Raum, die Übersetzung über einen stark promptzentrierten Ansatz in Form eines umfassenden \enquote{Masterprompts} in einem einzigen Schritt (\textit{Zero-Shot-Translation}) durchzuführen. Aufgrund der fachlichen Tiefe der Domäne, etwa bei der Modellierung von Mengen, Automaten, Grammatiken und Parserstrukturen sowie bei der Neuentwicklung komplexer Datenstrukturen wie dem \texttt{RecursiveSet}, erwies sich ein solcher monolithischer Ansatz jedoch als nicht zielführend. Bei derart komplexen Modellierungs- und Portierungsaufgaben erzeugen \glslink{llm}{LLMs} zwar häufig plausible Vorschläge, übersehen dabei jedoch leicht zentrale Laufzeitunterschiede oder entwickeln konzeptionell inkonsistente Lösungen.
+
+Stattdessen wurde für die Portierung ein iterativer \textit{Human-in-the-Loop}-Workflow etabliert, der auf wiederholter Generierung, Prüfung, Korrektur und Neuformulierung beruhte. Der Prozess gliederte sich in vier Phasen:
+
+\begin{enumerate}
+    \item \textbf{Konzeptentwurf:} Einem primären Sprachmodell wurde das ursprüngliche Python-Notebook übergeben, um zunächst keine direkte Zielimplementierung, sondern eine abstrakte Architekturidee für die TypeScript-Migration zu erzeugen.
+    \item \textbf{Kritische Prüfung:} Dieser konzeptionelle Entwurf wurde fachlich überprüft. Um mögliche blinde Flecken eines einzelnen Modells sichtbar zu machen, wurde dieser Schritt teilweise durch weitere Modellantworten als zusätzliche Prüfperspektive unterstützt.
+    \item \textbf{Iterative Überarbeitung:} Erkannte architektonische Schwächen wurden als Feedback in den nächsten Generierungszyklus zurückgespielt. Dieser Schritt wurde so lange wiederholt, bis ein fachlich tragfähiges und technisch belastbares Zielkonzept vorlag.
+    \item \textbf{Implementierung und Feinjustierung:} Erst auf dieser Grundlage wurde der eigentliche Quellcode iterativ erzeugt und anschließend manuell refaktoriert, um Verbosität zu reduzieren, Randfälle abzusichern und die Kompatibilität mit der \texttt{tslab}-Umgebung sicherzustellen.
+\end{enumerate}
+
+Zugleich zeigte sich im Projektverlauf, dass ein solcher iterativer Ansatz einen tatsächlichen Entwicklungsprozess in den Notebooks über die Zeit sichtbar macht: Lösungen entstanden nicht in einem einzigen konsistenten Generierungsschritt, sondern wurden schrittweise präzisiert, verworfen, neu strukturiert und an die fachlichen Anforderungen angepasst. Diese Prozessnähe war methodisch hilfreich, ging jedoch mit zusätzlichem Abstimmungsaufwand einher. Kritisch ist daher einzuräumen, dass präzisere und kontextsensitivere Prompts an mehreren Stellen wahrscheinlich bereits früher zu besseren Zwischenergebnissen geführt hätten. Die Stärke des iterativen Vorgehens lag somit letztlich nicht in einer maximalen Effizienz, sondern in der deutlich höheren Kontrolle über fachliche Korrektheit und architektonische Qualität.
+
+Dieser Prozess verdeutlicht, dass KI-Modelle bei der Migration komplexer Softwareprojekte nützliche Werkzeuge zur Konzeptvariation, Strukturprüfung und Codegenerierung sein können. Sie ersetzen jedoch weder fachliches Domänenwissen noch klassisches Software Engineering. Der menschliche Beitrag bestand daher nicht nur in der abschließenden Kontrolle einzelner Ergebnisse, sondern vor allem in der fortlaufenden Rückbindung der generierten Vorschläge an die im Projekt formulierten Entwurfsprinzipien und Typisierungsanforderungen. Dies betrifft insbesondere den methodischen Verzicht auf Typ-Bypässe (vgl. Paragraph~\ref{par:verzicht-any-as}), also die kritische Einordnung von \glslink{typeassertion}{Type Assertions} sowie die Implikationen fehlender Typisierung durch \texttt{any}. Gerade solche strikten Anforderungen mussten im iterativen Arbeitsprozess durch die menschliche Steuerung des Prozesses wiederholt eingefordert und nachgeschärft werden.
+
+\subsection{Schlusswort}
+
+Die Arbeit zeigt, dass eine Migration in ein neues Ökosystem nicht bei der Übersetzung einzelner Algorithmen stehen bleiben kann, sondern eine Anpassung von Datenstrukturen, technischer Infrastruktur und Ausführungsumgebung erfordert.
+
+Zugleich wurde sichtbar, dass die stärkere Typisierung, die vereinheitlichte Ausführungsumgebung und die explizitere Modellierung zentraler Strukturen didaktische Vorteile bieten. Dem stehen jedoch reale Kompromisse gegenüber, etwa eine höhere Verbosität, der Verlust bestimmter aus Python vertrauter Sprachmittel und zusätzliche technische Randbedingungen der Notebook-Umgebung.
+
+Mit der nun vorliegenden TypeScript-Basis steht der Lehrveranstaltung damit eine moderne und erweiterbare Grundlage für die weitere Nutzung und Weiterentwicklung der Notebooks zur Verfügung. Die Portierung ist daher nicht nur als technische Übertragung des bestehenden Materials zu verstehen, sondern als eigenständige Neustrukturierung, die die fachlichen Inhalte der Vorlesung in eine neue, langfristig nutzbare Form überführt.

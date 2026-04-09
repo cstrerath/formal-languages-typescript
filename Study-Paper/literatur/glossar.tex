@@ -1,9 +1,89 @@
 % !TEX root =  ../master.tex
 
-\newacronym{dhbw}{DHBW}{Duale Hochschule Baden-Württemberg}
+% Abkürzungen
+\newacronym{aos}{AoS}{Array of Structures}
+\newacronym{api}{API}{Application Programming Interface}
+\newacronym{ast_acr}{AST}{Abstract Syntax Tree}
+\newacronym{cpu}{CPU}{Central Processing Unit}
+\newacronym{cst_acr}{CST}{Concrete Syntax Tree}
+\newacronym{dfa}{DFA}{Deterministic Finite Automaton}
+\newacronym{ebnf}{EBNF}{Erweiterte Backus-Naur-Form}
+\newacronym{gc}{GC}{Garbage Collection}
+\newacronym{ide}{IDE}{Integrated Development Environment}
+\newacronym{ieee}{IEEE}{Institute of Electrical and Electronics Engineers}
+\newacronym{io}{I/O}{Input/Output}
+\newacronym{json}{JSON}{JavaScript Object Notation}
+\newacronym{llm}{LLM}{Large Language Model}
+\newacronym{nfa}{NFA}{Nondeterministic Finite Automaton}
+\newacronym{ply}{PLY}{Python Lex-Yacc}
+\newacronym{ram}{RAM}{Random Access Memory}
+\newacronym{soa_acr}{SoA}{Structure of Arrays}
+\newacronym{utf}{UTF}{Unicode Transformation Format}
+\newacronym{v8}{V8}{JavaScript-Engine (Google)}
 
-\newglossaryentry{repository}{
-    name={Repository},
-    plural={Repositories},
-    description={Ein zentraler, oft versionierter Speicherort für Quellcode und digitale Dokumente, der es ermöglicht, Änderungen am Code historisch nachzuvollziehen und gemeinsam an Projekten zu arbeiten}
+
+% Glossareinträge
+\newglossaryentry{amortisiert}{
+    name={Amortisierte Laufzeit},
+    description={Durchschnittlicher Aufwand einer Operation über eine sehr lange Sequenz von Aufrufen, wodurch seltene kostenintensive Operationen rechnerisch auf viele effiziente Operationen umgelegt werden}
+}
+
+\newglossaryentry{backshift}{
+    name={Backshift Deletion},
+    description={Verfahren zum Löschen in Hashtabellen mit Open Addressing, bei dem nachfolgende Elemente aufrücken, um Lücken zu schließen und die Sondierungskette ohne Tombstones zu reparieren}
+}
+
+\newglossaryentry{cst}{
+    name={Concrete Syntax Tree (CST)},
+    description={Vollständiger Ableitungsbaum einer Grammatik, der alle syntaktischen Details einschließlich Hilfszeichen wie Klammern repräsentiert}
+}
+
+\newglossaryentry{ast}{
+    name={Abstract Syntax Tree (AST)},
+    description={Verdichtete Baumdarstellung, die nur die für die Programmlogik wesentlichen Informationen wie Operatoren und Operanden enthält}
+}
+
+\newglossaryentry{garbagecollection}{
+    name={Garbage Collection (GC)},
+    description={Automatischer Prozess der Laufzeitumgebung zur Ermittlung und Freigabe von nicht mehr referenziertem Arbeitsspeicher}
+}
+
+\newglossaryentry{inkrementell}{
+    name={Inkrementelles Parsing},
+    description={Analyseverfahren, bei dem nach einer Änderung am Quelltext nur der betroffene Teil des Syntaxbaums neu geparst wird, anstatt das gesamte Dokument}
+}
+
+\newglossaryentry{linearprobing}{
+    name={Linear Probing},
+    description={Verfahren zur Kollisionsauflösung in Hashtabellen, bei dem bei einem besetzten Slot linear der nächste freie Speicherplatz gesucht wird}
+}
+
+\newglossaryentry{listenfaltung}{
+    name={Listen-Faltung},
+    description={Umwandlung einer flachen Folge von Elementen in eine rekursiv verschachtelte Listenstruktur (Cons-Zellen)}
+}
+
+\newglossaryentry{structuraltyping}{
+    name={Strukturelles Typing},
+    description={Konzept in TypeScript (statisches Duck-Typing), bei dem die Typkompatibilität rein anhand der Form eines Objekts geprüft wird}
+}
+
+\newglossaryentry{soa}{
+    name={Structure of Arrays (SoA)},
+    description={Architekturmuster, bei dem Objekteigenschaften in getrennten, parallelen Arrays gespeichert werden, um die Cache-Lokalität der CPU zu erhöhen}
+}
+
+\newglossaryentry{tombstone}{
+    name={Tombstone},
+    description={Marker-Objekt in einer Hashtabelle, das einen gelöschten Eintrag ersetzt, um ein Abreißen der Suchkette beim Linear Probing zu verhindern}
+}
+
+\newglossaryentry{typeassertion}{
+    name={Type Assertion},
+    description={Compiler-Direktive (as), die TypeScript zwingt, einen Wert als bestimmten Typ zu behandeln, ohne den Wert zur Laufzeit tatsächlich zu konvertieren}
+}
+
+\newglossaryentry{typenarrowing}{
+    name={Type Narrowing},
+    description={Prozess der schrittweisen Typ-Einengung durch den Compiler auf Basis von Kontrollflussanalysen wie typeof-Prüfungen oder if-Ver\-zwei\-gungen}
 }

@@ -27,7 +27,8 @@
 \usepackage{pdfpages}
 \usepackage[many]{tcolorbox}
 \usepackage{tikz}
-\usetikzlibrary{shapes, shapes.multipart, arrows.meta, positioning, calc, decorations.pathreplacing}
+\usetikzlibrary{shapes, shapes.geometric, shapes.multipart, arrows.meta, positioning, calc, decorations.pathreplacing, backgrounds}
+
 
 % --- 5. Layout & Seitenränder ---
 \usepackage{geometry}
@@ -77,7 +78,13 @@
 
 % --- 9. URLs & Hyperlinks ---
 \usepackage{xurl}
-\usepackage[hidelinks]{hyperref}
+\definecolor{DocBlue}{RGB}{0,50,120} 
+\usepackage[
+    colorlinks=true,
+    linkcolor=DocBlue,  % Farbe für interne Links (Inhaltsverzeichnis, Abbildungen)
+    urlcolor=DocBlue,   % Farbe für Web-Links
+    citecolor=DocBlue   % Farbe für Literaturverweise
+]{hyperref}
 
 % --- 10. Verzeichnisse ---
 \usepackage{makeidx}
@@ -109,15 +116,15 @@
 	\cleardoublepage
 	\input{vorspann/inhaltsverzeichnis}
 	\cleardoublepage
-    \printnoidxglossary[type=\acronymtype,title=Abkürzungsverzeichnis]
-	\cleardoublepage
-	\listoffigures
-	\cleardoublepage
-	\listoftables
-	\cleardoublepage
-	\listoflistings
-	\cleardoublepage
-	\printnoidxglossaries
+    \printnoidxglossary[type=\acronymtype, title=Abkürzungsverzeichnis, nonumberlist]
+    \cleardoublepage
+    %\listoffigures
+    %\cleardoublepage
+    \listoftables
+    \cleardoublepage
+    \listoflistings
+    \cleardoublepage
+    \printnoidxglossary[type=main, title=Glossar]
 	\cleardoublepage
 	\pagenumbering{arabic}
 	\input{kapitel/problemstellung}
@@ -126,12 +133,14 @@
 	\cleardoublepage
 	\input{kapitel/recursive-set-api}
 	\cleardoublepage
+	\input{kapitel/recursive-set-intern}
+	\cleardoublepage
 	\input{kapitel/lezer}
 	\cleardoublepage
-	%\input{kapitel/hauptteil}
-	%\cleardoublepage
-	%\input{kapitel/zusammenfassung}
-	%\cleardoublepage
+	\input{kapitel/case-study}
+	\cleardoublepage
+	\input{kapitel/fazit}
+	\cleardoublepage
 	\emergencystretch=1em
 	\printbibliography[heading=bibnumbered, title={Literaturverzeichnis}]
 	\cleardoublepage
