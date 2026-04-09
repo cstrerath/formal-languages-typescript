@@ -139,13 +139,13 @@ const grammarString = `
 
 Das Listing beginnt mit dem Import von \texttt{buildParser}. Diese Funktion erzeugt aus der deklarativen Grammatikbeschreibung den später verwendeten Lezer-Parser. Anders als bei \emph{\glslink{ply}{PLY}} werden Token-Definitionen und Grammatikregeln dabei nicht als verstreute Host-Code-Funktionen formuliert, sondern als zusammenhängende Spezifikation in einem einzigen String.
 
-Die erste Zeile innerhalb des Strings, \texttt{@top Script \{ Program \}}, legt das Startsymbol fest. Sie erfüllt damit dieselbe fachliche Rolle wie \texttt{start = 'program'} in der Python-Version, verwendet dafür aber die Lezer-spezifische Deklarationssyntax.
+Die erste Zeile innerhalb des Strings, \mintinline{typescript}{@top Script { Program }}, legt das Startsymbol fest. Sie erfüllt damit dieselbe fachliche Rolle wie \texttt{start = 'program'} in der Python-Version, verwendet dafür aber die Lezer-spezifische Deklarationssyntax.
 
-Der Block \texttt{@tokens} beschreibt anschließend die elementaren Tokenklassen. \texttt{Identifier} erkennt Bezeichner, die mit einem Buchstaben beginnen und danach Buchstaben, Ziffern oder Unterstriche enthalten dürfen. \texttt{Number} beschreibt natürliche Zahlen ohne führende Nullen, außer im Sonderfall der isolierten Null. Im Unterschied zu \emph{\glslink{ply}{PLY}} wird hier jedoch noch kein Text in einen konkreten Zahlenwert umgewandelt. Die Beschreibung bleibt zunächst auf der Ebene der formalen Tokenerkennung.
+Der Block \mintinline{typescript}{@tokens} beschreibt anschließend die elementaren Tokenklassen. \texttt{Identifier} erkennt Bezeichner, die mit einem Buchstaben beginnen und danach Buchstaben, Ziffern oder Unterstriche enthalten dürfen. \texttt{Number} beschreibt natürliche Zahlen ohne führende Nullen, außer im Sonderfall der isolierten Null. Im Unterschied zu \emph{\glslink{ply}{PLY}} wird hier jedoch noch kein Text in einen konkreten Zahlenwert umgewandelt. Die Beschreibung bleibt zunächst auf der Ebene der formalen Tokenerkennung.
 
-Die nachfolgenden Zeichenketten wie \texttt{"+"}, \texttt{":="} oder \texttt{"("} definieren feste terminale Symbole der Sprache. Leerraum und Kommentare werden ebenfalls als Tokenarten beschrieben, im Block \texttt{@skip} aber anschließend als zu ignorierende Eingabeelemente markiert. Dadurch muss die eigentliche Grammatik später nicht bei jeder Regel erneut erwähnen, dass zwischen Tokens auch Leerraum oder Kommentare stehen dürfen.
+Die nachfolgenden Zeichenketten wie \mintinline{typescript}{"+"}, \mintinline{typescript}{":="} oder \mintinline{typescript}{"("} definieren feste terminale Symbole der Sprache. Leerraum und Kommentare werden ebenfalls als Tokenarten beschrieben, im Block \mintinline{typescript}{@skip} aber anschließend als zu ignorierende Eingabeelemente markiert. Dadurch muss die eigentliche Grammatik später nicht bei jeder Regel erneut erwähnen, dass zwischen Tokens auch Leerraum oder Kommentare stehen dürfen.
 
-Besonders wichtig ist die Regel \texttt{@precedence \{ LineComment, BlockComment, "/" \}}. Sie löst den Konflikt, dass das Zeichen \texttt{/} sowohl als Divisionsoperator als auch als Beginn eines Kommentars auftreten kann. Lezer soll in solchen Fällen zuerst prüfen, ob eine längere Kommentarform vorliegt, und nur andernfalls das einfache Slash-Token erzeugen.
+Wichtig ist die Regel \mintinline{typescript}{@precedence { LineComment, BlockComment, "/" }}. Sie löst den Konflikt, dass das Zeichen \texttt{/} sowohl als Divisionsoperator als auch als Beginn eines Kommentars auftreten kann. Lezer soll in solchen Fällen zuerst prüfen, ob eine längere Kommentarform vorliegt, und nur andernfalls das einfache Slash-Token erzeugen.
 
 Die Regeln \texttt{IF} und \texttt{WHILE} zeigen schließlich die Spezialisierung von Schlüsselwörtern. Zunächst wird ein passender Text als \texttt{Identifier} erkannt. Erst danach wird geprüft, ob sein vollständiger Inhalt genau \texttt{if} oder \texttt{while} lautet. Dadurch bleiben längere Bezeichner wie \texttt{ifCounter} gültig und werden nicht fälschlich in ein Schlüsselwortpräfix und einen Rest zerlegt.
 
@@ -155,7 +155,7 @@ Listing~\ref{lst:lezer-grammar-1} und Listing~\ref{lst:lezer-grammar-2} ergänze
 \caption{Fortsetzung der Lezer-Grammatik (Teil 1: Anweisungen)}
 \label{lst:lezer-grammar-1}
 \begin{minted}[linenos, firstnumber=last]{typescript}
-Program {
+    Program {
         Stmnt Program | 
         ""
     }
@@ -179,17 +179,17 @@ Program {
 \end{minted}
 \end{listing}
 
-Der erste Teil der Grammatik beschreibt die grundlegende Struktur vollständiger Programme und einzelner Anweisungen. Die Regel \texttt{Program} ist rechtsrekursiv formuliert: Ein Programm besteht entweder aus einer Anweisung \texttt{Stmnt}, gefolgt von einem weiteren \texttt{Program}, oder aus der leeren Zeichenkette \texttt{""}. Diese Form entspricht einer rekursiv aufgebauten Liste von Anweisungen und bereitet bereits die spätere interne Darstellung als Punktliste vor.
+Der erste Teil der Grammatik beschreibt die grundlegende Struktur vollständiger Programme und einzelner Anweisungen. Die Regel \texttt{Program} ist rechtsrekursiv formuliert: Ein Programm besteht entweder aus einer Anweisung \texttt{Stmnt}, gefolgt von einem weiteren \texttt{Program}, oder aus der leeren Zeichenkette \mintinline{typescript}{""}. Diese Form entspricht einer rekursiv aufgebauten Liste von Anweisungen und bereitet bereits die spätere interne Darstellung als Punktliste vor.
 
 Die Regel \texttt{Stmnt} legt fest, welche Arten von Anweisungen in der Sprache zulässig sind. Erfasst werden bedingte Anweisungen mit \texttt{IF}, Schleifen mit \texttt{WHILE}, Blockanweisungen in geschweiften Klammern, Zuweisungen sowie Ausdrucksanweisungen. Für Studierende ist hier besonders hilfreich, dass jede Alternative unmittelbar eine konkrete Sprachkonstruktion repräsentiert. Die Grammatik kann daher nahezu wie eine formale Aufzählung der erlaubten Anweisungsformen gelesen werden.
 
-Die Regel \texttt{BoolExpr} beschreibt boolesche Ausdrücke ausschließlich als Vergleiche zwischen zwei arithmetischen Ausdrücken. Zulässig sind also nur Formen wie \texttt{Expr "==" Expr} oder \texttt{Expr "<" Expr}. Diese Einschränkung ist didaktisch nützlich, weil sie die boolesche Auswertung klar von der arithmetischen Auswertung trennt. Anders als in vielen Vollsprachen gibt es hier keine implizite Wahrheitsinterpretation beliebiger Zahlenwerte.
+Die Regel \texttt{BoolExpr} beschreibt boolesche Ausdrücke ausschließlich als Vergleiche zwischen zwei arithmetischen Ausdrücken. Zulässig sind also nur Formen wie \mintinline{typescript}{Expr "==" Expr} oder \mintinline{typescript}{Expr "<" Expr}. Diese Einschränkung ist didaktisch nützlich, weil sie die boolesche Auswertung klar von der arithmetischen Auswertung trennt. Anders als in vielen Vollsprachen gibt es hier keine implizite Wahrheitsinterpretation beliebiger Zahlenwerte.
 
 \begin{listing}[htbp]
 \caption{Ende der Lezer-Grammatik (Teil 2: Ausdrücke)}
 \label{lst:lezer-grammar-2}
 \begin{minted}[linenos, firstnumber=last]{typescript}
-Expr {
+    Expr {
         Expr "+" Product |
         Expr "-" Product |
         Product
@@ -226,11 +226,11 @@ const parser = buildParser(grammarString);
 
 Der zweite Teil der Grammatik beschreibt die Struktur arithmetischer Ausdrücke. Die Regel \texttt{Expr} erfasst Addition und Subtraktion, während \texttt{Product} für Multiplikation, Division und Modulo zuständig ist. Dass diese beiden Ebenen getrennt formuliert werden, ist kein bloßer Stil, sondern modelliert direkt die gewünschte Operatorpriorität: Multiplikation und Division binden dadurch stärker als Addition und Subtraktion.
 
-Die Regel \texttt{Factor} beschreibt die elementaren Bausteine, aus denen größere Ausdrücke zusammengesetzt werden. Dazu gehören geklammerte Ausdrücke, Zahlen, Bezeichner und Funktionsaufrufe. Besonders wichtig ist hier der Fall \texttt{Identifier "(" ExprList ")"}, da Funktionsaufrufe syntaktisch wie ein Bezeichner mit nachfolgender Argumentliste behandelt werden. Auch diese Struktur wird später nicht sofort als fertiger \glslink{ast_acr}{AST}-Knoten geliefert, sondern liegt nach dem Parsing zunächst in der detaillierteren \glslink{cst_acr}{CST}-Form vor.
+Die Regel \texttt{Factor} beschreibt die elementaren Bausteine, aus denen größere Ausdrücke zusammengesetzt werden. Dazu gehören geklammerte Ausdrücke, Zahlen, Bezeichner und Funktionsaufrufe. Besonders wichtig ist hier der Fall \mintinline{typescript}{Identifier "(" ExprList ")"}, da Funktionsaufrufe syntaktisch wie ein Bezeichner mit nachfolgender Argumentliste behandelt werden. Auch diese Struktur wird später nicht sofort als fertiger \glslink{ast_acr}{AST}-Knoten geliefert, sondern liegt nach dem Parsing zunächst in der detaillierteren \glslink{cst_acr}{CST}-Form vor.
 
-Mit \texttt{ExprList} und \texttt{NeExprList} werden schließlich Argumentlisten beschrieben. \texttt{ExprList} erlaubt entweder eine nichtleere Liste oder die leere Zeichenkette und deckt damit auch Funktionsaufrufe ohne Argumente ab. \texttt{NeExprList} ist wiederum rekursiv formuliert: Eine nichtleere Liste besteht aus genau einem Ausdruck oder aus einem Ausdruck, gefolgt von einem Komma und einer weiteren nichtleeren Liste. Auch hier zeigt sich dasselbe Grundprinzip wie bereits bei \texttt{Program}: Wiederholungsstrukturen werden nicht durch einen separaten Listenoperator, sondern durch explizite Rekursion modelliert.
+Mit \texttt{ExprList} und \texttt{NeExprList} werden schließlich Argumentlisten beschrieben. \texttt{ExprList} erlaubt entweder eine nichtleere Liste oder die leere Zeichenkette \mintinline{typescript}{""} und deckt damit auch Funktionsaufrufe ohne Argumente ab. \texttt{NeExprList} ist wiederum rekursiv formuliert: Eine nichtleere Liste besteht aus genau einem Ausdruck oder aus einem Ausdruck, gefolgt von einem Komma und einer weiteren nichtleeren Liste. Auch hier zeigt sich dasselbe Grundprinzip wie bereits bei \texttt{Program}: Wiederholungsstrukturen werden nicht durch einen separaten Listenoperator, sondern durch explizite Rekursion modelliert.
 
-Die letzte Zeile erzeugt mit \texttt{buildParser(grammarString)} den Lezer-Parser aus der vollständigen Grammatikbeschreibung. Dieser Parser verarbeitet den Eingabetext anschließend zu einem \glslink{cst}{konkreten Syntaxbaum}. Anders als in der Python-Version mit \emph{\glslink{ply}{PLY}} wird die interne Zielstruktur dabei jedoch noch nicht unmittelbar in den Grammatikregeln aufgebaut. Die Überführung in den später vom Interpreter verwendeten \glslink{ast_acr}{AST} erfolgt erst im nachgelagerten Transformationsschritt.
+Die letzte Zeile erzeugt mit \mintinline{typescript}{buildParser(grammarString)} den Lezer-Parser aus der vollständigen Grammatikbeschreibung. Dieser Parser verarbeitet den Eingabetext anschließend zu einem \glslink{cst}{konkreten Syntaxbaum}. Anders als in der Python-Version mit \emph{\glslink{ply}{PLY}} wird die interne Zielstruktur dabei jedoch noch nicht unmittelbar in den Grammatikregeln aufgebaut. Die Überführung in den später vom Interpreter verwendeten \glslink{ast_acr}{AST} erfolgt erst im nachgelagerten Transformationsschritt.
 
 \subsection{Transformation vom CST zum AST}
 
@@ -410,15 +410,15 @@ let execute = (node: AST, env: Environment): void => {
 \end{minted}
 \end{listing}
 
-Im TypeScript-Code fungiert die Funktion \texttt{execute} als zentraler Dispatcher für Anweisungen. Zunächst wird geprüft, ob der übergebene Knoten überhaupt ein Array ist. Dies ist notwendig, weil der \glslink{ast_acr}{AST} auch atomare Werte wie Zahlen oder Bezeichner enthalten kann, die keine ausführbaren Anweisungen darstellen.
+Im TypeScript-Code fungiert die Funktion \mintinline{typescript}{execute} als zentraler Dispatcher für Anweisungen. Zunächst wird geprüft, ob der übergebene Knoten überhaupt ein Array ist. Dies ist notwendig, weil der \glslink{ast_acr}{AST} auch atomare Werte wie Zahlen oder Bezeichner enthalten kann, die keine ausführbaren Anweisungen darstellen.
 
-In der Variablen \texttt{tag} wird anschließend das erste Element des Tupels gespeichert. Dieses Tag bestimmt, welche Art von Anweisung vorliegt. Der Fall \texttt{"."} delegiert unmittelbar an \texttt{executeList}, weil Punktlisten keine einzelne Anweisung, sondern eine Folge von Anweisungen repräsentieren.
+In der Variablen \mintinline{typescript}{tag} wird anschließend das erste Element des Tupels gespeichert. Dieses Tag bestimmt, welche Art von Anweisung vorliegt. Der Fall \mintinline{typescript}{"."} delegiert unmittelbar an \mintinline{typescript}{executeList}, weil Punktlisten keine einzelne Anweisung, sondern eine Folge von Anweisungen repräsentieren.
 
-Der Fall \texttt{"block"} behandelt Blockanweisungen. Hier wird der im Block enthaltene Programmkörper ausgelesen und als Liste ausgeführt. Der Fall \texttt{":="} implementiert Zuweisungen, indem zunächst der Variablenname und der rechte Ausdruck extrahiert und anschließend das berechnete Ergebnis in der Umgebung gespeichert werden.
+Der Fall \mintinline{typescript}{"block"} behandelt Blockanweisungen. Hier wird der im Block enthaltene Programmkörper ausgelesen und als Liste ausgeführt. Der Fall \mintinline{typescript}{":="} implementiert Zuweisungen, indem zunächst der Variablenname und der rechte Ausdruck extrahiert und anschließend das berechnete Ergebnis in der Umgebung gespeichert werden.
 
-Die Fälle \texttt{"IF"} und \texttt{"WHILE"} realisieren die Kontrollflusskonstrukte der Sprache. In beiden Fällen wird zunächst die Bedingung ausgewertet. Beim \texttt{IF} wird der Rumpf genau dann ausgeführt, wenn die Bedingung wahr ist; bei \texttt{WHILE} geschieht dies wiederholt, solange die Bedingung wahr bleibt.
+Die Fälle \mintinline{typescript}{"IF"} und \mintinline{typescript}{"WHILE"} realisieren die Kontrollflusskonstrukte der Sprache. In beiden Fällen wird zunächst die Bedingung ausgewertet. Beim \mintinline{typescript}{"IF"} wird der Rumpf genau dann ausgeführt, wenn die Bedingung wahr ist; bei \mintinline{typescript}{"WHILE"} geschieht dies wiederholt, solange die Bedingung wahr bleibt.
 
-Der letzte Fall \texttt{"Call"} zeigt, dass Funktionsaufrufe syntaktisch als Ausdrücke behandelt werden, aber dennoch Seiteneffekte besitzen können. Deshalb delegiert \texttt{execute} hier an \texttt{evaluate}. Die Ausführungsfunktion enthält somit selbst keine Fachlogik für \texttt{print} oder \texttt{read}, sondern überlässt diese der Ausdrucksauswertung.
+Der letzte Fall \mintinline{typescript}{"Call"} zeigt, dass Funktionsaufrufe syntaktisch als Ausdrücke behandelt werden, aber dennoch Seiteneffekte besitzen können. Deshalb delegiert \mintinline{typescript}{execute} hier an \mintinline{typescript}{evaluate}. Die Ausführungsfunktion enthält somit selbst keine Fachlogik für \mintinline{typescript}{print} oder \mintinline{typescript}{read}, sondern überlässt diese der Ausdrucksauswertung.
 
 Im Vergleich zur Python-Version wird damit deutlich, dass TypeScript dieselbe Logik expliziter entfalten muss. Die TypeScript-Version wirkt dadurch ausführlicher und technischer, macht ihre Kontrollflüsse und Sicherheitsprüfungen aber auch unmittelbar sichtbar.
 
@@ -533,7 +533,9 @@ Für \texttt{print} wird geprüft, ob überhaupt eine Argumentliste vorhanden is
 
 Der Fall \texttt{read} arbeitet umgekehrt. Hier wird der nächste vorbereitete Eingabewert mit \texttt{inputStream.shift()} aus dem simulierten Eingabestrom entnommen, in eine Zahl umgewandelt und anschließend zurückgegeben. Damit bildet die Funktion einfache Ein- und Ausgabeoperationen ab, ohne auf blockierende Konsoleneingaben angewiesen zu sein.
 
-Die abschließende Fehlermeldung am Ende der Funktion dient als Sicherheitsnetz. Erreicht die Auswertung einen Ausdrucksknoten, der von keinem der vorgesehenen Fälle erfasst wird, bricht das Programm mit einer expliziten Diagnose ab. Für das Verständnis in einer Lehrumgebung ist dies hilfreicher als ein stillschweigendes Fehlverhalten.
+Die abschließende Fehlermeldung am Ende der Funktion dient nicht nur als defensiver Laufzeit-Schutz, sondern ist auch aus Sicht des TypeScript-Compilers notwendig. Da das erste Element eines AST-Knotens formal nur als generischer \mintinline{typescript}{string} typisiert ist, kann die Kontrollflussanalyse nicht ausschließen, dass auch unbekannte Operatoren auftreten. Weil \mintinline{typescript}{evaluate} jedoch einen Rückgabewert vom Typ \mintinline{typescript}{number} garantieren muss, ist ein expliziter Fehlerwurf erforderlich, um einen impliziten Rückgabepfad mit \mintinline{typescript}{undefined} auszuschließen.
+
+Ursache dafür ist das bewusst generische Design der Transformationsschicht. Die Funktion \mintinline{typescript}{cst2ast} wurde als wiederverwendbare Hilfskomponente für unterschiedliche Notebooks konzipiert, weshalb \mintinline{typescript}{Operator} offen als \mintinline{typescript}{string} definiert ist. Diese Abstraktion erhöht zwar die Wiederverwendbarkeit, erzeugt im konkreten Interpreter jedoch eine Informationslücke für das Typsystem: Fachlich unerreichbare Fälle bleiben für den Compiler prinzipiell möglich und müssen daher explizit abgesichert werden.
 
 Im Vergleich zur Python-Version wird hier sichtbar, dass die TypeScript-Por\-tier\-ung Laufzeitbedingungen expliziter modelliert. Fehlerfälle wie Division durch Null oder der Zugriff auf nicht initialisierte Variablen werden systematisch durch Ausnahmen behandelt, was jedoch zu einer höheren Verbosität des Codes führt.
 
@@ -614,7 +616,7 @@ def main(file):
 \end{minted}
 \end{listing}
 
-Listing~\ref{lst:ts-runprogram} zeigt die Umsetzung in TypeScript. Hier werden asynchrone Eingabeprobleme umgangen, indem Ein- und Ausgaben vorbereitet werden.
+Listing~\ref{lst:ts-runprogram} zeigt die Umsetzung in TypeScript.
 
 \begin{listing}[htbp]
 \caption{Programmausführung und \glslink{io}{I/O}-Simulation in TypeScript}

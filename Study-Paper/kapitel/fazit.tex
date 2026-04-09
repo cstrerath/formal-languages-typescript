@@ -60,7 +60,7 @@ Eine weitere wichtige Erfahrung betrifft den Charakter von Portierungen allgemei
 
 Ein integraler Bestandteil der ursprünglichen Aufgabenstellung war der gezielte Einsatz generativer Künstlicher Intelligenz (\glslink{llm}{LLMs}) zur Unterstützung des Portierungsprozesses. Die Arbeit an diesem Projekt zeigte deutlich, dass die Modellierung formaler Sprachen im TypeScript-Ökosystem spezifische Anforderungen an den KI-Einsatz stellt und vereinfachende Lösungsstrategien hier schnell an ihre Grenzen stoßen.
 
-Zu Beginn des Projekts stand die Überlegung im Raum, die Übersetzung über einen stark promptzentrierten Ansatz in Form eines umfassenden \enquote{Masterprompts} in einem einzigen Schritt (\textit{Zero-Shot-Translation}) durchzuführen. Aufgrund der fachlichen Tiefe der Domäne – etwa bei der Modellierung von Mengen, Automaten, Grammatiken und Parserstrukturen sowie bei der Neuentwicklung komplexer Datenstrukturen wie dem \texttt{RecursiveSet} – erwies sich ein solcher monolithischer Ansatz jedoch als nicht zielführend. Bei derart komplexen Modellierungs- und Portierungsaufgaben erzeugen \glslink{llm}{LLMs} zwar häufig plausible Vorschläge, übersehen dabei jedoch leicht zentrale Laufzeitunterschiede oder entwickeln konzeptionell inkonsistente Lösungen.
+Zu Beginn des Projekts stand die Überlegung im Raum, die Übersetzung über einen stark promptzentrierten Ansatz in Form eines umfassenden \enquote{Masterprompts} in einem einzigen Schritt (\textit{Zero-Shot-Translation}) durchzuführen. Aufgrund der fachlichen Tiefe der Domäne, etwa bei der Modellierung von Mengen, Automaten, Grammatiken und Parserstrukturen sowie bei der Neuentwicklung komplexer Datenstrukturen wie dem \texttt{RecursiveSet}, erwies sich ein solcher monolithischer Ansatz jedoch als nicht zielführend. Bei derart komplexen Modellierungs- und Portierungsaufgaben erzeugen \glslink{llm}{LLMs} zwar häufig plausible Vorschläge, übersehen dabei jedoch leicht zentrale Laufzeitunterschiede oder entwickeln konzeptionell inkonsistente Lösungen.
 
 Stattdessen wurde für die Portierung ein iterativer \textit{Human-in-the-Loop}-Workflow etabliert, der auf wiederholter Generierung, Prüfung, Korrektur und Neuformulierung beruhte. Der Prozess gliederte sich in vier Phasen:
 
@@ -77,7 +77,7 @@ Dieser Prozess verdeutlicht, dass KI-Modelle bei der Migration komplexer Softwar
 
 \subsection{Schlusswort}
 
-Die Portierung der Lehrmaterialien nach TypeScript war technisch aufwendig, hat für den angestrebten Einsatz in der Lehre jedoch eine tragfähige Grundlage geschaffen. Die Arbeit zeigt, dass eine Migration in ein neues Ökosystem nicht bei der Übersetzung einzelner Algorithmen stehen bleiben kann, sondern eine Anpassung von Datenstrukturen, Werkzeugkette und Ausführungsumgebung erfordert.
+Die Arbeit zeigt, dass eine Migration in ein neues Ökosystem nicht bei der Übersetzung einzelner Algorithmen stehen bleiben kann, sondern eine Anpassung von Datenstrukturen, technischer Infrastruktur und Ausführungsumgebung erfordert.
 
 Zugleich wurde sichtbar, dass die stärkere Typisierung, die vereinheitlichte Ausführungsumgebung und die explizitere Modellierung zentraler Strukturen didaktische Vorteile bieten. Dem stehen jedoch reale Kompromisse gegenüber, etwa eine höhere Verbosität, der Verlust bestimmter aus Python vertrauter Sprachmittel und zusätzliche technische Randbedingungen der Notebook-Umgebung.
 

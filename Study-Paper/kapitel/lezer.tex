@@ -246,12 +246,12 @@ Das Ziel dieser Mechanismen besteht darin, den abstrakten Syntaxbaum in ein stri
     \caption{Die typsichere Definition des AST}
     \label{lst:ast_type_definition}
 \begin{minted}{typescript}
-export type Operator = string;
-export type AST = string | number | 
-           [Operator, AST]                |
-           [Operator, AST, AST]           |
-           [Operator, AST, AST, AST]      |
-           [Operator, AST, AST, AST, AST];
+type Operator = string;
+type AST = string | number | 
+    [Operator, AST]                |
+    [Operator, AST, AST]           |
+    [Operator, AST, AST, AST]      |
+    [Operator, AST, AST, AST, AST];
 \end{minted}
 \end{listing}
 
