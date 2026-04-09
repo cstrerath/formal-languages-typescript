@@ -6,27 +6,27 @@
 \section{Interne Architektur von RecursiveSet}
 \label{sec:recursive-set-intern}
 
-Während Kapitel~\ref{sec:recursive-set-api} die fachliche Programmierschnittstelle und die konzeptionelle Notwendigkeit einer wertsemantischen Mengenstruktur behandelte, fokussiert dieses Kapitel die zugrunde liegende technische Architektur. Dabei wird beleuchtet, wie die Bibliothek die Brücke zwischen der formalen mathematischen Theorie und der maschinennahen Ausführung in der JavaScript-Laufzeitumgebung (V8) schlägt.
+Während Kapitel~\ref{sec:recursive-set-api} die fachliche Programmierschnittstelle und die konzeptionelle Notwendigkeit einer wertsemantischen Mengenstruktur behandelte, fokussiert dieses Kapitel die zugrunde liegende technische Architektur. Dabei wird beleuchtet, wie die Bibliothek die Brücke zwischen der formalen mathematischen Theorie und der maschinennahen Ausführung in der JavaScript-Laufzeitumgebung (\gls{v8}) schlägt.
 
 % !TEX root = ../master.tex
 
 \subsection{Architektonische Grundentscheidungen}
 \label{subsec:rs-intern-grundentscheidungen}
 
-Die naheliegendste Frage zu Beginn einer solchen Portierung lautet: Warum wird das native \mintinline{typescript}{Set} von TypeScript nicht einfach in eine Wrapper-Klasse gewickelt, um das in Abschnitt~\ref{subsec:rs-api-wohlunterscheidbarkeit} beschriebene Problem der mangelnden Wertsemantik zu umgehen? Man könnte komplexe Objekte beispielsweise in JSON-Strings umwandeln (\mintinline{typescript}{JSON.stringify}) und diese Strings als Repräsentation im nativen Set speichern. 
+Die naheliegendste Frage zu Beginn einer solchen Portierung lautet: Warum wird das native \mintinline{typescript}{Set} von TypeScript nicht einfach in eine Wrapper-Klasse gewickelt, um das in Abschnitt~\ref{subsec:rs-api-wohlunterscheidbarkeit} beschriebene Problem der mangelnden Wertsemantik zu umgehen? Man könnte komplexe Objekte beispielsweise in \glslink{json}{JSON}-Strings umwandeln (\mintinline{typescript}{JSON.stringify}) und diese Strings als Repräsentation im nativen Set speichern. 
 
 Ein solcher Ansatz scheitert jedoch an zwei fundamentalen Hürden: einer semantischen und einer architektonischen.
 
 Die \textbf{semantische Hürde} betrifft das Wesen mathematischer Mengen. Mengen sind fachlich ungeordnet: Die Menge $\{1, 2\}$ ist mathematisch absolut identisch zur Menge $\{2, 1\}$. Eine Serialisierung mittels \mintinline{typescript}{JSON.stringify} ist jedoch strikt sequenziell. Sie würde die Repräsentationen \mintinline{text}{"[1,2]"} und \mintinline{text}{"[2,1]"} als zwei völlig unterschiedliche Zeichenketten und damit als zwei verschiedene Elemente werten. Um dies zu umgehen, müsste jede geschachtelte Menge vor jedem Lese- oder Schreibzugriff tiefenrekursiv sortiert werden.
 
-Dies führt unweigerlich zur \textbf{architektonischen Hürde}: Zwar ist die native \mintinline{typescript}{JSON.stringify}-Funktion der JavaScript-Laufzeitumgebung hochgradig optimiert, doch das erzwungene vorherige Sortieren und das ständige Erzeugen neuer String-Objekte bei jedem noch so kleinen Zugriffsobjekt erfordert enorm viel CPU-Zeit. Zudem belastet die ständige Erzeugung temporärer Strings die Speicherverwaltung massiv:
+Dies führt unweigerlich zur \textbf{architektonischen Hürde}: Zwar ist die native \mintinline{typescript}{JSON.stringify}-Funktion der JavaScript-Laufzeitumgebung hochgradig optimiert, doch das erzwungene vorherige Sortieren und das ständige Erzeugen neuer String-Objekte bei jedem noch so kleinen Zugriffsobjekt erfordert enorm viel \glslink{cpu}{CPU}-Zeit. Zudem belastet die ständige Erzeugung temporärer Strings die Speicherverwaltung massiv:
 
 \begin{definition}
 \label{def:garbage-collection}
-\textbf{Garbage Collection (GC):} Ein Prozess der Laufzeitumgebung (wie der V8-Engine), der den Arbeitsspeicher nach Objekten durchsucht, die vom Programm nicht mehr referenziert werden, um deren Speicherplatz wieder freizugeben. Werden in kurzen Abständen extrem viele temporäre Objekte (wie JSON-Strings für Suchabfragen) erzeugt, muss die GC den Programmablauf für Aufräumarbeiten pausieren (\enquote{Stop-the-World}-Pausen), was zu Latenzen und Einbrüchen in der Performance führt.
+\textbf{\glslink{garbagecollection}{Garbage Collection} (\gls{gc}):} Ein Prozess der Laufzeitumgebung (wie der \glslink{v8}{V8-Engine}), der den Arbeitsspeicher nach Objekten durchsucht, die vom Programm nicht mehr referenziert werden, um deren Speicherplatz wieder freizugeben. Werden in kurzen Abständen extrem viele temporäre Objekte (wie \glslink{json}{JSON}-Strings für Suchabfragen) erzeugt, muss die \gls{gc} den Programmablauf für Aufräumarbeiten pausieren (\enquote{Stop-the-World}-Pausen), was zu Latenzen und Einbrüchen in der Performance führt.
 \end{definition}
 
-Um sowohl die mathematische Gleichheit (ordnungsunabhängige Wertsemantik) als auch eine Zugriffszeit von im Durchschnitt amortisiert $\mathcal{O}(1)$ (unter der Annahme einer guten Hash-Verteilung) zu garantieren, wurde \mintinline{typescript}{RecursiveSet} stattdessen als vollständige Eigenimplementierung entwickelt. Nur so erhält die Bibliothek die volle Kontrolle über den Hashing-Algorithmus (der bei Mengen ordnungsunabhängig arbeiten muss) und das Speicherlayout, um unnötige Objekt-Allokationen zu vermeiden.
+Um sowohl die mathematische Gleichheit (ordnungsunabhängige Wertsemantik) als auch eine Zugriffszeit von im Durchschnitt \glslink{amortisiert}{amortisiert} $\mathcal{O}(1)$ (unter der Annahme einer guten Hash-Verteilung) zu garantieren, wurde \mintinline{typescript}{RecursiveSet} stattdessen als vollständige Eigenimplementierung entwickelt. Nur so erhält die Bibliothek die volle Kontrolle über den Hashing-Algorithmus (der bei Mengen ordnungsunabhängig arbeiten muss) und das Speicherlayout, um unnötige Objekt-Allokationen zu vermeiden.
 
 \subsection{Die Hash-Engine (Zentrale Komponente)}
 \label{subsec:rs-intern-hash-engine}
@@ -38,7 +38,7 @@ Die Bibliothek nutzt die zentrale Funktion \mintinline{typescript}{getHashCode} 
 \subsubsection{Ganzzahlen und der ArrayBuffer-Trick für IEEE-754}
 \label{subsubsec:rs-intern-hash-numbers}
 
-Wie bereits in Definition~\ref{def:ts-number} (Kapitel \ref{sec:typisierung}) dargelegt, unterscheidet TypeScript auf Typ-Ebene nicht zwischen Ganzzahlen und Kommazahlen. Alle numerischen Werte werden nach dem IEEE-754-Standard als 64-Bit-Fließkommazahlen behandelt. 
+Wie bereits in Definition~\ref{def:ts-number} (Kapitel \ref{sec:typisierung}) dargelegt, unterscheidet TypeScript auf Typ-Ebene nicht zwischen Ganzzahlen und Kommazahlen. Alle numerischen Werte werden nach dem \glslink{ieee}{IEEE}-754-Standard als 64-Bit-Fließkommazahlen behandelt. 
 
 Für die Berechnung von Hash-Werten ist dies jedoch eine architektonische Hürde: Klassische bitweise Hash-Operationen (wie das exklusive ODER, \mintinline{typescript}{^}) arbeiten in JavaScript ausschließlich mit 32-Bit-Ganzzahlen. Wendet man sie direkt auf eine Fließkommazahl an, schneidet die Laufzeitumgebung die Nachkommastellen schlichtweg ab. Der Hash von \mintinline{typescript}{3.1} wäre demnach identisch mit dem Hash von \mintinline{typescript}{3.9}, was zu massiven Hash-Kollisionen führen würde.
 
@@ -89,7 +89,7 @@ Ist dies der Fall, wird der Wert durch sogenanntes \textit{Avalanche-Mixing} (La
 Um diese Klumpenbildung zu verhindern, nutzt der Code Konstanten wie \mintinline{typescript}{0x85ebca6b}. Das Präfix \mintinline{typescript}{0x} kennzeichnet dabei lediglich eine \textbf{hexadezimale} Zahl, eine kompakte Schreibweise für lange Bitmuster. Diese speziellen Bitmuster sorgen bei der Multiplikation für eine optimale Streuung: Ändert sich an der Eingabezahl nur ein einziges Bit, ändert sich durch den Lawineneffekt fast das gesamte Bitmuster des resultierenden Hash-Werts. So landen auch sehr ähnliche Zahlen auf völlig unterschiedlichen Tabellenplätzen.
 
 \paragraph*{Schritt 3: Hardwarenahe Multiplikation mit \texttt{Math.imul}}
-Auffällig ist in Zeile 14 und 15 die ständige Verwendung von \mintinline{typescript}{Math.imul}. Ein gewöhnliches Multiplikationszeichen (\mintinline{typescript}{*}) würde in JavaScript dazu führen, dass die erzeugten Bitmuster intern wieder als 64-Bit-Fließkommazahlen berechnet werden. Bei großen Multiplikatoren führt das unweigerlich zu Genauigkeitsverlusten (Rundungsfehlern) und macht die unteren Bits des Hash-Werts unbrauchbar. Die Funktion \mintinline{typescript}{Math.imul} (Integer Multiplication) zwingt die JavaScript-Engine stattdessen zu einer echten, hardwarenahen 32-Bit-Ganzzahl-Multiplikation. Bits, die durch einen Überlauf über die 32-Bit-Grenze hinausschießen, werden auf CPU-Ebene einfach abgeschnitten, was für Hashing-Algorithmen das gewünschte Verhalten ist.
+Auffällig ist in Zeile 14 und 15 die ständige Verwendung von \mintinline{typescript}{Math.imul}. Ein gewöhnliches Multiplikationszeichen (\mintinline{typescript}{*}) würde in JavaScript dazu führen, dass die erzeugten Bitmuster intern wieder als 64-Bit-Fließkommazahlen berechnet werden. Bei großen Multiplikatoren führt das unweigerlich zu Genauigkeitsverlusten (Rundungsfehlern) und macht die unteren Bits des Hash-Werts unbrauchbar. Die Funktion \mintinline{typescript}{Math.imul} (Integer Multiplication) zwingt die JavaScript-Engine stattdessen zu einer echten, hardwarenahen 32-Bit-Ganzzahl-Multiplikation. Bits, die durch einen Überlauf über die 32-Bit-Grenze hinausschießen, werden auf \glslink{cpu}{CPU}-Ebene einfach abgeschnitten, was für Hashing-Algorithmen das gewünschte Verhalten ist.
 
 \paragraph*{Schritt 4: Der Slow Path für Fließkommazahlen (Zeile 19–24)}
 Schlägt die Ganzzahl-Prüfung fehl, greift der Slow Path. Hier kommt nun ein architektonischer Ansatz zum Einsatz, der an ein \mintinline{c}{union}-Konstrukt aus der Sprache C erinnert. Um die gesamten 64 Bits der Fließkommazahl (Vorzeichen, Exponent und Mantisse) für das Hashing zu nutzen, müssen diese in zwei 32-Bit-Hälften zerlegt werden. 
@@ -99,7 +99,7 @@ Anstatt die Zahl durch teure mathematische Operationen zu zerspalten, greift die
     \item Die Fließkommazahl wird durch die 64-Bit-Linse (\mintinline{typescript}{_f64[0] = val}) in Zeile 20 nativ in den Speicher geschrieben.
     \item Anschließend werden in den Zeilen 21 und 22 exakt dieselben 64 Bits durch die Ganzzahl-Linse (\mintinline{typescript}{_i32}) ohne jegliche Konvertierung als zwei fertige 32-Bit-Blöcke (\mintinline{typescript}{low} und \mintinline{typescript}{high}) wieder ausgelesen.
 \end{enumerate}
-Dieses direkte Lesen und Schreiben von Speicherbits erzeugt keine temporären Objekte und entlastet den Garbage Collector somit vollständig. Zum Abschluss werden beide Hälften in Zeile 24 über \mintinline{typescript}{Math.imul} mit den globalen Konstanten \mintinline{typescript}{HASH_C1} und \mintinline{typescript}{HASH_C2} überkreuz multipliziert und per exklusivem ODER vereint. Dadurch ist sichergestellt, dass selbst winzigste Änderungen im Exponenten oder in der Mantisse der Fließkommazahl einen neuen Hash-Wert generieren.
+Dieses direkte Lesen und Schreiben von Speicherbits erzeugt keine temporären Objekte und entlastet den \glslink{garbagecollection}{Garbage Collector} somit vollständig. Zum Abschluss werden beide Hälften in Zeile 24 über \mintinline{typescript}{Math.imul} mit den globalen Konstanten \mintinline{typescript}{HASH_C1} und \mintinline{typescript}{HASH_C2} überkreuz multipliziert und per exklusivem ODER vereint. Dadurch ist sichergestellt, dass selbst winzigste Änderungen im Exponenten oder in der Mantisse der Fließkommazahl einen neuen Hash-Wert generieren.
 
 % !TEX root = ../master.tex
 
@@ -128,7 +128,7 @@ Bei Zeichenketten und komplexen Objekten greifen andere Mechanismen, die ebenfal
     \end{minted}
 \end{listing}
 
-Für \textbf{Strings} verwendet die Bibliothek eine Variante des \textit{FNV-1a}-Algorithmus (Fowler–Noll–Vo). Die Zeichenkette wird in einer Schleife durchlaufen und der numerische Wert jedes Zeichens (\mintinline{typescript}{charCodeAt}) wird über ein exklusives ODER (\mintinline{typescript}{^=}) in den Hash eingemischt. Der bewusste Verzicht auf Methoden, die den String in Arrays aufspalten oder neue Teilzeichenketten (Sub-Strings) erzeugen, stellt sicher, dass während der Schleife keine temporären Objekte im Arbeitsspeicher reserviert (alloziert) werden müssen. Diese sogenannte \textit{Allokationsfreiheit} entlastet den Garbage Collector.
+Für \textbf{Strings} verwendet die Bibliothek eine Variante des \textit{FNV-1a}-Algorithmus (Fowler–Noll–Vo). Die Zeichenkette wird in einer Schleife durchlaufen und der numerische Wert jedes Zeichens (\mintinline{typescript}{charCodeAt}) wird über ein exklusives ODER (\mintinline{typescript}{^=}) in den Hash eingemischt. Der bewusste Verzicht auf Methoden, die den String in Arrays aufspalten oder neue Teilzeichenketten (Sub-Strings) erzeugen, stellt sicher, dass während der Schleife keine temporären Objekte im Arbeitsspeicher reserviert (alloziert) werden müssen. Diese sogenannte \textit{Allokationsfreiheit} entlastet den \glslink{garbagecollection}{Garbage Collector}.
 
 Bei \textbf{komplexen Objekten} (wie verschachtelten Mengen oder Tupeln) delegiert die Hash-Engine die Verantwortung an das Objekt selbst, indem sie schlicht \mintinline{typescript}{val.hashCode} abruft. 
 
@@ -174,17 +174,17 @@ Genau dieses Interface ist der Grund, warum sich die in Kapitel~\ref{sec:recursi
 \subsection{Speicherlayout (Structure of Arrays)}
 \label{subsec:rs-intern-speicherlayout}
 
-Ein klassischer, objektorientierter Entwurf für eine Hashtabelle würde Objekte der Form \mintinline{typescript}{{ value, hash }} anlegen. Diesen Ansatz nennt man \textit{Array of Structures} (AoS). Bei Tausenden von Zuständen in einem Automaten führt dies jedoch dazu, dass der Arbeitsspeicher fragmentiert. Die CPU muss ständig an verschiedene Orte im RAM springen, um die Objekte zu lesen, was zusätzliche Taktzyklen erfordert.
+Ein klassischer, objektorientierter Entwurf für eine Hashtabelle würde Objekte der Form \mintinline{typescript}{{ value, hash }} anlegen. Diesen Ansatz nennt man \textit{\glslink{aos}{Array of Structures}} (\gls{aos}). Bei Tausenden von Zuständen in einem Automaten führt dies jedoch dazu, dass der Arbeitsspeicher fragmentiert. Die \gls{cpu} muss ständig an verschiedene Orte im \glslink{ram}{RAM} springen, um die Objekte zu lesen, was zusätzliche Taktzyklen erfordert.
 
-Um die Cache-Lokalität der CPU besser auszunutzen, wird von \mintinline{typescript}{RecursiveSet} ein Entwurfsmuster aus dem High-Performance-Computing implementiert:
+Um die Cache-Lokalität der \glslink{cpu}{CPU} besser auszunutzen, wird von \mintinline{typescript}{RecursiveSet} ein Entwurfsmuster aus dem High-Performance-Computing implementiert:
 
 \begin{definition}
 \label{def:structure-of-arrays}
-\textbf{Structure of Arrays (SoA):} Bei diesem Architekturmuster werden Objekte nicht als zusammenhängende Datenblöcke im Speicher abgelegt. Stattdessen werden ihre einzelnen Eigenschaften in voneinander getrennten, parallelen Arrays gespeichert. Dies verbessert die Cache-Lokalität, da die CPU beim Durchsuchen einer bestimmten Eigenschaft (z.\,B. aller Hash-Werte) diese als kompakten Block am Stück aus dem Arbeitsspeicher (RAM) in den schnellen CPU-Cache laden kann \autocite[161]{fabian2018data}.
+\textbf{\glslink{soa}{Structure of Arrays} (\gls{soa_acr}):} Bei diesem Architekturmuster werden Objekte nicht als zusammenhängende Datenblöcke im Speicher abgelegt. Stattdessen werden ihre einzelnen Eigenschaften in voneinander getrennten, parallelen Arrays gespeichert. Dies verbessert die Cache-Lokalität, da die \glslink{cpu}{CPU} beim Durchsuchen einer bestimmten Eigenschaft (z.\,B. aller Hash-Werte) diese als kompakten Block am Stück aus dem Arbeitsspeicher (\gls{ram}) in den schnellen \glslink{cpu}{CPU}-Cache laden kann \autocite[161]{fabian2018data}.
 \end{definition}
 
 \begin{listing}[ht]
-    \caption{Speicherarchitektur im Structure of Arrays (SoA) Format}
+    \caption{Speicherarchitektur im \glslink{soa_acr}{SoA}-Format}
     \label{lst:rs-soa-layout}
     \begin{minted}{typescript}
 class RecursiveSet<T extends Value> implements Structural, Iterable<T> {
@@ -207,7 +207,7 @@ Um die Effizienz dieser Architektur zu verstehen, müssen die fünf Felder der K
 Die Arrays \mintinline{typescript}{_values} und \mintinline{typescript}{_hashes} wachsen dicht (ohne Lücken) heran. Wenn die Menge drei Elemente enthält, sind exakt die Indizes 0, 1 und 2 belegt. 
 \begin{itemize}
     \item \textbf{\texttt{\_values}:} Speichert die tatsächlichen, typisierten Elemente der Menge.
-    \item \textbf{\texttt{\_hashes}:} Speichert die zugehörigen, vorberechneten 32-Bit-Hash-Werte. Das Element an Index 5 in \mintinline{typescript}{_values} gehört exakt zum Hash an Index 5 in \mintinline{typescript}{_hashes}. Dass die Hashes in einem eigenen Array liegen, beschleunigt die Suche, da die CPU Hash-Werte auf Kollisionen scannen kann, ohne das speicherintensive \mintinline{typescript}{_values}-Array laden zu müssen.
+    \item \textbf{\texttt{\_hashes}:} Speichert die zugehörigen, vorberechneten 32-Bit-Hash-Werte. Das Element an Index 5 in \mintinline{typescript}{_values} gehört exakt zum Hash an Index 5 in \mintinline{typescript}{_hashes}. Dass die Hashes in einem eigenen Array liegen, beschleunigt die Suche, da die \glslink{cpu}{CPU} Hash-Werte auf Kollisionen scannen kann, ohne das speicherintensive \mintinline{typescript}{_values}-Array laden zu müssen.
 \end{itemize}
 
 % !TEX root = ../master.tex
@@ -217,14 +217,14 @@ Während die dichten Arrays lediglich die Daten bunkern, kümmert sich die zweit
 \begin{itemize}
     \item \textbf{\texttt{\_indices}:} Dies ist die eigentliche Hashtabelle (die Suchstruktur). Sie ist als \mintinline{typescript}{Uint32Array} implementiert und funktioniert wie ein Inhaltsverzeichnis. Bemerkenswert ist hierbei, dass sie \textbf{keine echten Elemente} speichert, sondern lediglich \textbf{Verweise auf Positionen} in den dichten Arrays. 
     
-    Da ein neu angelegtes \mintinline{typescript}{Uint32Array} im Arbeitsspeicher standardmäßig mit Nullen gefüllt ist, nutzt die Bibliothek den Wert \texttt{0} als zweckmäßige Markierung für einen \enquote{leeren Slot}. Um nun den ersten echten Index (die \texttt{0}) der dichten Arrays davon unterscheiden zu können, werden alle gespeicherten Positionen intern um den Wert \texttt{1} erhöht. Ein Eintrag von \texttt{3} in der Indextabelle bedeutet also: \enquote{Ein \emph{möglicher} Treffer für diesen Hash liegt in den dichten Arrays an Position 2}. Ob es sich dabei wirklich um das gesuchte Element oder nur um eine Kollision handelt, und wie der Algorithmus weiter navigiert, wird im Abschnitt~\ref{subsec:rs-intern-kollisionen} (\textit{Linear Probing}) detailliert beleuchtet.
+    Da ein neu angelegtes \mintinline{typescript}{Uint32Array} im Arbeitsspeicher standardmäßig mit Nullen gefüllt ist, nutzt die Bibliothek den Wert \texttt{0} als zweckmäßige Markierung für einen \enquote{leeren Slot}. Um nun den ersten echten Index (die \texttt{0}) der dichten Arrays davon unterscheiden zu können, werden alle gespeicherten Positionen intern um den Wert \texttt{1} erhöht. Ein Eintrag von \texttt{3} in der Indextabelle bedeutet also: \enquote{Ein \emph{möglicher} Treffer für diesen Hash liegt in den dichten Arrays an Position 2}. Ob es sich dabei wirklich um das gesuchte Element oder nur um eine Kollision handelt, und wie der Algorithmus weiter navigiert, wird im Abschnitt~\ref{subsec:rs-intern-kollisionen} (\textit{\glslink{linearprobing}{Linear Probing}}) detailliert beleuchtet.
     
     \item \textbf{\texttt{\_bucketCount}:} Definiert die Gesamtkapazität der \mintinline{typescript}{_indices}-Tabelle (die Anzahl der verfügbaren Such-Slots). Diese Kapazität ist zwingend immer eine Zweierpotenz (z.\,B. 16, 32, 64).
     
-    \item \textbf{\texttt{\_mask}:} Die Bitmaske ist ein klassischer Performance-Trick aus der Hardware-Programmierung. Um einen beliebig großen Hash-Wert auf die tatsächliche Größe der Tabelle herunterzubrechen, nutzt man klassischerweise die Modulo-Division (\mintinline{typescript}{hash % _bucketCount}). Da Divisionen für die CPU jedoch vergleichsweise teuer sind, wird die Bitmaske auf \mintinline{typescript}{_bucketCount - 1} gesetzt (bei 16 Buckets ist die Maske 15, binär \texttt{00001111}). Die Operation \mintinline{typescript}{hash & _mask} (bitweises UND) liefert exakt dasselbe Ergebnis wie Modulo, wird von der CPU als elementare Bit-Operation aber typischerweise in einem einzigen Taktzyklus berechnet.
+    \item \textbf{\texttt{\_mask}:} Die Bitmaske ist ein klassischer Performance-Trick aus der Hardware-Programmierung. Um einen beliebig großen Hash-Wert auf die tatsächliche Größe der Tabelle herunterzubrechen, nutzt man klassischerweise die Modulo-Division (\mintinline{typescript}{hash % _bucketCount}). Da Divisionen für die \glslink{cpu}{CPU} jedoch vergleichsweise teuer sind, wird die Bitmaske auf \mintinline{typescript}{_bucketCount - 1} gesetzt (bei 16 Buckets ist die Maske 15, binär \texttt{00001111}). Die Operation \mintinline{typescript}{hash & _mask} (bitweises UND) liefert exakt dasselbe Ergebnis wie Modulo, wird von der \glslink{cpu}{CPU} als elementare Bit-Operation aber typischerweise in einem einzigen Taktzyklus berechnet.
 \end{itemize}
 
-\subsection{Konzepte der Gleichheit und Type Narrowing}
+\paragraph{Konzepte der Gleichheit und Type Narrowing}
 \label{subsec:rs-intern-areequal}
 
 Wie in Abschnitt~\ref{subsec:rs-intern-hash-engine} beschrieben, dient der Hash-Wert lediglich als Wegweiser, um die Suche in der Hashtabelle einzugrenzen. Da zwei inhaltlich unterschiedliche Mengen rein rechnerisch denselben Hash-Wert generieren können (Kollision), muss die Datenstruktur gefundene Kandidaten iterativ auf Gleichheit prüfen. Hierbei ist eine präzise terminologische Trennung essenziell:
@@ -265,14 +265,14 @@ Genau diese Aufgabe übernimmt die vertraglich im \mintinline{typescript}{Struct
 
 Dieser Algorithmus ist wie ein Trichter aufgebaut: Er versucht, eine aufwendige Tiefenprüfung (Zeile 13–15) durch immer strengere, aber effiziente Vorab-Ausschlusskriterien zu vermeiden (\textit{Short-Circuit Evaluation}).
 
-\paragraph*{Sicherheit durch \texttt{unknown} und Type Narrowing (Zeile 1–6)}
+\paragraph*{Sicherheit durch \texttt{unknown} und \glslink{typenarrowing}{Type Narrowing} (Zeile 1–6)}
 Die Signatur der Methode fordert bewusst den Typ \mintinline{typescript}{unknown} für den Parameter \mintinline{typescript}{other}. Wie in Definition~\ref{def:ts-unknown} (Kapitel 2) erläutert, zwingt dieser Typ den Compiler dazu, jegliche blinde Interaktion mit dem Objekt zu verbieten. Die Methode weiß an diesem Punkt nicht, ob \mintinline{typescript}{other} eine Zahl, ein String oder ein komplexes Objekt ist.
 
 Zunächst greift ein schneller Abgleich der \textbf{Referenzidentität} (Zeile 3). Zeigen \mintinline{typescript}{this} und \mintinline{typescript}{other} auf exakt dieselbe Speicheradresse (\mintinline{typescript}{===}), ist jede weitere Prüfung obsolet – ein Objekt ist immer gleich zu sich selbst.
 
 Ist dies nicht der Fall, folgt in Zeile 6 der entscheidende Schritt für die Typsicherheit: Die Laufzeitprüfung \mintinline{typescript}{other instanceof RecursiveSet}. Ist das Fremdobjekt gar keine Menge, wird sofort \mintinline{typescript}{false} zurückgegeben. 
 
-Wird dieser Check jedoch passiert, greift das in Definition~\ref{def:ts-type-narrowing} (Kapitel 2) beschriebene \textbf{Type Narrowing}. Der TypeScript-Compiler analysiert den Kontrollfluss und weiß ab Zeile 9 mit Sicherheit, dass \mintinline{typescript}{other} eine Instanz von \mintinline{typescript}{RecursiveSet} ist. Ab hier schaltet der Compiler den typsicheren Zugriff auf Eigenschaften wie \mintinline{typescript}{other.size}, \mintinline{typescript}{other.hashCode} und die Methode \mintinline{typescript}{other.has()} frei.
+Wird dieser Check jedoch passiert, greift das in Definition~\ref{def:ts-type-narrowing} (Kapitel 2) beschriebene \textbf{\glslink{typenarrowing}{Type Narrowing}}. Der TypeScript-Compiler analysiert den Kontrollfluss und weiß ab Zeile 9 mit Sicherheit, dass \mintinline{typescript}{other} eine Instanz von \mintinline{typescript}{RecursiveSet} ist. Ab hier schaltet der Compiler den typsicheren Zugriff auf Eigenschaften wie \mintinline{typescript}{other.size}, \mintinline{typescript}{other.hashCode} und die Methode \mintinline{typescript}{other.has()} frei.
 
 \paragraph*{$\mathcal{O}(1)$ Performance-Schranken (Zeile 8–10)}
 Bevor die Methode die Iteration über alle Elemente startet, werden zwei Eigenschaften verglichen, die in konstanter Zeit ($\mathcal{O}(1)$) abrufbar sind:
@@ -282,9 +282,9 @@ Bevor die Methode die Iteration über alle Elemente startet, werden zwei Eigensc
 \end{enumerate}
 
 \paragraph*{Strukturelle und mathematische Prüfung über dichte Arrays (Zeile 12–16)}
-Erst wenn das Fremdobjekt \emph{sicher} eine Menge gleicher Größe und mit demselben Hash-Wert ist, greift die Methode auf das in Abschnitt~\ref{subsec:rs-intern-speicherlayout} etablierte SoA-Layout zurück. Die \mintinline{typescript}{for}-Schleife iteriert über das dichte \mintinline{typescript}{_values}-Array und prüft mittels \mintinline{typescript}{other.has(v)}, ob jedes Element der aktuellen Menge auch in der anderen Menge existiert. 
+Erst wenn das Fremdobjekt \emph{sicher} eine Menge gleicher Größe und mit demselben Hash-Wert ist, greift die Methode auf das in Abschnitt~\ref{subsec:rs-intern-speicherlayout} etablierte \glslink{soa_acr}{SoA}-Layout zurück. Die \mintinline{typescript}{for}-Schleife iteriert über das dichte \mintinline{typescript}{_values}-Array und prüft mittels \mintinline{typescript}{other.has(v)}, ob jedes Element der aktuellen Menge auch in der anderen Menge existiert. 
 
-Da die Methode \mintinline{typescript}{has()} selbst im Durchschnitt amortisiert in $\mathcal{O}(1)$ arbeitet (unter Annahme einer gleichmäßigen Hash-Verteilung), bleibt auch die gesamte \textbf{strukturelle und mathematische Gleichheitsprüfung} zweier Mengen im Normalfall sehr effizient und steigt nur im Worst-Case auf einen Aufwand von $\mathcal{O}(N)$.
+Da die Methode \mintinline{typescript}{has()} selbst im Durchschnitt \glslink{amortisiert}{amortisiert} in $\mathcal{O}(1)$ arbeitet (unter Annahme einer gleichmäßigen Hash-Verteilung), bleibt auch die gesamte \textbf{strukturelle und mathematische Gleichheitsprüfung} zweier Mengen im Normalfall sehr effizient und steigt nur im Worst-Case auf einen Aufwand von $\mathcal{O}(N)$.
 
 % !TEX root = ../master.tex
 
@@ -298,19 +298,19 @@ Da der Hash-Wert zur Indexberechnung genutzt wird, lässt es sich mathematisch n
 \subsubsection{Open Addressing mit Linear Probing}
 \label{subsubsec:rs-intern-linear-probing}
 
-Um die Cache-Lokalität des SoA-Layouts beizubehalten, wird auf externe Zeigerstrukturen verzichtet und stattdessen eine flache Tabellenverwaltung genutzt:
+Um die Cache-Lokalität des \glslink{soa_acr}{SoA}-Layouts beizubehalten, wird auf externe Zeigerstrukturen verzichtet und stattdessen eine flache Tabellenverwaltung genutzt:
 
 \begin{definition}
 \label{def:open-addressing}
-\textbf{Open Addressing mit Linear Probing (Lineares Sondieren):} Bei diesem Verfahren werden alle Verweise direkt im Array der Hashtabelle gespeichert. Berechnet der Hash einen Index (Slot), der bereits von einem anderen Element belegt ist (eine Kollision), rückt der Algorithmus schrittweise zum nächstmöglichen benachbarten Slot weiter, bis er eine Lücke findet oder den gesuchten Wert entdeckt \autocite[293f]{cormen2022introduction}.
+\textbf{Open Addressing mit \glslink{linearprobing}{Linear Probing} (Lineares Sondieren):} Bei diesem Verfahren werden alle Verweise direkt im Array der Hashtabelle gespeichert. Berechnet der Hash einen Index (Slot), der bereits von einem anderen Element belegt ist (eine Kollision), rückt der Algorithmus schrittweise zum nächstmöglichen benachbarten Slot weiter, bis er eine Lücke findet oder den gesuchten Wert entdeckt \autocite[293f]{cormen2022introduction}.
 \end{definition}
 
 Man kann sich dies wie das Einsortieren von Büchern in einem langen Regal vorstellen: Berechnet das System für ein neues Buch einen Stammplatz, der bereits belegt ist, wird das Buch nicht in einem externen Anbau ausgelagert. Stattdessen prüft man einfach den direkten Nachbarplatz auf der rechten Seite, bis man auf eine Lücke trifft. 
 
-Die Methode \mintinline{typescript}{has} aus Listing~\ref{lst:rs-linear-probing} demonstriert diese Suchlogik im Zusammenspiel mit dem zuvor eingeführten SoA-Speicherlayout.
+Die Methode \mintinline{typescript}{has} aus Listing~\ref{lst:rs-linear-probing} demonstriert diese Suchlogik im Zusammenspiel mit dem zuvor eingeführten \glslink{soa_acr}{SoA}-Speicherlayout.
 
 \begin{listing}[ht]
-    \caption{Linear Probing am Beispiel der \texttt{has}-Methode}
+    \caption{\glslink{linearprobing}{Linear Probing} am Beispiel der \texttt{has}-Methode}
     \label{lst:rs-linear-probing}
     \begin{minted}{typescript}
 has(element: T): boolean {
@@ -344,12 +344,12 @@ Zunächst wird der 32-Bit-Hash des gesuchten Elements berechnet. Da dieser Wert 
 \paragraph*{Schritt 2: Die Abbruchbedingung der Schleife (Zeile 5–7)}
 Die \mintinline{typescript}{while (true)}-Schleife wirkt potenziell endlos. Hier greift jedoch eine Eigenschaft der Hashtabelle: Die Bibliothek stellt sicher, dass die Tabelle niemals zu mehr als $75\,\%$ gefüllt ist (der sogenannte Load-Factor, siehe Abschnitt~\ref{subsec:rs-intern-resize-shrink}). Es existiert also \emph{immer} mindestens ein leerer Slot. 
 
-Wird ein Slot mit dem Wert \texttt{0} (leer) gefunden, stoppt die Suche sofort und liefert \mintinline{typescript}{false}. Warum? Weil das Einsortieren im Regal (\textit{Linear Probing}) garantiert, dass bei einer Kollision alle betroffenen Elemente nahtlos hintereinander abgelegt werden. Eine Lücke bedeutet zwingend, dass der Suchpfad an dieser Stelle endet und das gesuchte Element folglich nicht in der Menge existiert.
+Wird ein Slot mit dem Wert \texttt{0} (leer) gefunden, stoppt die Suche sofort und liefert \mintinline{typescript}{false}. Warum? Weil das Einsortieren im Regal (\textit{\glslink{linearprobing}{Linear Probing}}) garantiert, dass bei einer Kollision alle betroffenen Elemente nahtlos hintereinander abgelegt werden. Eine Lücke bedeutet zwingend, dass der Suchpfad an dieser Stelle endet und das gesuchte Element folglich nicht in der Menge existiert.
 
 \paragraph*{Schritt 3: Dereferenzierung und Hash-Vorabgleich (Zeile 9–15)}
 Ist der Slot belegt (\mintinline{typescript}{entry > 0}), wird der 1-basierte Verweis durch \mintinline{typescript}{entry - 1} in den korrekten 0-basierten Index (\mintinline{typescript}{valIndex}) für die dichten Nutzdaten-Arrays umgerechnet. 
 
-Nun zeigt sich ein Vorteil des SoA-Layouts: Anstatt sofort die \mintinline{typescript}{areEqual}-Funktion aufzurufen, wird zunächst der gespeicherte Hash-Wert (\mintinline{typescript}{this._hashes[valIndex]}) mit dem gesuchten Hash (\mintinline{typescript}{h}) verglichen. Stimmen die Hashes nicht überein, liegt eine klassische Kollision vor und die Inhaltsprüfung wird übersprungen. Nur wenn die Hashes identisch sind (\textbf{Hash-Gleichheit}), wird \mintinline{typescript}{areEqual} zur Verifizierung der \textbf{strukturellen Gleichheit} aufgerufen.
+Nun zeigt sich ein Vorteil des \glslink{soa_acr}{SoA}-Layouts: Anstatt sofort die \mintinline{typescript}{areEqual}-Funktion aufzurufen, wird zunächst der gespeicherte Hash-Wert (\mintinline{typescript}{this._hashes[valIndex]}) mit dem gesuchten Hash (\mintinline{typescript}{h}) verglichen. Stimmen die Hashes nicht überein, liegt eine klassische Kollision vor und die Inhaltsprüfung wird übersprungen. Nur wenn die Hashes identisch sind (\textbf{Hash-Gleichheit}), wird \mintinline{typescript}{areEqual} zur Verifizierung der \textbf{strukturellen Gleichheit} aufgerufen.
 
 \paragraph*{Schritt 4: Linear Probing und der Wrap-around (Zeile 18)}
 Stellte sich der belegte Slot als Kollision heraus, muss der Algorithmus den nächsten benachbarten Slot prüfen. Die Anweisung \mintinline{typescript}{idx = (idx + 1) & this._mask} inkrementiert den Index nicht nur um $1$, sondern sorgt gleichzeitig für den sogenannten \textbf{Wrap-around}. Erreicht der Suchlauf das physische Ende des Arrays (das Ende des Regals), setzt das bitweise UND (\mintinline{typescript}{& this._mask}) den Wert vollautomatisch auf \texttt{0} zurück. Der Algorithmus springt also an den Anfang der Tabelle und setzt die Suche dort fort, ohne dass \mintinline{typescript}{if}-Abfragen für Array-Grenzen benötigt werden.
@@ -359,19 +359,19 @@ Stellte sich der belegte Slot als Kollision heraus, muss der Algorithmus den nä
 \subsubsection{Löschvorgang: Tombstones und Backshift Deletion}
 \label{subsubsec:rs-intern-backshift}
 
-Das Entfernen von Elementen aus einer Hashtabelle mit \textit{Open Addressing} ist komplexer als bei verketteten Listen. Nimmt man ein Element einfach aus seinem Slot im Regal (durch Zurücksetzen auf \texttt{0}), entsteht eine harte Lücke. Dies hat Folgen für das \textit{Linear Probing}: Suchen wir nach einem Element, das aufgrund früherer Kollisionen hinter dieser neuen Lücke einsortiert wurde, bricht die \mintinline{typescript}{while}-Schleife an der leeren Stelle ab und meldet, das Element existiere nicht. Die Sondierungskette ist gerissen.
+Das Entfernen von Elementen aus einer Hashtabelle mit \textit{Open Addressing} ist komplexer als bei verketteten Listen. Nimmt man ein Element einfach aus seinem Slot im Regal (durch Zurücksetzen auf \texttt{0}), entsteht eine harte Lücke. Dies hat Folgen für das \textit{\glslink{linearprobing}{Linear Probing}}: Suchen wir nach einem Element, das aufgrund früherer Kollisionen hinter dieser neuen Lücke einsortiert wurde, bricht die \mintinline{typescript}{while}-Schleife an der leeren Stelle ab und meldet, das Element existiere nicht. Die Sondierungskette ist gerissen.
 
-Der klassische Lösungsansatz für dieses Problem ist die Verwendung sogenannter Tombstones:
+Der klassische Lösungsansatz für dieses Problem ist die Verwendung sogenannter \glslink{tombstone}{Tombstones}:
 
 \begin{definition}
 \label{def:tombstones}
-\textbf{Tombstones (Grabsteine):} Anstatt einen Slot im Regal wirklich zu leeren (\texttt{0}), wird ein spezielles Marker-Objekt (der Tombstone) an dieser Stelle platziert. Dieser Marker signalisiert dem Suchalgorithmus: \enquote{Hier wurde zwar etwas gelöscht, aber brich die Suche nicht ab, sondern suche im nächsten Slot weiter.}
+\textbf{\glslink{tombstone}{Tombstones} (Grabsteine):} Anstatt einen Slot im Regal wirklich zu leeren (\texttt{0}), wird ein spezielles Marker-Objekt (der \glslink{tombstone}{Tombstone}) an dieser Stelle platziert. Dieser Marker signalisiert dem Suchalgorithmus: \enquote{Hier wurde zwar etwas gelöscht, aber brich die Suche nicht ab, sondern suche im nächsten Slot weiter.}
 \end{definition}
 
-Obwohl Tombstones einfach zu implementieren sind, führen sie bei vielen Einfüge- und Löschvorgängen dazu, dass die Tabelle über die Zeit mit Grabsteinen \enquote{verschmutzt}. Die Suchwege werden künstlich in die Länge gezogen, was die Zugriffszeiten verschlechtert. Zudem müssen Tombstones regelmäßig durch vollständige Neu-Aufbauten der Tabelle (Rehashing) entfernt werden.
+Obwohl \glslink{tombstone}{Tombstones} einfach zu implementieren sind, führen sie bei vielen Einfüge- und Löschvorgängen dazu, dass die Tabelle über die Zeit mit Grabsteinen \enquote{verschmutzt}. Die Suchwege werden künstlich in die Länge gezogen, was die Zugriffszeiten verschlechtert. Zudem müssen \glslink{tombstone}{Tombstones} regelmäßig durch vollständige Neu-Aufbauten der Tabelle (Rehashing) entfernt werden.
 
 \paragraph*{Die Lösung: Backshift Deletion}
-Um dies zu vermeiden, nutzt die Bibliothek die \textit{Backshift Deletion} (Rückwärts-Verschiebung) – eine Technik, die auf dem \textit{Robin Hood Hashing} aufbaut \autocite{celis1986robin}. 
+Um dies zu vermeiden, nutzt die Bibliothek die \textit{\glslink{backshift}{Backshift Deletion}} (Rückwärts-Verschiebung) – eine Technik, die auf dem \textit{Robin Hood Hashing} aufbaut \autocite{celis1986robin}. 
 
 Wird ein Element gelöscht, entsteht zunächst eine Lücke. Der Algorithmus, siehe Listing~\ref{lst:rs-backshift-deletion}, blickt nun in die nachfolgenden Slots und prüft, ob Elemente weiter hinten im Regal stehen, die eigentlich weiter vorne (also näher an der Lücke oder genau darin) stehen müssten. Ist das der Fall, rücken diese Elemente auf, und die Lücke wandert weiter nach hinten, bis sie das Ende der Kollisionskette erreicht und geleert werden kann.
 
@@ -410,7 +410,7 @@ Dieser Algorithmus ist ein typisches Beispiel für hardwarenahe Optimierung in T
 \begin{enumerate}
     \item \textbf{Start der Sondierung (Zeile 2):} Der Algorithmus startet nicht bei der Lücke (\mintinline{typescript}{holeIdx}), sondern prüft direkt den ersten rechten Nachbarn. Das bitweise UND (\mintinline{typescript}{& this._mask}) sichert auch hier den zirkulären Wrap-around ab, falls die Lücke am äußersten Ende des Arrays lag.
     
-    \item \textbf{Abbruchbedingung und Dereferenzierung (Zeile 4–7):} Die Schleife iteriert, bis sie auf einen nativ leeren Slot (\texttt{0}) trifft. Ist ein Slot belegt, wird der 1-basierte Verweis (\mintinline{typescript}{entry}) wieder in den 0-basierten Index (\mintinline{typescript}{valPtr}) für das dichte \mintinline{typescript}{_hashes}-Array umgerechnet, um den Hash-Wert des aktuellen Elements auszulesen.
+    \item \textbf{Abbruchbedingung und Dereferenzierung (Zeile 4–7):} Die Schleife iteriert, bis sie auf einen nativ leeren Slot (\texttt{0}). Ist ein Slot belegt, wird der 1-basierte Verweis (\mintinline{typescript}{entry}) wieder in den 0-basierten Index (\mintinline{typescript}{valPtr}) für das dichte \mintinline{typescript}{_hashes}-Array umgerechnet, um den Hash-Wert des aktuellen Elements auszulesen.
     
     \item \textbf{Ideal-Slot und zirkuläre Distanz-Metrik (Zeile 9–13):} In Zeile 9 wird berechnet, an welchem Index das Element ursprünglich hätte landen sollen (\mintinline{typescript}{idealIdx}). Danach folgt der mathematische Kern: Wie weit ist das Element aktuell von seinem Ideal-Slot entfernt (\mintinline{typescript}{distToI}) und wie weit wäre es entfernt, wenn es in die Lücke rutschen würde (\mintinline{typescript}{distToHole})? 
     
@@ -428,14 +428,14 @@ Ein nativer Aufruf wie \mintinline{typescript}{this._values.splice()} würde das
 
 Stattdessen nutzt die Bibliothek den \textbf{Dense-Swap} (Tausch im dichten Array). Das zu löschende Element wird mit dem \textit{allerletzten} Element des Arrays überschrieben. Danach wird das Array mittels \mintinline{typescript}{pop()} in konstanter Zeit ($\mathcal{O}(1)$) am Ende um einen Platz verkürzt. Da sich durch diesen Tausch die physische Position des letzten Elements geändert hat, muss abschließend nur noch der zugehörige Verweis in der Indextabelle auf den neuen Index aktualisiert werden. 
 
-Durch diese Kombination aus \textit{Backshift Deletion} und \textit{Dense-Swap} garantiert die Bibliothek eine stabile Performance bei Löschvorgängen.
+Durch diese Kombination aus \textit{\glslink{backshift}{Backshift Deletion}} und \textit{Dense-Swap} garantiert die Bibliothek eine stabile Performance bei Löschvorgängen.
 
 % !TEX root = ../master.tex
 
 \subsection{Dynamische Kapazitätsverwaltung (Resizing und Rehashing)}
 \label{subsec:rs-intern-resize-shrink}
 
-Damit das \textit{Linear Probing} (Abschnitt~\ref{subsubsec:rs-intern-linear-probing}) performant bleibt und die \mintinline{typescript}{while}-Schleife nicht endlos läuft, muss ein gewisser Anteil der Indextabelle leer bleiben. Je voller die Tabelle wird, desto wahrscheinlicher werden Kollisionen und desto länger werden die Sondierungsketten.
+Damit das \textit{\glslink{linearprobing}{Linear Probing}} (Abschnitt~\ref{subsubsec:rs-intern-linear-probing}) performant bleibt und die \mintinline{typescript}{while}-Schleife nicht endlos läuft, muss ein gewisser Anteil der Indextabelle leer bleiben. Je voller die Tabelle wird, desto wahrscheinlicher werden Kollisionen und desto länger werden die Sondierungsketten.
 
 Gesteuert wird dies über den sogenannten \textit{Load Factor}:
 
@@ -478,18 +478,18 @@ Die Suchstruktur muss daher neu berechnet werden (Rehashing):
     \end{minted}
 \end{listing}
 
-Dieser Algorithmus verdeutlicht einen architektonischen Vorteil des \textit{Structure of Arrays}-Layouts (SoA). Da die Nutzdaten (\mintinline{typescript}{_values} und \mintinline{typescript}{_hashes}) als dicht gepackte Arrays vorliegen, müssen sie beim Rehashing nicht verschoben werden. Der Umzug betrifft ausschließlich die flache \mintinline{typescript}{_indices}-Tabelle.
+Dieser Algorithmus verdeutlicht einen architektonischen Vorteil des \glslink{soa_acr}{SoA}-Lay\-outs. Da die Nutzdaten (\mintinline{typescript}{_values} und \mintinline{typescript}{_hashes}) als dicht gepackte Arrays vorliegen, müssen sie beim Rehashing nicht verschoben werden. Der Umzug betrifft ausschließlich die flache \mintinline{typescript}{_indices}-Tabelle.
 
 Zudem profitiert der Code von einem signifikanten Performance-Vorteil: Da das \mintinline{typescript}{_values}-Array per Definition bereits bereinigt ist und ausschließlich eindeutige Elemente enthält, kann der Algorithmus die \mintinline{typescript}{areEqual}-Aufrufkette vollständig ignorieren. Er prüft bei einer Kollision lediglich, ob der Slot leer ist (\mintinline{typescript}{!== 0}), und rückt weiter.
 
 \paragraph*{Amortisierte Laufzeit}
 Auf den ersten Blick verletzt das Rehashing das Versprechen einer Hashtabelle, Elemente im Durchschnitt in $\mathcal{O}(1)$ einzufügen. Muss die Tabelle wachsen, erfordert die \mintinline{typescript}{for}-Schleife einen Aufwand von $\mathcal{O}(N)$, da alle $N$ Elemente neu einsortiert werden.
 
-In der Informatik wird dieses Verhalten über die \textit{amortisierte Laufzeitanalyse} bewertet:
+In der Informatik wird dieses Verhalten über die \textit{\glslink{amortisiert}{amortisierte Laufzeitanalyse}} bewertet:
 
 \begin{definition}
 \label{def:amortisierte-laufzeit}
-\textbf{Amortisierte Laufzeit:} Dieser Begriff beschreibt den durchschnittlichen Aufwand einer Operation über eine sehr lange Sequenz von Aufrufen. Da die Tabelle ihre Größe jedes Mal verdoppelt, passieren Resizing-Operationen seltener. Die vereinzelten $\mathcal{O}(N)$-Aufwände \enquote{amortisieren} (verteilen) sich auf die weitaus zahlreicheren, sehr effizienten $\mathcal{O}(1)$-Einfügungen. Im Durchschnitt bleibt der Aufwand für eine einzelne Einfügung somit bei amortisiert $\mathcal{O}(1)$.
+\textbf{\glslink{amortisiert}{Amortisierte Laufzeit}:} Dieser Begriff beschreibt den durchschnittlichen Aufwand einer Operation über eine sehr lange Sequenz von Aufrufen. Da die Tabelle ihre Größe jedes Mal verdoppelt, passieren Resizing-Operationen seltener. Die vereinzelten $\mathcal{O}(N)$-Aufwände \enquote{amortisieren} (verteilen) sich auf die weitaus zahlreicheren, sehr effizienten $\mathcal{O}(1)$-Einfügungen. Im Durchschnitt bleibt der Aufwand für eine einzelne Einfügung somit bei \glslink{amortisiert}{amortisiert} $\mathcal{O}(1)$.
 \end{definition}
 
 Die Kombination aus Verdoppeln beim Wachsen, Halbieren beim Schrumpfen und Verzicht auf Inhalts\-prüfungen während des Rehashings garantiert architektonisch ein Gleichgewicht zwischen Speicherhaushalt und Zugriffsgeschwindigkeit.
@@ -499,7 +499,7 @@ Die Kombination aus Verdoppeln beim Wachsen, Halbieren beim Schrumpfen und Verzi
 \subsection{Technische Umsetzung des Freeze-Contracts}
 \label{subsec:rs-intern-freeze}
 
-In Abschnitt~\ref{subsubsec:rs-api-freeze} wurde der \emph{Freeze-Contract} aus API-Sicht eingeführt. Dieser besagt, dass Mengen aus Sicherheitsgründen unveränderlich werden, sobald sie in eine andere Struktur geschachtelt werden. Technisch wird dieser Mechanismus über die Abfrage des Hash-Werts gesteuert.
+In Abschnitt~\ref{subsubsec:rs-api-freeze} wurde der \emph{Freeze-Contract} aus \glslink{api}{API}-Sicht eingeführt. Dieser besagt, dass Mengen aus Sicherheitsgründen unveränderlich werden, sobald sie in eine andere Struktur geschachtelt werden. Technisch wird dieser Mechanismus über die Abfrage des Hash-Werts gesteuert.
 
 Da \mintinline{typescript}{RecursiveSet} eine ungeordnete Menge repräsentiert, darf der Hash-Wert nicht von der historischen Einfügereihenfolge abhängen. Dies wird durch eine fortlaufende XOR-Verknüpfung (\mintinline{typescript}{_xorHash ^= h;}) beim Einfügen sichergestellt, da die XOR-Operation kommutativ ist.
 

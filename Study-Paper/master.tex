@@ -78,7 +78,13 @@
 
 % --- 9. URLs & Hyperlinks ---
 \usepackage{xurl}
-\usepackage[hidelinks]{hyperref}
+\definecolor{DocBlue}{RGB}{0,50,120} 
+\usepackage[
+    colorlinks=true,
+    linkcolor=DocBlue,  % Farbe für interne Links (Inhaltsverzeichnis, Abbildungen)
+    urlcolor=DocBlue,   % Farbe für Web-Links
+    citecolor=DocBlue   % Farbe für Literaturverweise
+]{hyperref}
 
 % --- 10. Verzeichnisse ---
 \usepackage{makeidx}
@@ -110,15 +116,15 @@
 	\cleardoublepage
 	\input{vorspann/inhaltsverzeichnis}
 	\cleardoublepage
-    \printnoidxglossary[type=\acronymtype,title=Abkürzungsverzeichnis]
-	\cleardoublepage
-	\listoffigures
-	\cleardoublepage
-	\listoftables
-	\cleardoublepage
-	\listoflistings
-	\cleardoublepage
-	\printnoidxglossaries
+    \printnoidxglossary[type=\acronymtype, title=Abkürzungsverzeichnis, nonumberlist]
+    \cleardoublepage
+    %\listoffigures
+    %\cleardoublepage
+    \listoftables
+    \cleardoublepage
+    \listoflistings
+    \cleardoublepage
+    \printnoidxglossary[type=main, title=Glossar]
 	\cleardoublepage
 	\pagenumbering{arabic}
 	\input{kapitel/problemstellung}
@@ -135,10 +141,6 @@
 	\cleardoublepage
 	\input{kapitel/fazit}
 	\cleardoublepage
-	%\input{kapitel/hauptteil}
-	%\cleardoublepage
-	%\input{kapitel/zusammenfassung}
-	%\cleardoublepage
 	\emergencystretch=1em
 	\printbibliography[heading=bibnumbered, title={Literaturverzeichnis}]
 	\cleardoublepage

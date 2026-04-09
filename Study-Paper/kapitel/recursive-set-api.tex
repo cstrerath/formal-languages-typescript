@@ -10,7 +10,7 @@ Wie bereits in Kapitel~\ref{sec:einleitung} anhand von Listing~\ref{lst:set_pyth
 
 Was ist überhaupt eine Menge im mathematischen Sinn? Georg Cantor beschreibt eine Menge als \enquote{Zusammenfassung bestimmter wohlunterschiedener Objekte [...] zu einem Ganzen} \autocite[481]{Cantor1895}. Für die Umsetzung mengenbasierter Algorithmen in einer Programmiersprache ergibt sich daraus unmittelbar eine praktische Frage: Wann gelten zwei Elemente als gleich?
 
-Python und TypeScript beziehungsweise JavaScript beantworten diese Frage unterschiedlich. In Python können unveränderliche, hashbare Werte wie Tupel als Elemente einer Menge verwendet werden. Zwei Tupel gelten dabei als gleich, wenn sie denselben Inhalt haben (Wertsemantik). In JavaScript werden Objekte wie Arrays in einem \mintinline{typescript}{Set} dagegen über ihre Referenzidentität unterschieden. Zwei Arrays mit gleichem Inhalt gelten also nur dann als gleich, wenn es sich um dieselbe physische Array-Instanz im Arbeitsspeicher handelt.
+Python und TypeScript beziehungsweise JavaScript beantworten diese Frage unterschiedlich. In Python können unveränderliche, hashbare Werte wie Tupel als Elemente einer Menge verwendet werden. Zwei Tupel gelten dabei als gleich, wenn sie denselben Inhalt haben (Wertsemantik). In JavaScript werden Objekte wie Arrays in einem \mintinline{typescript}{Set} dagegen über ihre Referenzidentität unterschieden. Zwei Arrays mit gleichem Inhalt gelten also nur dann als gleich, wenn es sich um dieselbe physische Array-Instanz im \glslink{ram}{Arbeitsspeicher} handelt.
 
 Listing~\ref{lst:set_wohlunterscheidbar_python} zeigt zunächst das Verhalten in Python:
 
@@ -63,7 +63,7 @@ Um die referenzbasierte Gleichheitsprüfung der JavaScript-Laufzeitumgebung zu u
 \subsubsection{Die Datenstruktur \texttt{RecursiveSet}}
 \label{subsubsec:rs-api-datenstruktur}
 
-Die bisherigen Beispiele haben gezeigt, dass native Mengen in TypeScript für strukturelle mathematische Modelle nur eingeschränkt geeignet sind. An dieser Stelle setzt \mintinline{text}{RecursiveSet} an. Auf API-Ebene orientiert sie sich an der aus Python vertrauten Arbeit mit Mengen: Elemente können hinzugefügt, entfernt und auf Mitgliedschaft geprüft werden. Für die Benutzung verhält sich \mintinline{text}{RecursiveSet} wie eine gewöhnliche Mengenstruktur, während sie intern die Wertsemantik sicherstellt.
+Die bisherigen Beispiele haben gezeigt, dass native Mengen in TypeScript für strukturelle mathematische Modelle nur eingeschränkt geeignet sind. An dieser Stelle setzt \mintinline{text}{RecursiveSet} an. Auf \glslink{api}{API}-Ebene orientiert sie sich an der aus Python vertrauten Arbeit mit Mengen: Elemente können hinzugefügt, entfernt und auf Mitgliedschaft geprüft werden. Für die Benutzung verhält sich \mintinline{text}{RecursiveSet} wie eine gewöhnliche Mengenstruktur, während sie intern die Wertsemantik sicherstellt.
 
 \paragraph{Hinzufügen von Elementen}
 Das Einfügen neuer Elemente erfolgt in beiden Sprachen über die \mintinline{text}{add}-Methode. Listing~\ref{lst:rs_add_python_recursive} zeigt, dass sich die Benutzung deckt.
@@ -201,7 +201,7 @@ console.log(foundPiece); // "Queen"
 \subsection{Verarbeitung und Lebenszyklus strukturierter Daten}
 \label{subsec:rs-api-verarbeitung}
 
-Mit den Bausteinen zur Speicherung von Werten stellt sich die Frage nach deren Manipulation. Theoretische Algorithmen erfordern es, Mengen zu kombinieren, funktional zu transformieren und ineinander zu verschachteln. Die folgenden Abschnitte beschreiben den Lebenszyklus dieser Strukturen sowie die API zur Durchführung von Mengenoperationen.
+Mit den Bausteinen zur Speicherung von Werten stellt sich die Frage nach deren Manipulation. Theoretische Algorithmen erfordern es, Mengen zu kombinieren, funktional zu transformieren und ineinander zu verschachteln. Die folgenden Abschnitte beschreiben den Lebenszyklus dieser Strukturen sowie die \gls{api} zur Durchführung von Mengenoperationen.
 
 \subsubsection{Der Freeze-Contract: Immutabilität sichern}
 \label{subsubsec:rs-api-freeze}
@@ -329,7 +329,7 @@ console.log(a.symmetricDifference(b)); // {1, 2, 4, 5}
     \end{minted}
 \end{listing}
 
-Die API in TypeScript macht durch die Methodenbenennung unmittelbar sichtbar, welche mengentheoretische Verknüpfung der Algorithmus ausführt.
+Die \glslink{api}{API} in TypeScript macht durch die Methodenbenennung unmittelbar sichtbar, welche mengentheoretische Verknüpfung der Algorithmus ausführt.
 
 \subsubsection{Teil- und Obermengenbeziehungen}
 \label{subsubsec:rs-api-subset-superset}
@@ -555,4 +555,4 @@ const totalSum = costs.reduce((acc, current) => acc + current, 0); // 60
     \end{minted}
 \end{listing}
 
-Die native Komprehensionssyntax wird somit durch eine API funktionaler Operationen abgebildet, deren Bedeutung sich direkt auf die mathematische Notation übertragen lässt.
+Die native Komprehensionssyntax wird somit durch eine \gls{api} funktionaler Operationen abgebildet, deren Bedeutung sich direkt auf die mathematische Notation übertragen lässt.

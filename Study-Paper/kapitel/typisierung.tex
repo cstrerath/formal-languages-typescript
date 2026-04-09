@@ -108,7 +108,7 @@ Durch die expliziten Typannotationen wird die Signatur, also die formale Schnitt
 
 \begin{definition}
 \label{def:ts-number}
-\textbf{Der Typ \texttt{number}:} Im Gegensatz zu Sprachen wie Python, C oder Java, die streng zwischen ganzen Zahlen (\mintinline{text}{int}) und Kommazahlen (\mintinline{text}{float}) unterscheiden, fasst TypeScript alle numerischen Werte unter dem Typ \mintinline{typescript}{number} zusammen. Programmatisch handelt es sich um 64-Bit-Fließkommazahlen nach dem IEEE-754-Standard \autocite{ieee754_2019}. Eine Funktion mit diesem Parameter akzeptiert folglich sowohl \mintinline{typescript}{add(3, 4)} als auch \mintinline{typescript}{add(3.14, 2.5)}.
+\textbf{Der Typ \texttt{number}:} Im Gegensatz zu Sprachen wie Python, C oder Java, die streng zwischen ganzen Zahlen (\mintinline{text}{int}) und Kommazahlen (\mintinline{text}{float}) unterscheiden, fasst TypeScript alle numerischen Werte unter dem Typ \mintinline{typescript}{number} zusammen. Programmatisch handelt es sich um 64-Bit-Fließkommazahlen nach dem \glslink{ieee}{IEEE}-754-Standard \autocite{ieee754_2019}. Eine Funktion mit diesem Parameter akzeptiert folglich sowohl \mintinline{typescript}{add(3, 4)} als auch \mintinline{typescript}{add(3.14, 2.5)}.
 \end{definition}
 
 
@@ -213,20 +213,20 @@ console.log(implicitText);           // "1,2,3"
 \end{listing}
 
 
-\paragraph{Type Assertions als trügerische Compiler-Anweisung}
+\paragraph{\glslink{typeassertion}{Type Assertions} als trügerische Compiler-Anweisung}
 \label{par:as-in-typescript}
 
 Neben \mintinline{typescript}{any} bietet TypeScript mit der Typbehauptung einen weiteren Mechanismus, der das Typsystem aufweicht und für Einsteiger oft wie eine bequeme Typumwandlung (Type Cast) wirkt. Dies ist jedoch ein Trugschluss.
 
 \begin{definition}
 \label{def:ts-as}
-\textbf{Die Type Assertion (\texttt{as}):} Das Schlüsselwort \mintinline{typescript}{as} ist keine Operation, die zur Laufzeit ausgeführt wird. Es ist eine reine Compiler-Direktive. Sie zwingt den TypeScript-Compiler dazu, einen Wert ab sofort als den angegebenen Typ zu behandeln, lässt den Wert im Arbeitsspeicher aber völlig unangetastet.
+\textbf{Die \glslink{typeassertion}{Type Assertion} (\texttt{as}):} Das Schlüsselwort \mintinline{typescript}{as} ist keine Operation, die zur Laufzeit ausgeführt wird. Es ist eine reine Compiler-Direktive. Sie zwingt den TypeScript-Compiler dazu, einen Wert ab sofort als den angegebenen Typ zu behandeln, lässt den Wert im Arbeitsspeicher aber völlig unangetastet.
 \end{definition}
 
 Listing~\ref{lst:ts-as-no-conversion} verdeutlicht diese trügerische Sicherheit.
 
 \begin{listing}[htbp]
-    \caption{Eine Type Assertion ist keine echte Umwandlung}
+    \caption{Eine \glslink{typeassertion}{Type Assertion} ist keine echte Umwandlung}
     \label{lst:ts-as-no-conversion}
     \begin{minted}{typescript}
 let values: any = [1, 2, 3];
@@ -275,7 +275,7 @@ Die strikte Variante formuliert einen eindeutigen Vertrag, der keinen Interpreta
 
 \begin{definition}
 \label{def:ts-string}
-\textbf{Der Typ \texttt{string}:} Dieser primitive Typ repräsentiert jegliche Form von Textdaten. Er besteht aus einer unveränderlichen (immutablen) Sequenz von 16-Bit-Werten nach dem UTF-16-Standard. Einmal im Speicher angelegt, kann ein String nicht modifiziert werden; Operationen wie String-Verkettungen erzeugen stets eine neue Zeichenkette. 
+\textbf{Der Typ \texttt{string}:} Dieser primitive Typ repräsentiert jegliche Form von Textdaten. Er besteht aus einer unveränderlichen (immutablen) Sequenz von 16-Bit-Werten nach dem \glslink{utf}{UTF}-16-Standard. Einmal im Speicher angelegt, kann ein String nicht modifiziert werden; Operationen wie String-Verkettungen erzeugen stets eine neue Zeichenkette. 
 \end{definition}
 
 
@@ -313,8 +313,6 @@ Bereits die simple Typdefinition von \mintinline{typescript}{userProfile} legt e
 
 \paragraph{Eingrenzung von Wertebereichen durch Literal und Union Types}
 \label{par:literal-und-union-types}
-% HINWEIS: Diesen Block am besten direkt hinter die atomaren Basistypen 
-% (number, string, boolean) verschieben!
 
 Oft reicht es nicht aus, einen Wert pauschal als \mintinline{typescript}{string} zu deklarieren. Wenn fachlich nur eine feste Menge spezifischer Ausprägungen zulässig ist (etwa bestimmte Nutzerrollen), bietet TypeScript zwei eng verwobene Konzepte:
 
@@ -458,7 +456,7 @@ Listing~\ref{lst:ts-unknown-basic} zeigt, wie der Compiler unsichere Operationen
 let value: unknown = [1, 2, 3];
 
 // Nicht erlaubt, solange der Typ noch unbekannt ist:
-// console.log(value.toUpperCase()); // Compiler-Fehler
+console.log(value.toUpperCase()); // Compiler-Fehler
     \end{minted}
 \end{listing}
 
@@ -527,7 +525,7 @@ Entscheidend ist dabei ein Konzept, das TypeScript grundlegend von Sprachen wie 
 
 \begin{definition}
 \label{def:ts-structural-typing}
-\textbf{Strukturelles Typing (Statisches Duck-Typing):} TypeScript prüft Typkompatibilität nicht anhand einer expliziten Klassenhierarchie (Nominales Typing), sondern rein anhand der \enquote{Gestalt} (Struktur) eines Objekts. Besitzt ein Objekt alle Eigenschaften und Methoden, die ein Interface verlangt, gilt es als kompatibel zu diesem Interface, unabhängig davon, ob es explizit davon erbt oder nicht.
+\textbf{\glslink{structuraltyping}{Strukturelles Typing} (Statisches Duck-Typing):} TypeScript prüft Typkompatibilität nicht anhand einer expliziten Klassenhierarchie (Nominales Typing), sondern rein anhand der \enquote{Gestalt} (Struktur) eines Objekts. Besitzt ein Objekt alle Eigenschaften und Methoden, die ein Interface verlangt, gilt es als kompatibel zu diesem Interface, unabhängig davon, ob es explizit davon erbt oder nicht.
 \end{definition}
 
 Listing~\ref{lst:ts-structural-interface} definiert einen solchen strukturellen Vertrag in Form des Interfaces \mintinline{typescript}{Displayable}.
@@ -710,20 +708,20 @@ def filter_active(items: list[S]) -> list[S]:
 \end{listing}
 
 
-\paragraph{Kontrollflussbasierte Typverfeinerung (Type Narrowing)}
+\paragraph{Kontrollflussbasierte Typverfeinerung (\glslink{typenarrowing}{Type Narrowing})}
 \label{par:type-narrowing}
 
 Sobald ein Wert als Union Type definiert ist, verlangt der Compiler Klarheit darüber, welcher Fall zur Laufzeit konkret vorliegt, bevor typspezifische Operationen zugelassen werden. 
 
 \begin{definition}
 \label{def:ts-type-narrowing}
-\textbf{Type Narrowing:} Dies ist der Prozess der schrittweisen Typ-Einengung. Der TypeScript-Compiler analysiert den Kontrollfluss des Codes (wie \mintinline{typescript}{if}-Verzweigungen) in Kombination mit Laufzeitprüfungen. Kann bewiesen werden, dass eine Variable einen bestimmten Typ hat, behandelt der Compiler sie innerhalb dieses Blocks vollautomatisch als diesen engeren Typ.
+\textbf{\glslink{typenarrowing}{Type Narrowing}:} Dies ist der Prozess der schrittweisen Typ-Einengung. Der TypeScript-Compiler analysiert den Kontrollfluss des Codes (wie \mintinline{typescript}{if}-Verzweigungen) in Kombination mit Laufzeitprüfungen. Kann bewiesen werden, dass eine Variable einen bestimmten Typ hat, behandelt der Compiler sie innerhalb dieses Blocks vollautomatisch als diesen engeren Typ.
 \end{definition}
 
 Listing~\ref{lst:ts-narrowing-typeof} verdeutlicht, wie diese statische Analyse in der Praxis auf Basis des \mintinline{typescript}{typeof}-Operators funktioniert.
 
 \begin{listing}[htbp]
-    \caption{Type Narrowing durch Kontrollfluss und \texttt{typeof}}
+    \caption{\glslink{typenarrowing}{Type Narrowing} durch Kontrollfluss und \texttt{typeof}}
     \label{lst:ts-narrowing-typeof}
     \begin{minted}{typescript}
 function formatValue(value: string | number): string {
@@ -805,4 +803,4 @@ In der Python-Umgebung musste die Typprüfung durch externe Werkzeuge wie \texti
     \item \textbf{Zustandsverlust bei \texttt{\%run}-Befehlen:} Um Code aus Basis-Notebooks in anderen Notebooks wiederzuverwenden, macht die interaktive Umgebung Gebrauch von Magic Commands wie \mintinline{text}{%run}. Dies korrumpierte jedoch regelmäßig den internen Typ-Zustand von \textit{nb-mypy}. Als Workaround musste die Typprüfungs-Erweiterung manuell entladen werden, was ihren inhärenten Zweck ad absurdum führte.
 \end{itemize}
 
-Die Neuausrichtung des Projekts behält die didaktischen Vorteile der interaktiven Arbeit bei, wechselt jedoch die technologische Basis, um genau diese Brüche zu heilen. Durch den Einsatz von TypeScript in Kombination mit dem \textit{tslab}-Kernel wird die Typprüfung zu einem integralen Bestandteil der Ausführungsumgebung. Der TypeScript-Kernel verifiziert den Code durch seine native Kontrollflussanalyse direkt während der Eingabe und über Zellengrenzen hinweg, ohne auf fehleranfällige Zusatzskripte oder ständige Neustarts der Prüfwerkzeuge angewiesen zu sein. 
+Die Neuausrichtung des Projekts behält die didaktischen Vorteile der interaktiven Arbeit bei, wechselt jedoch die technologische Basis, um genau diese Brüche zu heilen. Durch den Einsatz von TypeScript in Kombination mit dem \textit{tslab}-Kernel wird die Typprüfung zu einem integralen Bestandteil der Ausführungsumgebung. Der TypeScript-Kernel verifiziert den Code durch seine native Kontrollflussanalyse direkt während der Eingabe und über Zellengrenzen hinweg, ohne auf fehleranfällige Zusatzskripte oder ständige Neustarts der Prüfwerkzeuge angewiesen zu sein.

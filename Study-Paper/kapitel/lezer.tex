@@ -4,7 +4,7 @@
 
 Nachdem in den vorangegangenen Kapiteln die zentralen Datenstrukturen zur wertsemantischen Modellierung von Mengen und Automaten eingeführt wurden, richtet sich der Blick nun auf die syntaktische Verarbeitung von Eingabetexten.
 
-In den ursprünglichen Python-Implementierungen der Lehrveranstaltung werden wesentliche Schritte der Sprachverarbeitung mit der Bibliothek \emph{PLY} (Python Lex-Yacc) umgesetzt. \emph{PLY} ist eine Parsergenerator-Bibliothek für Python, die sich an den klassischen Werkzeugen \emph{Lex} und \emph{Yacc} orientiert. Diese Werkzeuge werden in Lehrkontexten häufig eingesetzt, um grundlegende Konzepte der Compilertechnik wie Tokenisierung und Parsing praktisch zu vermitteln. Die Bibliothek wurde von David Beazley entwickelt und ist frei verfügbar \autocite{beazley_ply}.
+In den ursprünglichen Python-Implementierungen der Lehrveranstaltung werden wesentliche Schritte der Sprachverarbeitung mit der Bibliothek \emph{\glslink{ply}{PLY}} (\glslink{ply}{Python Lex-Yacc}) umgesetzt. \emph{\glslink{ply}{PLY}} ist eine Parsergenerator-Bibliothek für Python, die sich an den klassischen Werkzeugen \emph{Lex} und \emph{Yacc} orientiert. Diese Werkzeuge werden in Lehrkontexten häufig eingesetzt, um grundlegende Konzepte der Compilertechnik wie Tokenisierung und Parsing praktisch zu vermitteln. Die Bibliothek wurde von David Beazley entwickelt und ist frei verfügbar \autocite{beazley_ply}.
 
 Die Architektur eines solchen Sprachprozessors besteht im Kern aus zwei aufeinanderfolgenden Phasen: der lexikalischen Analyse und der darauf aufbauenden syntaktischen Analyse.
 
@@ -14,25 +14,25 @@ Die Architektur eines solchen Sprachprozessors besteht im Kern aus zwei aufeinan
 Die lexikalische Analyse (durchgeführt vom \textit{Lexer}) ist der erste Verarbeitungsschritt. Sie zerlegt den Quelltext in eine strukturierte Folge von \textit{Token}, also in kleinste bedeutungstragende Einheiten wie Schlüsselwörter, Zahlen oder Operatoren. Die syntaktische Analyse (durchgeführt vom \textit{Parser}) verarbeitet diese Tokenfolge weiter und überprüft anhand einer formalen Grammatik, ob sie einen gültigen Ausdruck der Sprache bildet. Dabei entsteht eine baumartige Repräsentation der syntaktischen Struktur \autocite[5f]{aho2006compilers}.
 \end{definition}
 
-\emph{PLY} bildet diese beiden Komponenten in seiner Architektur explizit ab:
+\emph{\glslink{ply}{PLY}} bildet diese beiden Komponenten in seiner Architektur explizit ab:
 
 \begin{itemize}
     \item \textbf{Lexikalische Analyse (Lexer):}  
     Token werden durch reguläre Ausdrücke beschrieben. Der Lexer erkennt auf dieser Grundlage elementare Spracheinheiten wie Zahlen, Operatoren oder Schlüsselwörter.
 
     \item \textbf{Syntaxanalyse (Parser):}  
-    Die Grammatik der Sprache wird als Menge von Produktionsregeln formuliert. \emph{PLY} generiert daraus einen Parser, der auf LR-Parsing-Techniken basiert. Diese Verfahren lesen die Eingabe von links nach rechts und konstruieren eine rechtsableitende Analyse, wodurch Programmiersprachen deterministisch verarbeitet werden können.
+    Die Grammatik der Sprache wird als Menge von Produktionsregeln formuliert. \emph{\glslink{ply}{PLY}} generiert daraus einen Parser, der auf LR-Parsing-Techniken basiert. Diese Verfahren lesen die Eingabe von links nach rechts und konstruieren eine rechtsableitende Analyse, wodurch Programmiersprachen deterministisch verarbeitet werden können.
 \end{itemize}
 
-Ein charakteristisches Merkmal von \emph{PLY} besteht darin, dass Token-Definitionen und Grammatikregeln unmittelbar im ausführbaren Python-Code formuliert werden (siehe Listing~\ref{lst:python-ply-grammatik}). Produktionsregeln erscheinen dabei als gewöhnliche Python-Funktionen. Die eigentliche Grammatikregel wird dem Parsergenerator über den zugehörigen \textit{Docstring} übermittelt.
+Ein charakteristisches Merkmal von \emph{\glslink{ply}{PLY}} besteht darin, dass Token-Definitionen und Grammatikregeln unmittelbar im ausführbaren Python-Code formuliert werden (siehe Listing~\ref{lst:python-ply-grammatik}). Produktionsregeln erscheinen dabei als gewöhnliche Python-Funktionen. Die eigentliche Grammatikregel wird dem Parsergenerator über den zugehörigen \textit{Docstring} übermittelt.
 
 \begin{definition}
 \label{def:docstring}
 \textbf{Docstring (Documentation String):}
-In Python ist ein Docstring eine Zeichenkette, die direkt nach der Definition einer Funktion oder Klasse steht und in erster Linie der Dokumentation dient. \emph{PLY} nutzt diesen Mechanismus, indem die Bibliothek diese Zeichenketten zur Laufzeit ausliest und als Grammatikregeln interpretiert.
+In Python ist ein Docstring eine Zeichenkette, die direkt nach der Definition einer Funktion oder Klasse steht und in erster Linie der Dokumentation dient. \emph{\glslink{ply}{PLY}} nutzt diesen Mechanismus, indem die Bibliothek diese Zeichenketten zur Laufzeit ausliest und als Grammatikregeln interpretiert.
 \end{definition}
 
-Dieser Ansatz erspart zwar separate Grammatikdateien, ist im Lehrkontext jedoch nicht immer ideal. In der Theoretischen Informatik werden kontextfreie Grammatiken üblicherweise in einer kompakten formalen Notation wie der \textit{Erweiterten Backus-Naur-Form} (EBNF) beschrieben. \emph{PLY} verteilt diese Regeln dagegen über einzelne Python-Funktionen und bindet den eigentlichen Regeltext an deren Docstrings. Dadurch tritt die formale Struktur der Grammatik im Quelltext weniger geschlossen hervor.
+Dieser Ansatz erspart zwar separate Grammatikdateien, ist im Lehrkontext jedoch nicht immer ideal. In der Theoretischen Informatik werden kontextfreie Grammatiken üblicherweise in einer kompakten formalen Notation wie der \textit{\glslink{ebnf}{Erweiterten Backus-Naur-Form}} (\glslink{ebnf}{EBNF}) beschrieben. \emph{\glslink{ply}{PLY}} verteilt diese Regeln dagegen über einzelne Python-Funktionen und bindet den eigentlichen Regeltext an deren Docstrings. Dadurch tritt die formale Struktur der Grammatik im Quelltext weniger geschlossen hervor.
 
 \begin{listing}[htbp]
     \caption{Ply-Grammatik in Python}
@@ -49,7 +49,7 @@ def t_NUMBER(t):
 \end{minted}
 \end{listing}
 
-Während \emph{PLY} somit eine klassische Compilerarchitektur innerhalb der Python-Umgebung realisiert, verfolgt das TypeScript-Ökosystem einen anderen Ansatz. Für editornahe Anwendungen und webbasierte Entwicklungsumgebungen wird häufig das Parser-Framework \emph{Lezer} eingesetzt.
+Während \emph{\glslink{ply}{PLY}} somit eine klassische Compilerarchitektur innerhalb der Python-Umgebung realisiert, verfolgt das TypeScript-Ökosystem einen anderen Ansatz. Für editornahe Anwendungen und webbasierte Entwicklungsumgebungen wird häufig das Parser-Framework \emph{Lezer} eingesetzt.
 
 \emph{Lezer} verfolgt das Ziel, syntaktische Analysen effizient und inkrementell durchzuführen. Im Unterschied zu traditionellen Parsergeneratoren wird der Parser so konstruiert, dass Änderungen am Quelltext lokal verarbeitet werden können, ohne den gesamten Syntaxbaum neu berechnen zu müssen \autocite{lezer_docs}.
 
@@ -57,11 +57,11 @@ Ein wesentlicher Vorzug dieses Frameworks liegt in der Art der Sprachspezifikati
 
 \begin{definition}
 \label{def:ebnf}
-\textbf{Erweiterte Backus-Naur-Form (EBNF):}
-Die EBNF ist eine formale Metasprache zur Beschreibung kontextfreier Grammatiken. Sie erweitert die klassische BNF um kompakte Notationsmittel für Wiederholungen, Alternativen, optionale Elemente und Gruppierungen. Dadurch lassen sich Syntaxregeln präziser und übersichtlicher formulieren.
+\textbf{\glslink{ebnf}{Erweiterte Backus-Naur-Form} (\glslink{ebnf}{EBNF}):}
+Die \glslink{ebnf}{EBNF} ist eine formale Metasprache zur Beschreibung kontextfreier Grammatiken. Sie erweitert die klassische BNF um kompakte Notationsmittel für Wiederholungen, Alternativen, optionale Elemente und Gruppierungen. Dadurch lassen sich Syntaxregeln präziser und übersichtlicher formulieren.
 \end{definition}
 
-Wie Listing~\ref{lst:typescript-lezer-grammatik} zeigt, ermöglicht \emph{Lezer} eine Formulierung der Grammatikregeln, die – bei geeigneter Strukturierung – in weiten Teilen an die EBNF-nahe Darstellung aus der theoretischen Informatik anschließt:
+Wie Listing~\ref{lst:typescript-lezer-grammatik} zeigt, ermöglicht \emph{Lezer} eine Formulierung der Grammatikregeln, die – bei geeigneter Strukturierung – in weiten Teilen an die \glslink{ebnf}{EBNF}-nahe Darstellung aus der theoretischen Informatik anschließt:
 
 \begin{listing}[htbp]
     \caption{Lezer-Grammatik in TypeScript}
@@ -75,11 +75,11 @@ Add {
 \end{minted}
 \end{listing}
 
-Aus dieser deklarativen Beschreibung generiert \emph{Lezer} anschließend einen ausführbaren Parser für das TypeScript-Ökosystem.
+Aus dieser deklarative Beschreibung generiert \emph{Lezer} anschließend einen ausführbaren Parser für das TypeScript-Ökosystem.
 
-Beide Ansätze, \emph{PLY} und \emph{Lezer}, basieren formal auf kontextfreien Grammatiken und klassischen Parsingverfahren. Sie unterscheiden sich jedoch deutlich in ihrer Repräsentation und in ihrer Zielumgebung. Während \emph{PLY} vor allem für Python-basierte Compilerprototypen entwickelt wurde und die Grammatik in ausführbaren Code einbettet, ist \emph{Lezer} auf die deklarative und inkrementelle Analyse von Programmtexten ausgerichtet.
+Beide Ansätze, \emph{\glslink{ply}{PLY}} und \emph{Lezer}, basieren formal auf kontextfreien Grammatiken und klassischen Parsingverfahren. Sie unterscheiden sich jedoch deutlich in ihrer Repräsentation und in ihrer Zielumgebung. Während \emph{\glslink{ply}{PLY}} vor allem für Python-basierte Compilerprototypen entwickelt wurde und die Grammatik in ausführbaren Code einbettet, ist \emph{Lezer} auf die deklarative und inkrementelle Analyse von Programmtexten ausgerichtet.
 
-Im Rahmen dieser Arbeit dient \emph{PLY} daher als Referenzimplementierung der ursprünglichen Python-Notebooks, während \emph{Lezer} die Grundlage für die Umsetzung der Sprachverarbeitungsschritte im TypeScript-Ökosystem bildet.
+Im Rahmen dieser Arbeit dient \emph{\glslink{ply}{PLY}} daher als Referenzimplementierung der ursprünglichen Python-Notebooks, während \emph{Lezer} die Grundlage für die Umsetzung der Sprachverarbeitungsschritte im TypeScript-Ökosystem bildet.
 
 \subsection{Grundlagen von Lezer}
 \label{subsec:lezer_basics}
@@ -90,11 +90,11 @@ Ein zentrales Ziel von \emph{Lezer} besteht darin, die syntaktische Struktur ein
 
 \paragraph{Inkrementelles Parsing}
 
-Eine prägende Eigenschaft von \emph{Lezer} ist das sogenannte \emph{inkrementelle Parsing}.
+Eine prägende Eigenschaft von \emph{Lezer} ist das sogenannte \emph{\glslink{inkrementell}{inkrementelle Parsing}}.
 
 \begin{definition}
 \label{def:inkrementelles-parsing}
-\textbf{Inkrementelles Parsing:}
+\textbf{\glslink{inkrementell}{Inkrementelles Parsing}:}
 Ein Analyseverfahren, bei dem nach einer lokalen Änderung am Quelltext nicht das gesamte Dokument erneut geparst wird. Stattdessen identifiziert der Parser die von der Änderung betroffenen Bereiche und aktualisiert gezielt nur jene Teilbäume des bestehenden Syntaxbaums, die dadurch ungültig geworden sind.
 \end{definition}
 
@@ -106,11 +106,11 @@ Das Ergebnis der Analyse durch \emph{Lezer} ist eine baumartige Repräsentation 
 
 \begin{definition}
 \label{def:cst-vs-ast}
-\textbf{Concrete Syntax Tree (CST) vs. Abstract Syntax Tree (AST):}
-Ein CST (konkreter Syntaxbaum) repräsentiert den vollständigen Ableitungsbaum der Grammatik einschließlich aller Zwischensymbole, Klammern und sonstigen syntaktischen Hilfszeichen. Ein AST (abstrakter Syntaxbaum) ist demgegenüber eine verdichtete Darstellung, die nur jene Informationen enthält, die für die Programmlogik wesentlich sind, etwa Operatoren und Operanden.
+\textbf{\glslink{cst}{Concrete Syntax Tree} (\glslink{cst_acr}{CST}) vs. \glslink{ast}{Abstract Syntax Tree} (\glslink{ast_acr}{AST}):}
+Ein \glslink{cst_acr}{CST} (\glslink{cst}{konkreter Syntaxbaum}) repräsentiert den vollständigen Ableitungsbaum der Grammatik einschließlich aller Zwischensymbole, Klammern und sonstigen syntaktischen Hilfszeichen. Ein \glslink{ast_acr}{AST} (\glslink{ast}{abstrakter Syntaxbaum}) ist demgegenüber eine verdichtete Darstellung, die nur jene Informationen enthält, die für die Programmlogik wesentlich sind, etwa Operatoren und Operanden.
 \end{definition}
 
-\emph{Lezer} erzeugt zunächst stets einen konkreten Syntaxbaum (CST). Diese vollständige Repräsentation ist insbesondere für editornahe Funktionen relevant, da sie eine präzise Lokalisierung einzelner Sprachelemente im Quelltext erlaubt. Für die spätere Interpretation oder Auswertung wird dieser CST in der Regel in einen kompakteren AST überführt.
+\emph{Lezer} erzeugt zunächst stets einen \glslink{cst}{konkreten Syntaxbaum} (\glslink{cst_acr}{CST}). Diese vollständige Repräsentation ist insbesondere für editornahe Funktionen relevant, da sie eine präzise Lokalisierung einzelner Sprachelemente im Quelltext erlaubt. Für die spätere Interpretation oder Auswertung wird dieser \glslink{cst_acr}{CST} in der Regel in einen kompakteren \glslink{ast_acr}{AST} überführt.
 
 \paragraph{Integration in das JavaScript- und TypeScript-Ökosystem}
 
@@ -160,11 +160,11 @@ Das Schlüsselwort \texttt{@top} definiert das Startsymbol der Grammatik und dam
 
 \paragraph{Didaktische Strukturierung durch Zeichenketten-Konkatenation}
 
-Während \emph{PLY} Grammatikregeln durch die Verteilung auf einzelne Python-Funk\-tionen ohnehin in kleinere Einheiten aufteilt, erwartet \emph{Lezer} bei der Initialisierung eine zusammenhängende Grammatikbeschreibung als Zeichenkette.
+Während \emph{\glslink{ply}{PLY}} Grammatikregeln durch die Verteilung auf einzelne Python-Funk\-tionen ohnehin in kleinere Einheiten aufteilt, erwartet \emph{Lezer} bei der Initialisierung eine zusammenhängende Grammatikbeschreibung als Zeichenkette.
 
 Um in den Lehr-Notebooks dennoch eine schrittweise Einführung der Sprachkonstrukte zu ermöglichen, wird die deklarative Grammatik in logische Teilblöcke gegliedert, etwa in Token-Definitionen, Ausdrucksregeln und Anweisungen. Diese Teilstrings werden in aufeinanderfolgenden Notebook-Zellen definiert, jeweils erläutert und schließlich durch Zeichenketten-Konkatenation zur vollständigen Grammatik zusammengesetzt, bevor der Parser generiert wird.
 
-Dieser Ansatz verbindet die formale Geschlossenheit einer EBNF-nahen Notation mit den didaktischen Anforderungen einer schrittweisen Wissensvermittlung im Notebook-Format.
+Dieser Ansatz verbindet die formale Geschlossenheit einer \glslink{ebnf}{EBNF}-nahen Notation mit den didaktischen Anforderungen einer schrittweisen Wissensvermittlung im Notebook-Format.
 
 \subsection{Generierung des Parsers}
 \label{subsec:lezer_parser_generation}
@@ -196,7 +196,7 @@ Die Generierung des Parsers stellt im Projekt keinen isolierten Endpunkt dar, so
 
 \paragraph{Parsing von Eingabetexten}
 
-Nach der Erzeugung der Parserinstanz kann ein Eingabetext analysiert werden. Der Prozess beginnt mit dem Aufruf der Methode \texttt{parse}, die einen CST liefert. Um diesen für die Programmlogik nutzbar zu machen, wird er anschließend in einen AST transformiert. Listing~\ref{lst:parser_integration_komplett} zeigt die Kapselung dieses Vorgangs einschließlich der erforderlichen Konfiguration.
+Nach der Erzeugung der Parserinstanz kann ein Eingabetext analysiert werden. Der Prozess beginnt mit dem Aufruf der Methode \texttt{parse}, die einen \glslink{cst_acr}{CST} liefert. Um diesen für die Programmlogik nutzbar zu machen, wird er anschließend in einen \glslink{ast_acr}{AST} transformiert. Listing~\ref{lst:parser_integration_komplett} zeigt die Kapselung dieses Vorgangs einschließlich der erforderlichen Konfiguration.
 
 \begin{listing}[htbp]
     \caption{Vollständige Integrationslogik in TypeScript}
@@ -223,24 +223,24 @@ In diesem Aufbau übernimmt die Funktion \texttt{parse} die Rolle einer Fassade,
 \begin{definition}
 \label{def:terminal-extraktion}
 \textbf{Terminal-Extraktion (\texttt{input}):}
-Lezer speichert in den Blattknoten des CST aus Effizienzgründen nicht unmittelbar die zugehörigen Zeichenketten, sondern lediglich Start- und Endpositionen im Eingabetext. Um die tatsächlichen Werte, etwa Bezeichner oder Zahlenliterale, für den AST zu rekonstruieren, muss daher der ursprüngliche Quelltext übergeben und an den entsprechenden Positionen ausgelesen werden.
+Lezer speichert in den Blattknoten des \glslink{cst_acr}{CST} aus Effizienzgründen nicht unmittelbar die zugehörigen Zeichenketten, sondern lediglich Start- und Endpositionen im Eingabetext. Um die tatsächlichen Werte, etwa Bezeichner oder Zahlenliterale, für den \glslink{ast_acr}{AST} zu rekonstruieren, muss daher der ursprüngliche Quelltext übergeben und an den entsprechenden Positionen ausgelesen werden.
 \end{definition}
 
 \begin{definition}
 \label{def:infix-promotion}
 \textbf{Infix Operator Promotion (\texttt{myOperators}):}
-Ein Verfahren der AST-Konstruktion, bei dem ein im CST flach dargestellter Infix-Operator zur Wurzel des resultierenden abstrakten Teilbaums erhoben wird. Erkennt \texttt{cst2ast} einen Eintrag aus der Liste \texttt{myOperators}, wird ein Ausdruck der Form \textbf{A ``+'' B} in die abstrakte Struktur \texttt{["+", A, B]} überführt.
+Ein Verfahren der \glslink{ast_acr}{AST}-Konstruktion, bei dem ein im \glslink{cst_acr}{CST} flach dargestellter Infix-Operator zur Wurzel des resultierenden abstrakten Teilbaums erhoben wird. Erkennt \texttt{cst2ast} einen Eintrag aus der Liste \texttt{myOperators}, wird ein Ausdruck der Form \textbf{A ``+'' B} in die abstrakte Struktur \texttt{["+", A, B]} überführt.
 \end{definition}
 
 \begin{definition}
 \label{def:listen-faltung}
-\textbf{Listen-Faltung (\texttt{myListVars}):}
+\textbf{\glslink{listenfaltung}{Listen-Faltung} (\texttt{myListVars}):}
 Die Umwandlung einer flachen Folge von Elementen in eine rekursiv verschachtelte Listenstruktur. Diese Darstellungsform orientiert sich an klassischen Konzepten der funktionalen Programmierung (sogenannten \textit{Cons-Zellen}). Anstatt Elemente in einem flachen Array (z.\,B. \texttt{[A, B, C]}) zu belassen, werden sie systematisch in verschachtelte Tupel der Form \texttt{["\textperiodcentered", Kopf, Rest]} überführt (z.\,B. \texttt{["\textperiodcentered", A, ["\textperiodcentered", B, ...]]}). Der \textit{Kopf} (Head) enthält das aktuelle Element, der \textit{Rest} (Tail) den rekursiven Verweis auf die restliche Liste. Bezeichner aus \texttt{myListVars} lösen diese Faltung aus, da sie die Rechtsrekursion formaler Grammatiken natürlich abbildet und die spätere rekursive Auswertung im Interpreter stark vereinfacht.
 \end{definition}
 
-\paragraph{Transformation in das projektspezifische AST-Format}
+\paragraph{Transformation in das projektspezifische \glslink{ast_acr}{AST}-Format}
 
-Das Ziel dieser Mechanismen besteht darin, den abstrakten Syntaxbaum in ein striktes und typsicheres Tupel-Format zu überführen. Die interne Struktur des AST wird in TypeScript explizit durch rekursive Typdefinitionen beschrieben:
+Das Ziel dieser Mechanismen besteht darin, den abstrakten Syntaxbaum in ein striktes und typsicheres Tupel-Format zu überführen. Die interne Struktur des \glslink{ast_acr}{AST} wird in TypeScript explizit durch rekursive Typdefinitionen beschrieben:
 
 \begin{listing}[htbp]
     \caption{Die typsichere Definition des AST}
@@ -255,10 +255,10 @@ export type AST = string | number |
 \end{minted}
 \end{listing}
 
-Durch diese Definition des \mintinline{typescript}{AST}-Typs (siehe Listing~\ref{lst:ast_type_definition}) überprüft der TypeScript-Compiler, dass jeder transformierte Knoten aus einem Operator-String und einer zur jeweiligen Knotenform passenden Anzahl verschachtelter Unterknoten besteht. Syntaktische Elemente des CST, die für die spätere Programmlogik keine eigene Bedeutung besitzen, etwa Klammern, Semikolons oder Kommentare, werden durch \texttt{cst2ast} verworfen.
+Durch diese Definition des \glslink{ast_acr}{\mintinline{typescript}{AST}}-Typs (siehe Listing~\ref{lst:ast_type_definition}) überprüft der TypeScript-Compiler, dass jeder transformierte Knoten aus einem Operator-String und einer zur jeweiligen Knotenform passenden Anzahl verschachtelter Unterknoten besteht. Syntaktische Elemente des \glslink{cst_acr}{CST}, die für die spätere Programmlogik keine eigene Bedeutung besitzen, etwa Klammern, Semikolons oder Kommentare, werden durch \texttt{cst2ast} verworfen.
 
 \paragraph{Bedeutung für die Gesamtarchitektur}
 
-Die Einbettung des \emph{Lezer}-Parsers zeigt, dass dieser als Teil einer mehrstufigen Verarbeitungskette verstanden wird: Auf die formale Grammatikdefinition folgen Parsererzeugung, Analyse konkreter Eingaben in Form eines CST und schließlich die regelbasierte Transformation in eine tupelbasierte AST-Repräsentation.
+Die Einbettung des \emph{Lezer}-Parsers zeigt, dass dieser als Teil einer mehrstufigen Verarbeitungskette verstanden wird: Auf die formale Grammatikdefinition folgen Parsererzeugung, Analyse konkreter Eingaben in Form eines \glslink{cst_acr}{CST} und schließlich die regelbasierte Transformation in eine tupelbasierte \glslink{ast_acr}{AST}-Repräsentation.
 
 \emph{Lezer} übernimmt damit die Aufgabe, die textuelle Eingabe formal korrekt zu analysieren. Die fachliche Bedeutung der erkannten Konstrukte und ihre Vorbereitung für die spätere Ausführung entstehen jedoch erst durch die nachgelagerte Abbildung mittels \texttt{cst2ast}. Diese Trennung verhindert, dass spätere Auswertungsschritte mit ungeeigneten oder unerwarteten Knotenstrukturen arbeiten, und schlägt zugleich die Brücke zur \textit{Case Study} des folgenden Kapitels, in der diese Strukturen interpretiert und ausgeführt werden.
