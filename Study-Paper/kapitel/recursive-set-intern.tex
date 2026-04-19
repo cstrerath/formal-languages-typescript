@@ -128,7 +128,7 @@ Bei Zeichenketten und komplexen Objekten greifen andere Mechanismen, die ebenfal
     \end{minted}
 \end{listing}
 
-Für \textbf{Strings} verwendet die Bibliothek eine Variante des \textit{FNV-1a}-Algorithmus (Fowler–Noll–Vo). Die Zeichenkette wird in einer Schleife durchlaufen und der numerische Wert jedes Zeichens (\mintinline{typescript}{charCodeAt}) wird über ein exklusives ODER (\mintinline{typescript}{^=}) in den Hash eingemischt. Der bewusste Verzicht auf Methoden, die den String in Arrays aufspalten oder neue Teilzeichenketten (Sub-Strings) erzeugen, stellt sicher, dass während der Schleife keine temporären Objekte im Arbeitsspeicher reserviert (alloziert) werden müssen. Diese sogenannte \textit{Allokationsfreiheit} entlastet den \glslink{garbagecollection}{Garbage Collector}.
+Für \textbf{Strings} verwendet die Bibliothek eine Variante des \textit{FNV-1a}-Algorithmus (Fowler–Noll–Vo) \autocite{rfc9923}. Die Zeichenkette wird in einer Schleife durchlaufen und der numerische Wert jedes Zeichens (\mintinline{typescript}{charCodeAt}) wird über ein exklusives ODER (\mintinline{typescript}{^=}) in den Hash eingemischt. Der bewusste Verzicht auf Methoden, die den String in Arrays aufspalten oder neue Teilzeichenketten (Sub-Strings) erzeugen, stellt sicher, dass während der Schleife keine temporären Objekte im Arbeitsspeicher reserviert (alloziert) werden müssen. Diese sogenannte \textit{Allokationsfreiheit} entlastet den \glslink{garbagecollection}{Garbage Collector}.
 
 Bei \textbf{komplexen Objekten} (wie verschachtelten Mengen oder Tupeln) delegiert die Hash-Engine die Verantwortung an das Objekt selbst, indem sie schlicht \mintinline{typescript}{val.hashCode} abruft. 
 
@@ -174,13 +174,13 @@ Genau dieses Interface ist der Grund, warum sich die in Kapitel~\ref{sec:recursi
 \subsection{Speicherlayout (Structure of Arrays)}
 \label{subsec:rs-intern-speicherlayout}
 
-Ein klassischer, objektorientierter Entwurf für eine Hashtabelle würde Objekte der Form \mintinline{typescript}{{ value, hash }} anlegen. Diesen Ansatz nennt man \textit{\glslink{aos}{Array of Structures}} (\gls{aos}). Bei Tausenden von Zuständen in einem Automaten führt dies jedoch dazu, dass der Arbeitsspeicher fragmentiert. Die \gls{cpu} muss ständig an verschiedene Orte im \glslink{ram}{RAM} springen, um die Objekte zu lesen, was zusätzliche Taktzyklen erfordert.
+Ein klassischer, objektorientierter Entwurf für eine Hashtabelle würde Objekte der Form \mintinline{typescript}{{ value, hash }} anlegen. Diesen Ansatz nennt man \textit{\glslink{aos}{Array of Structures (AoS)}}. Bei Tausenden von Zuständen in einem Automaten führt dies jedoch dazu, dass der Arbeitsspeicher fragmentiert. Die \gls{cpu} muss ständig an verschiedene Orte im \glslink{ram}{RAM} springen, um die Objekte zu lesen, was zusätzliche Taktzyklen erfordert.
 
 Um die Cache-Lokalität der \glslink{cpu}{CPU} besser auszunutzen, wird von \mintinline{typescript}{RecursiveSet} ein Entwurfsmuster aus dem High-Performance-Computing implementiert:
 
 \begin{definition}
 \label{def:structure-of-arrays}
-\textbf{\glslink{soa}{Structure of Arrays} (\gls{soa_acr}):} Bei diesem Architekturmuster werden Objekte nicht als zusammenhängende Datenblöcke im Speicher abgelegt. Stattdessen werden ihre einzelnen Eigenschaften in voneinander getrennten, parallelen Arrays gespeichert. Dies verbessert die Cache-Lokalität, da die \glslink{cpu}{CPU} beim Durchsuchen einer bestimmten Eigenschaft (z.\,B. aller Hash-Werte) diese als kompakten Block am Stück aus dem Arbeitsspeicher (\gls{ram}) in den schnellen \glslink{cpu}{CPU}-Cache laden kann \autocite[161]{fabian2018data}.
+\textbf{\glslink{soa}{Structure of Arrays (SoA)}:} Bei diesem Architekturmuster werden Objekte nicht als zusammenhängende Datenblöcke im Speicher abgelegt. Stattdessen werden ihre einzelnen Eigenschaften in voneinander getrennten, parallelen Arrays gespeichert. Dies verbessert die Cache-Lokalität, da die \glslink{cpu}{CPU} beim Durchsuchen einer bestimmten Eigenschaft (z.\,B. aller Hash-Werte) diese als kompakten Block am Stück aus dem Arbeitsspeicher (\gls{ram}) in den schnellen \glslink{cpu}{CPU}-Cache laden kann \autocite[161]{fabian2018data}.
 \end{definition}
 
 \begin{listing}[ht]
@@ -242,24 +242,24 @@ Genau diese Aufgabe übernimmt die vertraglich im \mintinline{typescript}{Struct
     \caption{Die \texttt{equals}-Methode von \texttt{RecursiveSet}}
     \label{lst:rs-equals-method}
     \begin{minted}{typescript}
-    equals(other: unknown): boolean {
-        // 1. Identitäts-Kurzschluss (Referenzidentität)
-        if (this === other) return true;
-        
-        // 2. Typprüfung und Type Narrowing
-        if (!(other instanceof RecursiveSet)) return false;
-        
-        // 3. O(1) Performance-Schranken (Größe und Hash-Gleichheit)
-        if (this.size !== other.size) return false;
-        if (this.hashCode !== other.hashCode) return false;
-        
-        // 4. Tiefe strukturelle und mathematische Prüfung
-        for (const v of this._values) { 
-            if (!other.has(v)) return false; 
-        }
-        
-        return true;
+equals(other: unknown): boolean {
+    // 1. Identitäts-Kurzschluss (Referenzidentität)
+    if (this === other) return true;
+    
+    // 2. Typprüfung und Type Narrowing
+    if (!(other instanceof RecursiveSet)) return false;
+    
+    // 3. O(1) Performance-Schranken (Größe und Hash-Gleichheit)
+    if (this.size !== other.size) return false;
+    if (this.hashCode !== other.hashCode) return false;
+    
+    // 4. Tiefe strukturelle und mathematische Prüfung
+    for (const v of this._values) { 
+        if (!other.has(v)) return false; 
     }
+    
+    return true;
+}
     \end{minted}
 \end{listing}
 
@@ -410,7 +410,7 @@ Dieser Algorithmus ist ein typisches Beispiel für hardwarenahe Optimierung in T
 \begin{enumerate}
     \item \textbf{Start der Sondierung (Zeile 2):} Der Algorithmus startet nicht bei der Lücke (\mintinline{typescript}{holeIdx}), sondern prüft direkt den ersten rechten Nachbarn. Das bitweise UND (\mintinline{typescript}{& this._mask}) sichert auch hier den zirkulären Wrap-around ab, falls die Lücke am äußersten Ende des Arrays lag.
     
-    \item \textbf{Abbruchbedingung und Dereferenzierung (Zeile 4–7):} Die Schleife iteriert, bis sie auf einen nativ leeren Slot (\texttt{0}). Ist ein Slot belegt, wird der 1-basierte Verweis (\mintinline{typescript}{entry}) wieder in den 0-basierten Index (\mintinline{typescript}{valPtr}) für das dichte \mintinline{typescript}{_hashes}-Array umgerechnet, um den Hash-Wert des aktuellen Elements auszulesen.
+    \item \textbf{Abbruchbedingung und Dereferenzierung (Zeile 4–7):} Die Schleife iteriert, bis sie auf einen nativ leeren Slot (\texttt{0}) trifft. Ist ein Slot belegt, wird der 1-basierte Verweis (\mintinline{typescript}{entry}) wieder in den 0-basierten Index (\mintinline{typescript}{valPtr}) für das dichte \mintinline{typescript}{_hashes}-Array umgerechnet, um den Hash-Wert des aktuellen Elements auszulesen.
     
     \item \textbf{Ideal-Slot und zirkuläre Distanz-Metrik (Zeile 9–13):} In Zeile 9 wird berechnet, an welchem Index das Element ursprünglich hätte landen sollen (\mintinline{typescript}{idealIdx}). Danach folgt der mathematische Kern: Wie weit ist das Element aktuell von seinem Ideal-Slot entfernt (\mintinline{typescript}{distToI}) und wie weit wäre es entfernt, wenn es in die Lücke rutschen würde (\mintinline{typescript}{distToHole})? 
     
