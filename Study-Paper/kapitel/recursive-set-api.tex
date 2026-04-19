@@ -237,13 +237,13 @@ outerSet.add(innerSet); // innerSet wird hier automatisch eingefroren
     \end{minted}
 \end{listing}
 
-Soll ein fixierter Wert dennoch als Ausgangspunkt für weitere Berechnungen dienen, muss eine veränderliche Kopie erzeugt werden. Die Bibliothek stellt hierfür \mintinline{typescript}{mutableCopy()} beziehungsweise \mintinline{typescript}{clone()} bereit (siehe Listing~\ref{lst:rs_mutable_copy}). 
+Soll ein fixierter Wert dennoch als Ausgangspunkt für weitere Berechnungen dienen, muss eine veränderliche Kopie erzeugt werden. Die Bibliothek stellt hierfür \mintinline{typescript}{mutableCopy()} bereit (siehe Listing~\ref{lst:rs_mutable_copy}). 
 
 \begin{listing}[ht]
     \caption{Arbeiten mit einer veränderlichen Kopie}
     \label{lst:rs_mutable_copy}
     \begin{minted}{typescript}
-const workingCopy = innerSet.mutableCopy(); // alternativ: innerSet.clone()
+const workingCopy = innerSet.mutableCopy();
 workingCopy.add(3);
 
 console.log(innerSet);    // {1, 2} (Original bleibt fixiert)
@@ -511,8 +511,12 @@ const oddTens = mixedNumbers.filterMap(
     \end{minted}
 \end{listing}
 
-\paragraph{Verschachtelte Konstruktionen mit \texttt{flatMap}}
-Wenn jedem Eingabewert eine Menge von Ergebnissen zugeordnet wird, fasst \mintinline{typescript}{flatMap} diese Teilmengen zu einer Gesamtmenge zusammen (\(\mathrm{flatMap}(A, f) = \bigcup_{x \in A} f(x)\)). Listing~\ref{lst:rs_nested_python} zeigt zunächst die verschachtelte Python-Komprehension.
+\paragraph{Verschachtelte Konstruktionen mit \mintinline{typescript}{flatMap}}
+Wenn jedem Eingabewert nicht nur ein einzelnes Ergebnis, sondern gleich eine ganze Menge von Ergebnissen zugeordnet wird, müssen diese Teilmengen am Ende zu einer Gesamtmenge zusammengefasst werden. Mathematisch lässt sich dies als
+\[
+\mathrm{flatMap}(A, f) = \bigcup_{x \in A} f(x)
+\]
+schreiben. Dabei ist \(A\) die Eingabemenge und \(f\) eine Funktion, die jedem Element \(x \in A\) wieder eine Menge von Ergebnissen zuordnet. Listing~\ref{lst:rs_nested_python} zeigt zunächst die verschachtelte Python-Komprehension.
 
 \begin{listing}[ht]
     \caption{Python: Verschachtelte Mengenkomprehension}
@@ -526,10 +530,12 @@ integer_set |= expanded_set
     \end{minted}
 \end{listing}
 
-In TypeScript flacht die Methode \mintinline{typescript}{flatMap} die entstehenden Teilmengen direkt in das aufrufende \mintinline{typescript}{integerSet} ab.
+Für jede Zahl \mintinline{python}{n} aus \mintinline{python}{natural_numbers} entstehen hier zwei neue Werte, nämlich \mintinline{python}{n} und \mintinline{python}{-n}. Die Komprehension sammelt alle diese Werte zunächst in \mintinline{python}{expanded_set}. Erst danach werden sie mit \mintinline{python}{integer_set |= expanded_set} in die Zielmenge übernommen.
+
+In TypeScript übernimmt \mintinline{typescript}{flatMap} genau diese beiden Schritte in einer einzigen Operation.
 
 \begin{listing}[ht]
-    \caption{Verschachtelte Konstruktion mit \texttt{flatMap}}
+    \caption{Verschachtelte Konstruktion mit \mintinline{typescript}{flatMap}}
     \label{lst:rs_flatmap_ts}
     \begin{minted}{typescript}
 const integerSet = new RecursiveSet<number>(0);
@@ -542,11 +548,45 @@ integerSet.flatMap(
     \end{minted}
 \end{listing}
 
-\paragraph{Aggregation mit \texttt{reduce}}
-Während die bisher betrachteten Operationen Mengen erzeugen oder logische Aussagen liefern, fasst \mintinline{typescript}{reduce} alle Elemente zu einem einzelnen Wert zusammen (\(\sum_{x \in A} x\)). 
+Auch hier bleibt die mathematische Idee dieselbe: Aus jedem Element der Eingabe entsteht eine Teilmenge, und diese Teilmengen werden vereinigt. In der mathematischen Definition taucht das Zielobjekt jedoch nicht auf, weil dort nur beschrieben wird, welches Ergebnis aus \(A\) und \(f\) entsteht.
+
+In der Implementierung kommt zusätzlich die Frage hinzu, \emph{wohin} dieses Ergebnis geschrieben wird. Genau dafür gibt es das aufrufende Objekt, also das implizite \mintinline{typescript}{this}. In Listing~\ref{lst:rs_flatmap_ts} ist dieses Zielobjekt \mintinline{typescript}{integerSet}. Das erste übergebene Argument \mintinline{typescript}{naturalNumbers} liefert nur die Eingabewerte, die übergebene Funktion \mintinline{typescript}{n => new RecursiveSet<number>(n, -n)} erzeugt für jeden dieser Werte die passende Teilmenge.
+
+Als Zustandsänderung der Zielmenge kann man den Methodenaufruf daher auch so lesen:
+\[
+T.\mathrm{flatMap}(A, f) : T \leftarrow T \cup \bigcup_{x \in A} f(x)
+\]
+Dabei steht \(T\) für die Menge, auf der die Methode aufgerufen wird. Der Name \mintinline{typescript}{flatMap} beschreibt damit genau, was geschieht: Zuerst werden Elemente auf Teilmengen abgebildet, danach werden diese Teilmengen direkt in die Zielmenge abgeflacht.
+
+\paragraph{Aggregation mit \mintinline{typescript}{reduce}}
+Die bisher betrachteten Operationen unterscheiden sich in ihrer Wirkung auf die Datenstruktur. Während \mintinline{typescript}{filter} und \mintinline{typescript}{map} aus einer Ausgangsmenge neue Ergebnismengen ableiten, arbeitet \mintinline{typescript}{flatMap} in der vorliegenden \gls{api} imperativ auf der aufrufenden Zielmenge. Die durch die Abbildung entstehenden Teilmengen werden dabei unmittelbar in diese Zielmenge eingefügt. \mintinline{typescript}{reduce} geht noch einen Schritt weiter und verlässt den mengenbildenden Zusammenhang vollständig, indem alle durchlaufenen Elemente zu einem einzelnen Wert zusammengefasst werden.
+
+Allgemein arbeitet \mintinline{typescript}{reduce} mit einem Akkumulator, einer Verknüpfungsfunktion und einem Startwert. Für eine Folge \(x_1, \dots, x_n\), eine Verknüpfung \(\oplus\) und einen Startwert \(z\) ergibt sich
+\[
+\mathrm{reduce}(x_1, \dots, x_n, \oplus, z)
+=
+(\dots ((z \oplus x_1) \oplus x_2) \dots \oplus x_n)
+\]
+
+Bevor die funktionale Schreibweise betrachtet wird, hilft ein Blick auf die entsprechende iterative Form.
 
 \begin{listing}[ht]
-    \caption{Aggregation mit \texttt{reduce}}
+    \caption{Iterative Aggregation in TypeScript}
+    \label{lst:rs_reduce_iterative_ts}
+    \begin{minted}{typescript}
+const costs = new RecursiveSet<number>(10, 20, 30);
+
+let totalSum = 0;
+for (const cost of costs) {
+  totalSum += cost;
+}
+    \end{minted}
+\end{listing}
+
+Die Variable \mintinline{typescript}{totalSum} übernimmt hier die Rolle des Akkumulators. Sie wird mit \mintinline{typescript}{0} initialisiert und dann in jedem Schleifendurchlauf mit dem aktuellen Wert kombiniert. Genau dieses Muster kapselt \mintinline{typescript}{reduce} in einer einzigen Methode.
+
+\begin{listing}[ht]
+    \caption{Aggregation mit \mintinline{typescript}{reduce}}
     \label{lst:rs_reduce_ts}
     \begin{minted}{typescript}
 const costs = new RecursiveSet<number>(10, 20, 30);
@@ -555,4 +595,8 @@ const totalSum = costs.reduce((acc, current) => acc + current, 0); // 60
     \end{minted}
 \end{listing}
 
-Die native Komprehensionssyntax wird somit durch eine \gls{api} funktionaler Operationen abgebildet, deren Bedeutung sich direkt auf die mathematische Notation übertragen lässt.
+Auch hier wird auf dem aufrufenden Objekt gearbeitet, also auf \mintinline{typescript}{costs}. Die Methode durchläuft intern alle Elemente dieser Menge und führt den Akkumulator Schritt für Schritt fort. Die Funktion \mintinline{typescript}{(acc, current) => acc + current} legt fest, wie der bisherige Zwischenstand \mintinline{typescript}{acc} mit dem aktuellen Element \mintinline{typescript}{current} kombiniert wird. Das zweite Argument \mintinline{typescript}{0} ist der Startwert des Akkumulators.
+
+Die funktionale Schreibweise ist damit keine neue Fachlogik, sondern dieselbe Rechnung in kompakter Form. Während die Schleife den Zwischenstand sichtbar fortschreibt, übergibt \mintinline{typescript}{reduce} diesen Ablauf an die Bibliotheksmethode. Das Ergebnis ist in beiden Fällen gleich: Aus allen Elementen der Menge wird ein einzelner Gesamtwert berechnet.
+
+Die native Komprehensionssyntax wird somit durch eine \gls{api} funktionaler Operationen ersetzt. Diese Operationen orientieren sich eng an der mathematischen Notation, machen in TypeScript aber zugleich sichtbar, auf welcher Datenstruktur jeweils gearbeitet wird.
