@@ -115,22 +115,38 @@ Durch die expliziten Typannotationen wird die Signatur, also die formale Schnitt
 \subsubsection{Herausforderungen einer naiven Code-Migration}
 \label{subsubsec:naive-uebersetzung}
 
-Eine reine Portierung von Python-Code nach TypeScript führt nicht automatisch zu echter Typsicherheit. Da TypeScript als Obermenge von JavaScript konzipiert ist, lässt sich bestehender Python-Code häufig fast unverändert (lediglich mit geänderter Syntax) übernehmen, bleibt im Kern jedoch reines JavaScript. Listing~\ref{lst:ts-naive-translation} demonstriert eine solche naive Übersetzung.
+Eine reine Portierung von Python-Code nach TypeScript führt nicht automatisch zu echter Typsicherheit. Da TypeScript als Obermenge von JavaScript konzipiert ist, lässt sich bestehender Code häufig fast unverändert (lediglich mit angepasster Syntax) übernehmen. Der resultierende Code bleibt im Kern jedoch untypisiertes JavaScript. 
+
+Listing~\ref{lst:py-naive-original} zeigt eine einfache Hilfsfunktion, die einen String \mintinline{python3}|id| mit einem Präfix versehen soll. In Python führt der Versuch, eine Liste oder Zahl mit dem \mintinline{python}{+}-Operator an einen String anzuhängen, unmittelbar zu einem \mintinline{python}{TypeError}. Python zwingt Entwickelnde dazu, solche Typkonflikte im Code explizit aufzulösen.
 
 \begin{listing}[htbp]
-    \caption{Naive Übersetzung einer Funktion nach TypeScript}
+    \caption{Fehlschlagende String-Konkatenation in Python}
+    \label{lst:py-naive-original}
+    \begin{minted}{python}
+def format_user_id(id):
+    return "User_" + id 
+
+print(format_user_id("admin"))  # User_admin
+print(format_user_id([1,2,3]))  # TypeError
+    \end{minted}
+\end{listing}
+
+Listing~\ref{lst:ts-naive-translation} demonstriert die direkte, naive Übersetzung dieser Logik nach TypeScript.
+
+\begin{listing}[htbp]
+    \caption{Naive Übersetzung nach TypeScript}
     \label{lst:ts-naive-translation}
     \begin{minted}{typescript}
 function formatUserId(id) {
     return "User_" + id;
 }
-console.log(formatUserId(5));
-console.log(formatUserId("admin"));
-console.log(formatUserId([1, 2, 3]));
+
+console.log(formatUserId("admin"));    // User_admin
+console.log(formatUserId([1, 2, 3]));  // User_1,2,3
     \end{minted}
 \end{listing}
 
-Die Funktion kompiliert ohne Fehlermeldung, verarbeitet aber völlig unterschiedslos Zahlen, Strings und Arrays. Die Absicht, hier die Formatierung einer numerischen Nutzer-ID, geht komplett verloren. Ein solcher Code ist zwar formal TypeScript, inhaltlich bewahrt er jedoch die Fehleranfälligkeit der dynamischen Programmierung.
+Die TypeScript-Funktion kompiliert ohne jegliche Warnung und stürzt auch zur Laufzeit auch mit einem Array als Eingabe nicht ab. Die fachliche Absicht geht verloren. Eine solche unstrukturierte Migration bewahrt somit nicht nur die Fehleranfälligkeit der dynamischen Programmierung, sondern verschlimmert sie, da Typenkonflikte, die in Python noch zum sofortigen Absturz geführt hätten, in TypeScript lautlos maskiert werden.
 
 \paragraph{Dynamische Typprüfung zur Laufzeit}
 \label{par:typen-zur-laufzeit-erkennen}
@@ -177,7 +193,6 @@ Wie Listing~\ref{lst:ts-any-loch} verdeutlicht, kann \mintinline{typescript}{any
 let value: any = [1, 2, 3];
 console.log(value.toUpperCase());       // stürzt zur Laufzeit ab
 console.log(value * 2);                 // ergibt NaN
-console.log(value.notExistingMethod()); // stürzt zur Laufzeit ab
     \end{minted}
 \end{listing}
 
@@ -187,31 +202,34 @@ Ein typsicheres Programm müsste validieren, ob \mintinline{text}{value} überha
 \paragraph{Gefahren der impliziten Typkonvertierung (Koerzision)}
 \label{par:implizite-umwandlung}
 
-Ein weiteres Risiko schlecht typisierten TypeScript-Codes ist die sogenannte \textit{Koerzision} (implizite Typumwandlung). Python verlangt für fast alle Operationen explizite Umwandlungen, wie Listing~\ref{lst:python-explicit-conversion} zeigt.
+Ein weiteres Risiko schlecht typisierten TypeScript-Codes ist die sogenannte \textit{Koerzision} (implizite Typumwandlung). Python verlangt für das Mischen verschiedener Datentypen in der Regel explizite Umwandlungen, wie Listing~\ref{lst:python-explicit-conversion} zeigt.
 
 \begin{listing}[htbp]
     \caption{Explizite Umwandlung in Python}
     \label{lst:python-explicit-conversion}
     \begin{minted}{python}
 values = [1, 2, 3]
-text = str(values)
-print(text)        # "[1, 2, 3]"
+
+print("Werte: " + values)       # Führt sofort zu einem TypeError!
+print("Werte: " + str(values)) # "Werte: [1, 2, 3]"
     \end{minted}
 \end{listing}
 
-JavaScript (und untypisiertes TypeScript) ist an dieser Stelle nachgiebiger und erzwingt oft stillschweigende Umwandlungen, sobald ein Operator dies nahelegt. Listing~\ref{lst:js-implicit-conversion} stellt dieses Verhalten der expliziten Umwandlung gegenüber.
+JavaScript (und untypisiertes TypeScript) ist an dieser Stelle deutlich nachgiebiger und erzwingt oft stillschweigende Umwandlungen, sobald ein Operator dies nahelegt. Listing~\ref{lst:js-implicit-conversion} stellt dieses Verhalten der expliziten Umwandlung gegenüber.
 
 \begin{listing}[htbp]
     \caption{Implizite und explizite Umwandlung in JavaScript}
     \label{lst:js-implicit-conversion}
     \begin{minted}{javascript}
 const values = [1, 2, 3];
-const implicitText = values + "";    // Koerzision
-const explicitText = String(values); // Explizite Umwandlung
-console.log(implicitText);           // "1,2,3"
+
+// Implizite Umwandlung (Koerzision) durch den +-Operator
+console.log("Werte: " + values);         // "Werte: 1,2,3"
+
+// Explizite Umwandlung (Sichere Alternative)
+console.log("Werte: " + String(values)); // "Werte: 1,2,3"
     \end{minted}
 \end{listing}
-
 
 \paragraph{\glslink{typeassertion}{Type Assertions} als trügerische Compiler-Anweisung}
 \label{par:as-in-typescript}
