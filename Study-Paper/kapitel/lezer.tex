@@ -233,9 +233,9 @@ Ein Verfahren der \glslink{ast_acr}{AST}-Konstruktion, bei dem ein im \glslink{c
 \end{definition}
 
 \begin{definition}
-\label{def:listen-faltung}
-\textbf{\glslink{listenfaltung}{Listen-Faltung} (\texttt{myListVars}):}
-Die Umwandlung einer flachen Folge von Elementen in eine rekursiv verschachtelte Listenstruktur. Diese Darstellungsform orientiert sich an klassischen Konzepten der funktionalen Programmierung (sogenannten \textit{Cons-Zellen}). Anstatt Elemente in einem flachen Array (z.\,B. \texttt{[A, B, C]}) zu belassen, werden sie systematisch in verschachtelte Tupel der Form \texttt{["\textperiodcentered", Kopf, Rest]} überführt (z.\,B. \texttt{["\textperiodcentered", A, ["\textperiodcentered", B, ...]]}). Der \textit{Kopf} (Head) enthält das aktuelle Element, der \textit{Rest} (Tail) den rekursiven Verweis auf die restliche Liste. Bezeichner aus \texttt{myListVars} lösen diese Faltung aus, da sie die Rechtsrekursion formaler Grammatiken natürlich abbildet und die spätere rekursive Auswertung im Interpreter stark vereinfacht.
+\label{def:cons-kodierung}
+\textbf{\glslink{conskodierung}{Cons-Kodierung} (\texttt{myListVars}):}
+Die Umwandlung einer flachen Folge von Elementen in eine rekursiv verschachtelte Listenstruktur. Diese Darstellungsform orientiert sich an klassischen Konzepten der funktionalen Programmierung, bei denen Listen als rekursiver Datentyp aus Kopf und Rest modelliert werden (sogenannte \textit{Cons-Zellen}). Anstatt Elemente in einem flachen Array (z.\,B. \texttt{[A, B, C]}) zu belassen, werden sie systematisch in verschachtelte Tupel der Form \texttt{["\textperiodcentered", Kopf, Rest]} überführt (z.\,B. \texttt{["\textperiodcentered", A, ["\textperiodcentered", B, ...]]}). Der \textit{Kopf} (Head) enthält das aktuelle Element, der \textit{Rest} (Tail) den rekursiven Verweis auf die verbleibende Liste. Bezeichner aus \texttt{myListVars} lösen diese Kodierung aus, da sie die Rechtsrekursion formaler Grammatiken natürlich abbildet und die spätere rekursive Auswertung im Interpreter stark vereinfacht.
 \end{definition}
 
 \paragraph{Transformation in das projektspezifische \glslink{ast_acr}{AST}-Format}
