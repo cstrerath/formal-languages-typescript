@@ -24,7 +24,9 @@ Die lexikalische Analyse (durchgeführt vom \textit{Lexer}) ist der erste Verarb
     Die Grammatik der Sprache wird als Menge von Produktionsregeln formuliert. \emph{\glslink{ply}{PLY}} generiert daraus einen Parser, der auf LR-Parsing-Techniken basiert. Diese Verfahren lesen die Eingabe von links nach rechts und konstruieren eine rechtsableitende Analyse, wodurch Programmiersprachen deterministisch verarbeitet werden können.
 \end{itemize}
 
-Ein charakteristisches Merkmal von \emph{\glslink{ply}{PLY}} besteht darin, dass Token-Definitionen und Grammatikregeln unmittelbar im ausführbaren Python-Code formuliert werden (siehe Listing~\ref{lst:python-ply-grammatik}). Produktionsregeln erscheinen dabei als gewöhnliche Python-Funktionen. Die eigentliche Grammatikregel wird dem Parsergenerator über den zugehörigen \textit{Docstring} übermittelt.
+Ein charakteristisches Merkmal von \emph{\glslink{ply}{PLY}} besteht darin, dass sowohl die Token-Definitionen für die lexikalische Analyse als auch die Grammatikregeln für das Parsing unmittelbar im ausführbaren Python-Code formuliert werden (siehe Listing~\ref{lst:python-ply-grammatik}). Token-Muster werden dabei als Konstanten oder reguläre Python-Funktionen definiert.
+
+Auch die Produktionsregeln des Parsers erscheinen in PLY als gewöhnliche Python-Funktionen. Die eigentliche Grammatikregel wird dem Parsergenerator dabei auf ungewöhnliche, aber für PLY typische Weise über den zugehörigen \textit{Docstring} der Funktion übermittelt.
 
 \begin{definition}
 \label{def:docstring}
@@ -35,17 +37,23 @@ In Python ist ein Docstring eine Zeichenkette, die direkt nach der Definition ei
 Dieser Ansatz erspart zwar separate Grammatikdateien, ist im Lehrkontext jedoch nicht immer ideal. In der Theoretischen Informatik werden kontextfreie Grammatiken üblicherweise in einer kompakten formalen Notation wie der \textit{\glslink{ebnf}{Erweiterten Backus-Naur-Form}} (\glslink{ebnf}{EBNF}) beschrieben. \emph{\glslink{ply}{PLY}} verteilt diese Regeln dagegen über einzelne Python-Funktionen und bindet den eigentlichen Regeltext an deren Docstrings. Dadurch tritt die formale Struktur der Grammatik im Quelltext weniger geschlossen hervor.
 
 \begin{listing}[htbp]
-    \caption{Ply-Grammatik in Python}
+    \caption{Scanner- und Parser-Regeln in PLY (Python)}
     \label{lst:python-ply-grammatik}
 \begin{minted}{python}
 tokens = ('NUMBER', 'PLUS')
 
+# --- Scanner-Regeln ---
 t_PLUS = r'\+'
 
 def t_NUMBER(t):
     r'\d+'
     t.value = int(t.value)
     return t
+
+# --- Parser-Regeln (Grammatik) ---
+def p_expression_add(p):
+    '''expression : expression PLUS expression'''
+    p[0] = p[1] + p[3]
 \end{minted}
 \end{listing}
 
@@ -61,10 +69,10 @@ Ein wesentlicher Vorzug dieses Frameworks liegt in der Art der Sprachspezifikati
 Die \glslink{ebnf}{EBNF} ist eine formale Metasprache zur Beschreibung kontextfreier Grammatiken. Sie erweitert die klassische BNF um kompakte Notationsmittel für Wiederholungen, Alternativen, optionale Elemente und Gruppierungen. Dadurch lassen sich Syntaxregeln präziser und übersichtlicher formulieren.
 \end{definition}
 
-Wie Listing~\ref{lst:typescript-lezer-grammatik} zeigt, ermöglicht \emph{Lezer} eine Formulierung der Grammatikregeln, die – bei geeigneter Strukturierung – in weiten Teilen an die \glslink{ebnf}{EBNF}-nahe Darstellung aus der theoretischen Informatik anschließt:
+Wie Listing~\ref{lst:typescript-lezer-grammatik} zeigt, ermöglicht \emph{Lezer} eine Formulierung der Grammatikregeln, die, bei geeigneter Strukturierung, in weiten Teilen an die \glslink{ebnf}{EBNF}-nahe Darstellung aus der theoretischen Informatik anschließt:
 
 \begin{listing}[htbp]
-    \caption{Lezer-Grammatik in TypeScript}
+    \caption{Ausschnitt einer Grammatik-Regel in Lezer}
     \label{lst:typescript-lezer-grammatik}
 \begin{minted}{typescript}
 @top Expression { Add }
