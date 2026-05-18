@@ -237,13 +237,13 @@ outerSet.add(innerSet); // innerSet wird hier automatisch eingefroren
     \end{minted}
 \end{listing}
 
-Soll ein fixierter Wert dennoch als Ausgangspunkt für weitere Berechnungen dienen, muss eine veränderliche Kopie erzeugt werden. Die Bibliothek stellt hierfür \mintinline{typescript}{mutableCopy()} bereit (siehe Listing~\ref{lst:rs_mutable_copy}). 
+Soll ein fixierter Wert dennoch als Ausgangspunkt für weitere Berechnungen dienen, muss eine veränderliche Kopie erzeugt werden. Die Bibliothek stellt hierfür \mintinline{typescript}{clone()} bereit (siehe Listing~\ref{lst:rs_mutable_copy}). 
 
 \begin{listing}[ht]
     \caption{Arbeiten mit einer veränderlichen Kopie}
     \label{lst:rs_mutable_copy}
     \begin{minted}{typescript}
-const workingCopy = innerSet.mutableCopy();
+const workingCopy = innerSet.clone();
 workingCopy.add(3);
 
 console.log(innerSet);    // {1, 2} (Original bleibt fixiert)
